@@ -28,4 +28,5 @@
     <string name="answers_header">Lời giải (3)</string>
     <string name="hint_answer">Nhập câu trả lời của bạn...</string>
     <string name="btn_send">Gửi</string>
+    <string name="notifications">Thông báo</string>
 </resources>
