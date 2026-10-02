@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">EngQA</string>
+
+    <!-- Screen 1: Đặt câu hỏi -->
+    <string name="ask_title">Đặt câu hỏi</string>
+    <string name="label_title">Tiêu đề *</string>
+    <string name="hint_title">Nhập tiêu đề câu hỏi...</string>
+    <string name="label_description">Mô tả chi tiết *</string>
+    <string name="hint_description">Mô tả câu hỏi tiếng Anh của bạn...</string>
+    <string name="label_images">Hình ảnh (không bắt buộc)</string>
+    <string name="btn_attach_image">+  Đính kèm ảnh</string>
+    <string name="btn_take_photo">Chụp ảnh</string>
+    <string name="image_note">JPG/PNG, tối đa 5MB mỗi ảnh</string>
+    <string name="label_tag">Tag / Chủ đề *</string>
+    <string name="hint_tag">Chọn tag (Ngữ pháp, Từ vựng...)</string>
+    <string name="btn_post_question">Đăng câu hỏi</string>
+
+    <!-- Screen 2: Chi tiết câu hỏi -->
+    <string name="detail_title">Chi tiết câu hỏi</string>
+    <string name="back">Quay lại</string>
+    <string name="question_avatar">M</string>
+    <string name="question_user">minh_anh</string>
+    <string name="question_time">2 giờ trước</string>
+    <string name="question_category">Ngữ pháp</string>
+    <string name="question_title">Khi nào dùng \"has been\" và \"have been\"?</string>
+    <string name="question_body">Mình hay nhầm hai cấu trúc này khi viết câu. Bạn nào giải thích giúp mình với ví dụ được không?</string>
+    <string name="attachment_placeholder">Ảnh đính kèm (chạm để phóng to)</string>
+    <string name="answers_header">Lời giải (3)</string>
+    <string name="hint_answer">Nhập câu trả lời của bạn...</string>
+    <string name="btn_send">Gửi</string>
+</resources>

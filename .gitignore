@@ -1,0 +1,58 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android build files
+.gradle/
+build/
+*/build/
+
+# Gradle
+gradle-app.setting
+gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+
+# Android Studio caches
+.navigation/
+.cxx/
+.externalNativeBuild/
+
+# Generated files
+captures/
+.externalNativeBuild/
+*.apk
+*.aab
+
+# Kotlin
+.kotlin/
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Firebase / Google services
+# Uncomment if these files contain private project credentials
+# google-services.json
+
+# Keystore / signing files
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
