@@ -18,7 +18,7 @@ import androidx.core.view.WindowInsetsCompat;
 /**
  * Interface 2 - "Chi tiết câu hỏi" (question detail screen). UI prototype with static data.
  */
-public class QuestionDetailActivity extends AppCompatActivity {
+public class QuestionDetailActivity extends BaseNavActivity {
 
     /** avatar, username, time, text, upvotes */
     private static final String[][] ANSWERS = {
@@ -51,6 +51,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         findViewById(R.id.attachmentPlaceholder).setOnClickListener(v -> toast("Phóng to ảnh (chưa triển khai)"));
         // TODO: submit answer
         findViewById(R.id.btnSend).setOnClickListener(v -> toast("Gửi câu trả lời (chưa triển khai)"));
+        bindBottomNav();
 
         LinearLayout list = findViewById(R.id.answerList);
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -66,6 +67,11 @@ public class QuestionDetailActivity extends AppCompatActivity {
             upvote.setOnClickListener(v -> toast("Upvote (chưa triển khai)"));
             list.addView(item);
         }
+    }
+
+    @Override
+    protected int selectedNavItem() {
+        return NAV_HOME;
     }
 
     private void toast(String message) {
