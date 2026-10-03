@@ -29,4 +29,13 @@
     <string name="hint_answer">Nhập câu trả lời của bạn...</string>
     <string name="btn_send">Gửi</string>
     <string name="notifications">Thông báo</string>
+
+    <!-- Screen 3: Can't connect to the server -->
+    <string name="server_error_title">Uh oh! Can’t connect to the server</string>
+    <string name="server_error_code">Error: I(@U*(W&amp;YSdhyju1</string>
+    <string name="nav_home">home</string>
+    <string name="nav_ask">ask</string>
+    <string name="nav_profile">profile</string>
+    <string name="server_error_illustration">Không thể kết nối tới máy chủ</string>
+    <string name="profile_soon">Hồ sơ cá nhân (chưa triển khai)</string>
 </resources>
