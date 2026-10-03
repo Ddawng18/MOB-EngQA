@@ -165,4 +165,10 @@
             android:textSize="15sp"
             android:textStyle="bold" />
     </FrameLayout>
+
+    <include
+        android:id="@+id/bottomNav"
+        layout="@layout/view_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="68dp" />
 </LinearLayout>

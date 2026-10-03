@@ -21,7 +21,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-public class HomeActivity extends AppCompatActivity {
+public class HomeActivity extends BaseNavActivity {
 
     private LinearLayout questionList;
     private EditText searchInput;
@@ -74,12 +74,16 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.btnAsk).setOnClickListener(view ->
-                startActivity(new Intent(this, MainActivity.class)));
+        bindBottomNav();
         findViewById(R.id.btnProfile).setOnClickListener(view ->
                 startActivity(new Intent(this, LoginActivity.class)));
         findViewById(R.id.btnNotifications).setOnClickListener(view ->
                 toast("Thông báo (chưa triển khai)"));
+    }
+
+    @Override
+    protected int selectedNavItem() {
+        return NAV_HOME;
     }
 
     @Override
@@ -118,6 +122,7 @@ public class HomeActivity extends AppCompatActivity {
     private void showServerError() {
         Intent intent = new Intent(this, ServerErrorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra(ServerErrorActivity.EXTRA_AUTO_RETRY, true);
         startActivity(intent);
         finish();
     }

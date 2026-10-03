@@ -21,7 +21,7 @@ import androidx.core.view.WindowInsetsCompat;
 /**
  * Interface 1 - "Đặt câu hỏi" (question creation screen). UI prototype only.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends BaseNavActivity {
 
     private EditText etTitle;
     private EditText etDescription;
@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         setupTagSpinner();
+        bindBottomNav();
 
         // TODO: open gallery picker
         btnAttachImage.setOnClickListener(v -> toast("Đính kèm ảnh (chưa triển khai)"));
@@ -61,6 +62,11 @@ public class MainActivity extends AppCompatActivity {
         // TODO: submit question. For now it just opens Interface 2 so both screens can be inspected.
         btnPostQuestion.setOnClickListener(v ->
                 startActivity(new Intent(this, QuestionDetailActivity.class)));
+    }
+
+    @Override
+    protected int selectedNavItem() {
+        return NAV_ASK;
     }
 
     /** First entry is the hint; it is shown in the placeholder (grey) colour. */

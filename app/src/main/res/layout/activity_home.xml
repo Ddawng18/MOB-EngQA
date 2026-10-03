@@ -162,28 +162,9 @@
         </LinearLayout>
     </ScrollView>
 
-    <LinearLayout
+    <include
+        android:id="@+id/bottomNav"
+        layout="@layout/view_bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="68dp"
-        android:background="@drawable/bg_bottom_bar"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
-
-        <TextView
-            android:id="@+id/btnHome"
-            style="@style/HomeNavItem.Active"
-            android:text="⌂\nTrang chủ" />
-
-        <TextView
-            android:id="@+id/btnAsk"
-            style="@style/HomeNavItem"
-            android:text="＋\nĐặt câu hỏi" />
-
-        <TextView
-            android:id="@+id/btnSaved"
-            style="@style/HomeNavItem"
-            android:text="☆\nĐã lưu" />
-    </LinearLayout>
+        android:layout_height="68dp" />
 </LinearLayout>

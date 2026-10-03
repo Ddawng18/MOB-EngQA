@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared bottom navigation bar used by every main-flow screen. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="68dp"
+    android:background="@drawable/bg_bottom_bar"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
+
+    <TextView
+        android:id="@+id/navHome"
+        style="@style/HomeNavItem"
+        android:text="⌂\nTrang chủ" />
+
+    <TextView
+        android:id="@+id/navAsk"
+        style="@style/HomeNavItem"
+        android:text="＋\nĐặt câu hỏi" />
+
+    <TextView
+        android:id="@+id/navSaved"
+        style="@style/HomeNavItem"
+        android:text="☆\nĐã lưu" />
+</LinearLayout>
