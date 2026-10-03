@@ -67,7 +67,7 @@ public class HomeActivity extends AppCompatActivity {
         findViewById(R.id.btnAsk).setOnClickListener(view ->
                 startActivity(new Intent(this, MainActivity.class)));
         findViewById(R.id.btnProfile).setOnClickListener(view ->
-                toast("Hồ sơ cá nhân (chưa triển khai)"));
+                startActivity(new Intent(this, LoginActivity.class)));
         findViewById(R.id.btnNotifications).setOnClickListener(view ->
                 toast("Thông báo (chưa triển khai)"));
     }

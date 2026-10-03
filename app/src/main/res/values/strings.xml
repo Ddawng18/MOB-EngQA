@@ -38,4 +38,22 @@
     <string name="nav_profile">profile</string>
     <string name="server_error_illustration">Không thể kết nối tới máy chủ</string>
     <string name="profile_soon">Hồ sơ cá nhân (chưa triển khai)</string>
+
+    <!-- Auth Flow -->
+    <string name="login_title">Đăng Nhập</string>
+    <string name="register_title">Đăng ký</string>
+    <string name="hint_email">Email</string>
+    <string name="hint_password">Mật khẩu</string>
+    <string name="hint_confirm_password">Xác nhận mật khẩu</string>
+    <string name="btn_login">Đăng nhập</string>
+    <string name="btn_register">Tiếp tục</string>
+    <string name="or">Hoặc</string>
+    <string name="btn_phone">Tiếp tục với số điện thoại</string>
+    <string name="btn_google">Tiếp tục với Google</string>
+    <string name="terms_text">Bằng việc tiếp tục, bạn đồng ý với &lt;a href=\"terms\">Thỏa thuận người dùng&lt;/a> của chúng tôi, đồng thời xác nhận rằng bạn hiểu rõ &lt;a href=\"privacy\">Chính sách quyền riêng tư&lt;/a> của chúng tôi.</string>
+    <string name="forgot_password">Bạn quên mật khẩu ?</string>
+    <string name="have_account">Đã có tài khoản? </string>
+    <string name="go_login">đăng nhập</string>
+    <string name="no_account">Chưa có tài khoản? </string>
+    <string name="go_register">Đăng ký</string>
 </resources>
