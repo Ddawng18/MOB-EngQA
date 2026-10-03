@@ -80,6 +80,7 @@ public class RegisterActivity extends AppCompatActivity {
             }
 
             Toast.makeText(this, "Đăng ký thành công", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, ChooseLevelActivity.class));
             finish();
         });
 
