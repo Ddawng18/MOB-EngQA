@@ -1,6 +1,10 @@
 package com.example.engqa;
 
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -22,6 +26,8 @@ public class HomeActivity extends AppCompatActivity {
     private LinearLayout questionList;
     private EditText searchInput;
     private TextView emptyState;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
 
     private static final String[][] QUESTIONS = {
             {"M", "minh_anh", "2 giờ trước", "Ngữ pháp", "Khi nào dùng \"has been\" và \"have been\"?", "12"},
@@ -32,6 +38,10 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!NetworkUtils.isOnline(this)) {
+            showServerError();
+            return;
+        }
         int barColor = getColor(R.color.bg_topbar);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_home);
@@ -70,6 +80,46 @@ public class HomeActivity extends AppCompatActivity {
                 startActivity(new Intent(this, LoginActivity.class)));
         findViewById(R.id.btnNotifications).setOnClickListener(view ->
                 toast("Thông báo (chưa triển khai)"));
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) {
+            return;
+        }
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onLost(Network network) {
+                runOnUiThread(() -> {
+                    if (!NetworkUtils.isOnline(HomeActivity.this)) {
+                        showServerError();
+                    }
+                });
+            }
+        };
+        connectivityManager.registerNetworkCallback(
+                new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build(),
+                networkCallback);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (connectivityManager != null && networkCallback != null) {
+            connectivityManager.unregisterNetworkCallback(networkCallback);
+            networkCallback = null;
+        }
+    }
+
+    private void showServerError() {
+        Intent intent = new Intent(this, ServerErrorActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void renderQuestions(String query) {
