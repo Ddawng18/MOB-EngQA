@@ -37,5 +37,6 @@
     <string name="nav_ask">ask</string>
     <string name="nav_profile">profile</string>
     <string name="server_error_illustration">Không thể kết nối tới máy chủ</string>
+    <string name="server_error_offline">Không có kết nối mạng. Vui lòng kiểm tra lại.</string>
     <string name="profile_soon">Hồ sơ cá nhân (chưa triển khai)</string>
 </resources>
