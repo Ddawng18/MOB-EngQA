@@ -105,21 +105,7 @@ public class HomeActivity extends AppCompatActivity {
             startActivity(new Intent(this, LoginActivity.class));
             return;
         }
-        UserDbHelper.User user = new UserDbHelper(this).findById(session.getUserId());
-        if (user == null) {
-            session.logout();
-            startActivity(new Intent(this, LoginActivity.class));
-            return;
-        }
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(user.username)
-                .setMessage(user.email)
-                .setPositiveButton("Đăng xuất", (dialog, which) -> {
-                    session.logout();
-                    toast("Đã đăng xuất");
-                })
-                .setNegativeButton("Đóng", null)
-                .show();
+        startActivity(new Intent(this, MenuScreenActivity.class));
     }
 
     private void toast(String message) {
