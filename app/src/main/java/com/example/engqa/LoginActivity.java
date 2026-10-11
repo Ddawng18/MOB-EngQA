@@ -64,16 +64,29 @@ public class LoginActivity extends AppCompatActivity {
         // Login button click logic
         btnLogin.setOnClickListener(v -> {
             String email = edtEmail.getText().toString().trim();
-            String password = edtPassword.getText().toString().trim();
+            String password = edtPassword.getText().toString();
 
-            if (email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(this, HomeActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
+            if (email.isEmpty()) {
+                edtEmail.setError("Vui lòng nhập email");
+                edtEmail.requestFocus();
+                return;
             }
+            if (password.isEmpty()) {
+                edtPassword.setError("Vui lòng nhập mật khẩu");
+                edtPassword.requestFocus();
+                return;
+            }
+
+            UserDbHelper.User user = new UserDbHelper(this).authenticate(email, password);
+            if (user == null) {
+                Toast.makeText(this, "Email hoặc mật khẩu không đúng", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            new SessionManager(this).login(user.id);
+            Toast.makeText(this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, HomeActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
         });
 
         tvForgot.setOnClickListener(v -> Toast.makeText(this, "Chức năng quên mật khẩu (chưa triển khai)", Toast.LENGTH_SHORT).show());

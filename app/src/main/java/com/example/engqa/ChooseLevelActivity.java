@@ -68,6 +68,10 @@ public class ChooseLevelActivity extends AppCompatActivity {
             if (selectedLevel == null) {
                 Toast.makeText(this, "Vui lòng chọn trình độ", Toast.LENGTH_SHORT).show();
             } else {
+                SessionManager session = new SessionManager(this);
+                if (session.isLoggedIn()) {
+                    new UserDbHelper(this).setLevel(session.getUserId(), selectedLevel);
+                }
                 Toast.makeText(this, "Đã chọn: " + selectedLevel, Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(this, HomeActivity.class);
                 intent.putExtra("level", selectedLevel);

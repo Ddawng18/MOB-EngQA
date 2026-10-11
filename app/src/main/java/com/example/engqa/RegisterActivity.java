@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
+import android.util.Patterns;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -18,6 +19,8 @@ import androidx.core.view.WindowInsetsCompat;
 import com.google.android.material.button.MaterialButton;
 
 public class RegisterActivity extends AppCompatActivity {
+
+    private static final int MIN_PASSWORD_LENGTH = 6;
 
     private EditText edtEmail;
     private EditText edtPassword;
@@ -65,20 +68,37 @@ public class RegisterActivity extends AppCompatActivity {
         // Register button click logic
         btnRegister.setOnClickListener(v -> {
             String email = edtEmail.getText().toString().trim();
-            String password = edtPassword.getText().toString().trim();
-            String confirmPassword = edtConfirmPassword.getText().toString().trim();
+            String password = edtPassword.getText().toString();
+            String confirmPassword = edtConfirmPassword.getText().toString();
 
             if (email.isEmpty()) {
                 edtEmail.setError("Email là bắt buộc");
                 edtEmail.requestFocus();
                 return;
             }
-
-            if (!password.isEmpty() && !password.equals(confirmPassword)) {
-                Toast.makeText(this, "Mật khẩu xác nhận không khớp", Toast.LENGTH_SHORT).show();
+            if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                edtEmail.setError("Email không hợp lệ");
+                edtEmail.requestFocus();
+                return;
+            }
+            if (password.length() < MIN_PASSWORD_LENGTH) {
+                edtPassword.setError("Mật khẩu tối thiểu " + MIN_PASSWORD_LENGTH + " ký tự");
+                edtPassword.requestFocus();
+                return;
+            }
+            if (!password.equals(confirmPassword)) {
+                edtConfirmPassword.setError("Mật khẩu xác nhận không khớp");
+                edtConfirmPassword.requestFocus();
                 return;
             }
 
+            UserDbHelper.User user = new UserDbHelper(this).register(email, password);
+            if (user == null) {
+                edtEmail.setError("Email này đã được đăng ký");
+                edtEmail.requestFocus();
+                return;
+            }
+            new SessionManager(this).login(user.id);
             Toast.makeText(this, "Đăng ký thành công", Toast.LENGTH_SHORT).show();
             startActivity(new Intent(this, ChooseLevelActivity.class));
             finish();

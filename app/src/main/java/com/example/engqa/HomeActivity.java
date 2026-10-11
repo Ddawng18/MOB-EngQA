@@ -66,8 +66,7 @@ public class HomeActivity extends AppCompatActivity {
 
         findViewById(R.id.btnAsk).setOnClickListener(view ->
                 startActivity(new Intent(this, MainActivity.class)));
-        findViewById(R.id.btnProfile).setOnClickListener(view ->
-                startActivity(new Intent(this, LoginActivity.class)));
+        findViewById(R.id.btnProfile).setOnClickListener(view -> onProfileClicked());
         findViewById(R.id.btnNotifications).setOnClickListener(view ->
                 toast("Thông báo (chưa triển khai)"));
     }
@@ -98,6 +97,29 @@ public class HomeActivity extends AppCompatActivity {
         }
 
         emptyState.setVisibility(visibleCount == 0 ? View.VISIBLE : View.GONE);
+    }
+
+    private void onProfileClicked() {
+        SessionManager session = new SessionManager(this);
+        if (!session.isLoggedIn()) {
+            startActivity(new Intent(this, LoginActivity.class));
+            return;
+        }
+        UserDbHelper.User user = new UserDbHelper(this).findById(session.getUserId());
+        if (user == null) {
+            session.logout();
+            startActivity(new Intent(this, LoginActivity.class));
+            return;
+        }
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(user.username)
+                .setMessage(user.email)
+                .setPositiveButton("Đăng xuất", (dialog, which) -> {
+                    session.logout();
+                    toast("Đã đăng xuất");
+                })
+                .setNegativeButton("Đóng", null)
+                .show();
     }
 
     private void toast(String message) {
