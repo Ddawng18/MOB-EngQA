@@ -17,6 +17,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 
 public class RegisterActivity extends AppCompatActivity {
 
@@ -92,16 +93,27 @@ public class RegisterActivity extends AppCompatActivity {
                 return;
             }
 
-            UserDbHelper.User user = new UserDbHelper(this).register(email, password);
-            if (user == null) {
-                edtEmail.setError("Email này đã được đăng ký");
-                edtEmail.requestFocus();
-                return;
-            }
-            new SessionManager(this).login(user.id);
-            Toast.makeText(this, "Đăng ký thành công", Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(this, ChooseLevelActivity.class));
-            finish();
+            btnRegister.setEnabled(false);
+            new UserRepository().register(email, password, new UserRepository.Callback<UserRepository.User>() {
+                @Override
+                public void onSuccess(UserRepository.User user) {
+                    btnRegister.setEnabled(true);
+                    Toast.makeText(RegisterActivity.this, "Đăng ký thành công", Toast.LENGTH_SHORT).show();
+                    startActivity(new Intent(RegisterActivity.this, ChooseLevelActivity.class));
+                    finish();
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    btnRegister.setEnabled(true);
+                    if (e instanceof FirebaseAuthUserCollisionException) {
+                        edtEmail.setError("Email này đã được đăng ký");
+                        edtEmail.requestFocus();
+                    } else {
+                        Toast.makeText(RegisterActivity.this, UserRepository.messageFor(e), Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
         });
 
         btnPhone.setOnClickListener(v -> Toast.makeText(this, "Đăng ký số điện thoại (chưa triển khai)", Toast.LENGTH_SHORT).show());

@@ -31,6 +31,14 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Check if already logged in
+        if (new SessionManager(this).isLoggedIn()) {
+            startActivity(new Intent(this, HomeActivity.class));
+            finish();
+            return;
+        }
+
         int barColor = getColor(R.color.bg_topbar);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_login);
@@ -51,15 +59,13 @@ public class LoginActivity extends AppCompatActivity {
         btnPhone = findViewById(R.id.btnPhone);
         btnGoogle = findViewById(R.id.btnGoogle);
 
-        // Setup Terms text with HTML and LinkMovementMethod
+        // Setup Terms text
         tvTerms.setText(Html.fromHtml(getString(R.string.terms_text), Html.FROM_HTML_MODE_LEGACY));
         tvTerms.setMovementMethod(LinkMovementMethod.getInstance());
 
         // Setup Go to Register text
         tvGoRegister.setText(Html.fromHtml("Chưa có tài khoản? <font color='#1E90FF'><b>Đăng ký</b></font>", Html.FROM_HTML_MODE_LEGACY));
-        tvGoRegister.setOnClickListener(v -> {
-            startActivity(new Intent(this, RegisterActivity.class));
-        });
+        tvGoRegister.setOnClickListener(v -> startActivity(new Intent(this, RegisterActivity.class)));
 
         // Login button click logic
         btnLogin.setOnClickListener(v -> {
@@ -77,16 +83,23 @@ public class LoginActivity extends AppCompatActivity {
                 return;
             }
 
-            UserDbHelper.User user = new UserDbHelper(this).authenticate(email, password);
-            if (user == null) {
-                Toast.makeText(this, "Email hoặc mật khẩu không đúng", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            new SessionManager(this).login(user.id);
-            Toast.makeText(this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(this, HomeActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+            btnLogin.setEnabled(false);
+            new UserRepository().login(email, password, new UserRepository.Callback<UserRepository.User>() {
+                @Override
+                public void onSuccess(UserRepository.User user) {
+                    btnLogin.setEnabled(true);
+                    Toast.makeText(LoginActivity.this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    btnLogin.setEnabled(true);
+                    Toast.makeText(LoginActivity.this, UserRepository.messageFor(e), Toast.LENGTH_LONG).show();
+                }
+            });
         });
 
         tvForgot.setOnClickListener(v -> Toast.makeText(this, "Chức năng quên mật khẩu (chưa triển khai)", Toast.LENGTH_SHORT).show());

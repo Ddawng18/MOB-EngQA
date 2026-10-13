@@ -68,15 +68,34 @@ public class ChooseLevelActivity extends AppCompatActivity {
             if (selectedLevel == null) {
                 Toast.makeText(this, "Vui lòng chọn trình độ", Toast.LENGTH_SHORT).show();
             } else {
+                btnContinue.setEnabled(false);
                 SessionManager session = new SessionManager(this);
-                if (session.isLoggedIn()) {
-                    new UserDbHelper(this).setLevel(session.getUserId(), selectedLevel);
+                String uid = session.getUserId();
+                if (uid != null) {
+                    new UserRepository().setLevel(uid, selectedLevel, new UserRepository.Callback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            btnContinue.setEnabled(true);
+                            Toast.makeText(ChooseLevelActivity.this, "Đã chọn: " + selectedLevel, Toast.LENGTH_SHORT).show();
+                            Intent intent = new Intent(ChooseLevelActivity.this, HomeActivity.class);
+                            intent.putExtra("level", selectedLevel);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            startActivity(intent);
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            btnContinue.setEnabled(true);
+                            Toast.makeText(ChooseLevelActivity.this, UserRepository.messageFor(e), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } else {
+                    btnContinue.setEnabled(true);
+                    Intent intent = new Intent(this, HomeActivity.class);
+                    intent.putExtra("level", selectedLevel);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
                 }
-                Toast.makeText(this, "Đã chọn: " + selectedLevel, Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(this, HomeActivity.class);
-                intent.putExtra("level", selectedLevel);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
             }
         });
     }

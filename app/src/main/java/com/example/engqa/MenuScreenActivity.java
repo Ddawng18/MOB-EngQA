@@ -48,8 +48,8 @@ public class MenuScreenActivity extends AppCompatActivity {
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
 
         // Menu items click handlers
-        findViewById(R.id.btnMyQuestions).setOnClickListener(v -> toast("Danh sách câu hỏi của tôi (chưa triển khai)"));
-        findViewById(R.id.btnMyAnswers).setOnClickListener(v -> toast("Danh sách câu trả lời của tôi (chưa triển khai)"));
+        findViewById(R.id.btnMyQuestions).setOnClickListener(v -> toast("Câu hỏi của tôi (chưa triển khai)"));
+        findViewById(R.id.btnMyAnswers).setOnClickListener(v -> toast("Câu trả lời của tôi (chưa triển khai)"));
         findViewById(R.id.btnSaved).setOnClickListener(v -> toast("Tính năng Đã lưu (chưa triển khai)"));
         findViewById(R.id.btnStats).setOnClickListener(v -> toast("Tính năng Thống kê học tập (chưa triển khai)"));
         findViewById(R.id.btnSettings).setOnClickListener(v -> toast("Tính năng Cài đặt (chưa triển khai)"));
@@ -73,29 +73,40 @@ public class MenuScreenActivity extends AppCompatActivity {
     }
 
     private void loadUserData() {
-        SessionManager session = new SessionManager(this);
-        if (session.isLoggedIn()) {
-            UserDbHelper.User user = new UserDbHelper(this).findById(session.getUserId());
-            if (user != null) {
-                tvUsername.setText(user.username != null ? user.username : "user");
-                tvEmail.setText(user.email != null ? user.email : "");
-
-                if (user.username != null && !user.username.isEmpty()) {
-                    tvAvatar.setText(String.valueOf(user.username.charAt(0)).toUpperCase());
-                } else if (user.email != null && !user.email.isEmpty()) {
-                    tvAvatar.setText(String.valueOf(user.email.charAt(0)).toUpperCase());
-                }
-
-                if (user.level != null && !user.level.isEmpty()) {
-                    tvLevelBadge.setText(user.level);
-                } else {
-                    tvLevelBadge.setText("Beginner");
-                }
-            }
-        }
-        // Mock / placeholder counts as requested
+        // Set defaults immediately
         tvQuestionsAskedCount.setText("12");
         tvAnswersCount.setText("48");
+        tvLevelBadge.setText("Beginner");
+
+        SessionManager session = new SessionManager(this);
+        String uid = session.getUserId();
+        if (uid != null) {
+            new UserRepository().getUser(uid, new UserRepository.Callback<UserRepository.User>() {
+                @Override
+                public void onSuccess(UserRepository.User user) {
+                    if (isFinishing()) return;
+                    if (user != null) {
+                        tvUsername.setText(user.username != null ? user.username : "user");
+                        tvEmail.setText(user.email != null ? user.email : "");
+
+                        String letterSource = (user.username != null && !user.username.isEmpty()) ? user.username : user.email;
+                        if (letterSource != null && !letterSource.isEmpty()) {
+                            tvAvatar.setText(String.valueOf(letterSource.charAt(0)).toUpperCase());
+                        }
+
+                        if (user.level != null && !user.level.isEmpty()) {
+                            tvLevelBadge.setText(user.level);
+                        }
+                    }
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    if (isFinishing()) return;
+                    Toast.makeText(MenuScreenActivity.this, UserRepository.messageFor(e), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     private void toast(String message) {
