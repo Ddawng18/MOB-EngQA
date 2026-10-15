@@ -56,3 +56,7 @@ Thumbs.db
 *.temp
 *.swp
 *.swo
+
+# Seed tooling
+tools/seed/node_modules/
+tools/seed/package-lock.json

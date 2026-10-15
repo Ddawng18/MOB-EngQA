@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <ImageView
+        android:id="@+id/btnPlayPause"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/label_audio"
+        android:padding="8dp"
+        android:src="@drawable/ic_play" />
+
+    <TextView
+        android:id="@+id/tvAudioLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:text="@string/label_audio"
+        android:textColor="@color/text_body"
+        android:textSize="13sp" />
+</merge>

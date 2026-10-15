@@ -20,7 +20,7 @@
         android:text="＋\nĐặt câu hỏi" />
 
     <TextView
-        android:id="@+id/navSaved"
+        android:id="@+id/navProfile"
         style="@style/HomeNavItem"
-        android:text="☆\nĐã lưu" />
+        android:text="👤\nCá nhân" />
 </LinearLayout>

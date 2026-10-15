@@ -1,47 +1,56 @@
 package com.example.engqa;
 
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkRequest;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.LinearLayout;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.engqa.data.QuestionRepository;
+import com.example.engqa.model.Category;
+import com.example.engqa.model.Question;
+import com.example.engqa.model.UiState;
+import com.example.engqa.ui.CategoryChipAdapter;
+import com.example.engqa.ui.QuestionAdapter;
+import com.example.engqa.ui.StateView;
+import com.example.engqa.viewmodel.HomeViewModel;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/** Feed screen: realtime question list, category filter, sort, keyword search and paging. */
 public class HomeActivity extends BaseNavActivity {
 
-    private LinearLayout questionList;
-    private EditText searchInput;
-    private TextView emptyState;
-    private ConnectivityManager connectivityManager;
-    private ConnectivityManager.NetworkCallback networkCallback;
+    private HomeViewModel viewModel;
+    private QuestionAdapter questionAdapter;
+    private CategoryChipAdapter categoryAdapter;
+    private CategoryChipAdapter sortAdapter;
+    private StateView stateView;
+    private ProgressBar progressMore;
+    private TextView cacheHint;
+    private RecyclerView recyclerQuestions;
+    private boolean loadingMore;
 
-    private static final String[][] QUESTIONS = {
-            {"M", "minh_anh", "2 giờ trước", "Ngữ pháp", "Khi nào dùng \"has been\" và \"have been\"?", "12"},
-            {"A", "anh_khoa", "4 giờ trước", "Từ vựng", "Phân biệt affect và effect trong tiếng Anh", "8"},
-            {"L", "linhnguyen", "Hôm qua", "Phát âm", "Cách phát âm đuôi -ed trong quá khứ đơn?", "5"}
+    private static final String[][ ] SORTS = {
+            {"newest", "Mới nhất"},
+            {"popular", "Phổ biến"},
+            {"unanswered", "Chưa trả lời"}
     };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (!NetworkUtils.isOnline(this)) {
-            showServerError();
-            return;
-        }
         int barColor = getColor(R.color.bg_topbar);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_home);
@@ -54,31 +63,31 @@ public class HomeActivity extends BaseNavActivity {
             return insets;
         });
 
-        questionList = findViewById(R.id.questionList);
-        searchInput = findViewById(R.id.etSearch);
-        emptyState = findViewById(R.id.emptyState);
+        viewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+        stateView = findViewById(R.id.stateView);
+        progressMore = findViewById(R.id.progressMore);
+        cacheHint = findViewById(R.id.tvCacheHint);
+        recyclerQuestions = findViewById(R.id.recyclerQuestions);
 
-        renderQuestions("");
-        searchInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence text, int start, int count, int after) {
-            }
+        setupFeed();
+        setupCategoryChips();
+        setupSortChips();
+        setupSearch();
 
-            @Override
-            public void onTextChanged(CharSequence text, int start, int before, int count) {
-                renderQuestions(text.toString());
-            }
-
-            @Override
-            public void afterTextChanged(Editable text) {
+        findViewById(R.id.btnNotifications).setOnClickListener(v -> {
+            if (new SessionManager(this).isLoggedIn()) {
+                startActivity(new Intent(this, NotificationActivity.class));
+            } else {
+                startActivity(new Intent(this, LoginActivity.class));
             }
         });
+        findViewById(R.id.btnProfile).setOnClickListener(v -> onProfileClicked());
 
+        stateView.setOnRetryListener(v -> {
+            viewModel.stop();
+            viewModel.start();
+        });
         bindBottomNav();
-        findViewById(R.id.btnProfile).setOnClickListener(view ->
-                startActivity(new Intent(this, LoginActivity.class)));
-        findViewById(R.id.btnNotifications).setOnClickListener(view ->
-                toast("Thông báo (chưa triển khai)"));
     }
 
     @Override
@@ -89,73 +98,142 @@ public class HomeActivity extends BaseNavActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-        if (connectivityManager == null) {
-            return;
-        }
-        networkCallback = new ConnectivityManager.NetworkCallback() {
-            @Override
-            public void onLost(Network network) {
-                runOnUiThread(() -> {
-                    if (!NetworkUtils.isOnline(HomeActivity.this)) {
-                        showServerError();
-                    }
-                });
-            }
-        };
-        connectivityManager.registerNetworkCallback(
-                new NetworkRequest.Builder()
-                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                        .build(),
-                networkCallback);
+        viewModel.start();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (connectivityManager != null && networkCallback != null) {
-            connectivityManager.unregisterNetworkCallback(networkCallback);
-            networkCallback = null;
-        }
+        viewModel.stop();
     }
 
-    private void showServerError() {
-        Intent intent = new Intent(this, ServerErrorActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.putExtra(ServerErrorActivity.EXTRA_AUTO_RETRY, true);
-        startActivity(intent);
-        finish();
-    }
-
-    private void renderQuestions(String query) {
-        String normalizedQuery = query.trim().toLowerCase();
-        questionList.removeAllViews();
-        LayoutInflater inflater = LayoutInflater.from(this);
-        int visibleCount = 0;
-
-        for (String[] question : QUESTIONS) {
-            String searchableText = (question[3] + " " + question[4] + " " + question[1]).toLowerCase();
-            if (!normalizedQuery.isEmpty() && !searchableText.contains(normalizedQuery)) {
-                continue;
+    private void setupFeed() {
+        questionAdapter = new QuestionAdapter(this::openQuestion);
+        recyclerQuestions.setLayoutManager(new LinearLayoutManager(this));
+        recyclerQuestions.setAdapter(questionAdapter);
+        recyclerQuestions.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                if (dy <= 0 || loadingMore) {
+                    return;
+                }
+                LinearLayoutManager manager =
+                        (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (manager == null) {
+                    return;
+                }
+                if (manager.findLastVisibleItemPosition()
+                        >= questionAdapter.getItemCount() - 3) {
+                    viewModel.loadMore();
+                }
             }
+        });
 
-            View card = inflater.inflate(R.layout.item_question, questionList, false);
-            ((TextView) card.findViewById(R.id.tvQuestionAvatar)).setText(question[0]);
-            ((TextView) card.findViewById(R.id.tvQuestionUser)).setText(question[1]);
-            ((TextView) card.findViewById(R.id.tvQuestionTime)).setText(question[2]);
-            ((TextView) card.findViewById(R.id.tvQuestionTag)).setText(question[3]);
-            ((TextView) card.findViewById(R.id.tvQuestionTitle)).setText(question[4]);
-            ((TextView) card.findViewById(R.id.tvQuestionAnswers)).setText(question[5] + " câu trả lời");
-            card.setOnClickListener(view -> startActivity(
-                    new Intent(this, QuestionDetailActivity.class)));
-            questionList.addView(card);
-            visibleCount++;
-        }
-
-        emptyState.setVisibility(visibleCount == 0 ? View.VISIBLE : View.GONE);
+        viewModel.getFeed().observe(this, this::renderFeed);
+        viewModel.getLoadingMore().observe(this, more ->
+                progressMore.setVisibility(Boolean.TRUE.equals(more) ? View.VISIBLE : View.GONE));
     }
 
-    private void toast(String message) {
-        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show();
+    private void renderFeed(UiState<List<Question>> state) {
+        if (state == null) {
+            return;
+        }
+        switch (state.getStatus()) {
+            case LOADING:
+                stateView.showLoading();
+                recyclerQuestions.setVisibility(View.GONE);
+                break;
+            case SUCCESS:
+                stateView.showContent();
+                recyclerQuestions.setVisibility(View.VISIBLE);
+                questionAdapter.submitList(state.getData());
+                cacheHint.setVisibility(state.isFromCache() ? View.VISIBLE : View.GONE);
+                break;
+            case EMPTY:
+                stateView.showEmpty();
+                recyclerQuestions.setVisibility(View.GONE);
+                break;
+            case ERROR:
+            default:
+                stateView.showError(state.getMessage());
+                recyclerQuestions.setVisibility(View.GONE);
+                break;
+        }
+    }
+
+    private void setupCategoryChips() {
+        RecyclerView recycler = findViewById(R.id.recyclerCategories);
+        categoryAdapter = new CategoryChipAdapter(null, category -> {
+            viewModel.setCategory(category.getId());
+            categoryAdapter.setSelectedId(category.getId());
+        });
+        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        recycler.setAdapter(categoryAdapter);
+
+        viewModel.getCategories().observe(this, categories -> {
+            List<Category> items = new ArrayList<>();
+            items.add(new Category(null, getString(R.string.filter_all), 0));
+            if (categories != null) {
+                items.addAll(categories);
+            }
+            categoryAdapter.submitList(items);
+        });
+    }
+
+    private void setupSortChips() {
+        RecyclerView recycler = findViewById(R.id.recyclerSort);
+        sortAdapter = new CategoryChipAdapter(QuestionRepository.SORT_NEWEST, category -> {
+            viewModel.setSort(category.getId());
+            sortAdapter.setSelectedId(category.getId());
+        });
+        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        recycler.setAdapter(sortAdapter);
+
+        List<Category> items = new ArrayList<>();
+        for (String[] sort : SORTS) {
+            items.add(new Category(sort[0], sort[1], 0));
+        }
+        sortAdapter.submitList(items);
+    }
+
+    private void setupSearch() {
+        EditText search = findViewById(R.id.etSearch);
+        search.addTextChangedListener(new SimpleTextWatcher() {
+            @Override
+            public void onTextChanged(CharSequence text) {
+                viewModel.setKeyword(text.toString());
+            }
+        });
+    }
+
+    private void openQuestion(Question question) {
+        Intent intent = new Intent(this, QuestionDetailActivity.class);
+        intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, question.getId());
+        startActivity(intent);
+    }
+
+    private void onProfileClicked() {
+        if (!new SessionManager(this).isLoggedIn()) {
+            startActivity(new Intent(this, LoginActivity.class));
+            return;
+        }
+        startActivity(new Intent(this, MenuScreenActivity.class));
+    }
+
+    private abstract static class SimpleTextWatcher implements android.text.TextWatcher {
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        }
+
+        @Override
+        public final void onTextChanged(CharSequence s, int start, int before, int count) {
+            onTextChanged(s);
+        }
+
+        @Override
+        public void afterTextChanged(android.text.Editable s) {
+        }
+
+        public abstract void onTextChanged(CharSequence text);
     }
 }

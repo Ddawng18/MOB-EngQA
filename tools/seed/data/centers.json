@@ -1,0 +1,65 @@
+[
+  {
+    "id": "sample-center-ielts-hub",
+    "name": "EngQA IELTS Hub",
+    "description": "Trung tâm luyện thi IELTS và TOEIC với lộ trình cá nhân hoá, lớp tối đa 10 học viên.",
+    "address": "45 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
+    "phone": "028 3822 1234",
+    "email": "contact@engqa-ielts.demo",
+    "logoUrl": null,
+    "managerUids": ["demo-center"],
+    "status": "approved",
+    "createdAtOffsetHours": 120,
+    "courses": [
+      {
+        "id": "sample-course-ielts-foundation",
+        "title": "IELTS Foundation 4.5+",
+        "level": "Beginner",
+        "schedule": "Thứ 2 - 4 - 6, 18:00 - 20:00",
+        "description": "Nền tảng ngữ pháp, từ vựng học thuật và kỹ năng nghe - nói."
+      },
+      {
+        "id": "sample-course-ielts-intensive",
+        "title": "IELTS Intensive 6.5+",
+        "level": "Advanced",
+        "schedule": "Thứ 3 - 5 - 7, 18:30 - 21:00",
+        "description": "Luyện đề 4 kỹ năng, chấm Writing và Speaking 1-1 hằng tuần."
+      },
+      {
+        "id": "sample-course-toeic-600",
+        "title": "TOEIC 600+ cấp tốc",
+        "level": "Intermediate",
+        "schedule": "Cuối tuần, 8:00 - 11:00",
+        "description": "Chiến lược làm bài Part 5 - 7 và luyện đề có bấm giờ."
+      }
+    ],
+    "posts": [
+      {
+        "id": "sample-post-khai-giang",
+        "title": "Khai giảng lớp IELTS 6.5+ tháng này",
+        "body": "Giảm 20% học phí cho 10 học viên đăng ký sớm nhất. Đăng ký qua hotline của trung tâm.",
+        "imageUrl": null
+      },
+      {
+        "id": "sample-post-workshop",
+        "title": "Workshop miễn phí: Viết Writing Task 2",
+        "body": "Buổi workshop 90 phút hướng dẫn cách lập dàn ý và phát triển luận điểm cho Task 2.",
+        "imageUrl": null
+      }
+    ]
+  },
+  {
+    "id": "sample-center-pending",
+    "name": "EngQA Speaking Club (chờ duyệt)",
+    "description": "Câu lạc bộ luyện nói tiếng Anh hằng tuần. Đây là dữ liệu mẫu cho trạng thái chờ duyệt.",
+    "address": "12 Lê Lợi, Quận 3, TP. Hồ Chí Minh",
+    "phone": "028 3930 5678",
+    "email": "hello@engqa-speaking.demo",
+    "logoUrl": null,
+    "managerUids": ["demo-linh"],
+    "status": "pending",
+    "createdAtOffsetHours": 5,
+    "courses": [],
+    "posts": []
+  }
+]

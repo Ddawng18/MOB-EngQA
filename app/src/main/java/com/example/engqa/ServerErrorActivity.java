@@ -45,7 +45,7 @@ public class ServerErrorActivity extends BaseNavActivity {
 
     @Override
     protected int selectedNavItem() {
-        return NAV_SAVED;
+        return NAV_HOME;
     }
 
     @Override

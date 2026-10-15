@@ -1,0 +1,58 @@
+[
+  {
+    "uid": "demo-minh-anh",
+    "email": "minh.anh@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "minh_anh",
+    "level": "Beginner",
+    "avatarUrl": null
+  },
+  {
+    "uid": "demo-lan-teacher",
+    "email": "lan.teacher@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "lan_teacher",
+    "level": "Advanced",
+    "avatarUrl": null
+  },
+  {
+    "uid": "demo-khoa",
+    "email": "khoa.nguyen@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "anh_khoa",
+    "level": "Intermediate",
+    "avatarUrl": null
+  },
+  {
+    "uid": "demo-linh",
+    "email": "linh.tran@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "linhnguyen",
+    "level": "Intermediate",
+    "avatarUrl": null
+  },
+  {
+    "uid": "demo-tuan",
+    "email": "tuan.le@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "tuan_ng",
+    "level": "Advanced",
+    "avatarUrl": null
+  },
+  {
+    "uid": "demo-hoa",
+    "email": "hoa.pham@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "hoa_pham",
+    "level": "Beginner",
+    "avatarUrl": null
+  },
+  {
+    "uid": "demo-center",
+    "email": "center.manager@engqa.demo",
+    "password": "Engqa@1234",
+    "username": "engqa_center",
+    "level": "Advanced",
+    "avatarUrl": null
+  }
+]
