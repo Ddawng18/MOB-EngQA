@@ -19,7 +19,7 @@ public abstract class BaseNavActivity extends AppCompatActivity {
 
     protected static final int NAV_HOME = 0;
     protected static final int NAV_ASK = 1;
-    protected static final int NAV_SAVED = 2;
+    protected static final int NAV_PROFILE = 2;
 
     /** The bottom-nav tab that this screen belongs to. */
     protected abstract int selectedNavItem();
@@ -28,7 +28,7 @@ public abstract class BaseNavActivity extends AppCompatActivity {
     protected void bindBottomNav() {
         setupNavItem(findViewById(R.id.navHome), NAV_HOME);
         setupNavItem(findViewById(R.id.navAsk), NAV_ASK);
-        setupNavItem(findViewById(R.id.navSaved), NAV_SAVED);
+        setupNavItem(findViewById(R.id.navProfile), NAV_PROFILE);
     }
 
     private void setupNavItem(TextView item, int navItem) {
@@ -51,8 +51,8 @@ public abstract class BaseNavActivity extends AppCompatActivity {
             case NAV_ASK:
                 target = MainActivity.class;
                 break;
-            case NAV_SAVED:
-                target = ServerErrorActivity.class;
+            case NAV_PROFILE:
+                target = MenuScreenActivity.class;
                 break;
             case NAV_HOME:
             default:

@@ -25,4 +25,10 @@
     <color name="nav_active">#FFFF4500</color>
     <color name="nav_inactive">#FF9CA3AF</color>
     <color name="nav_ask_circle">#FF3B1D12</color>
+
+    <!-- Feature accents -->
+    <color name="accepted_green">#FF3DDC84</color>
+    <color name="vote_up_active">#FFFF4500</color>
+    <color name="vote_down_active">#FF64B5F6</color>
+    <color name="scrim">#B3000000</color>
 </resources>

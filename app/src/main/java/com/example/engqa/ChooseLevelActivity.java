@@ -19,23 +19,32 @@ import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.ViewModelProvider;
 
+import com.example.engqa.data.Callback;
+import com.example.engqa.data.RepoErrors;
+import com.example.engqa.viewmodel.AuthViewModel;
+
+/** Level selection shown right after registration; writes the level to the user document. */
 public class ChooseLevelActivity extends AppCompatActivity {
 
     private AppCompatButton btnBeginner;
     private AppCompatButton btnIntermediate;
-    private AppCompatButton btnAdvance;
+    private AppCompatButton btnAdvanced;
     private AppCompatButton btnContinue;
 
+    private AuthViewModel viewModel;
     private String selectedLevel = null;
 
     private static final String LEVEL_BEGINNER = "Beginner";
     private static final String LEVEL_INTERMEDIATE = "Intermediate";
-    private static final String LEVEL_ADVANCE = "Advance";
+    private static final String LEVEL_ADVANCED = "Advanced";
 
     private static final String DESC_BEGINNER = "Dành cho người mới bắt đầu.";
-    private static final String DESC_INTERMEDIATE = "Dành cho người đã có kiến thức cơ bản và muốn nâng cao kỹ năng";
-    private static final String DESC_ADVANCE = "Dành cho người đã có kinh nghiệm và muốn chinh phục thử thách cao hơn";
+    private static final String DESC_INTERMEDIATE =
+            "Dành cho người đã có kiến thức cơ bản và muốn nâng cao kỹ năng";
+    private static final String DESC_ADVANCED =
+            "Dành cho người đã có kinh nghiệm và muốn chinh phục thử thách cao hơn";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,30 +60,50 @@ public class ChooseLevelActivity extends AppCompatActivity {
             return insets;
         });
 
+        viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
+
         btnBeginner = findViewById(R.id.btnBeginner);
         btnIntermediate = findViewById(R.id.btnIntermediate);
-        btnAdvance = findViewById(R.id.btnAdvance);
+        btnAdvanced = findViewById(R.id.btnAdvance);
         btnContinue = findViewById(R.id.btnContinue);
 
         updateCardUI(btnBeginner, LEVEL_BEGINNER, DESC_BEGINNER, false);
         updateCardUI(btnIntermediate, LEVEL_INTERMEDIATE, DESC_INTERMEDIATE, false);
-        updateCardUI(btnAdvance, LEVEL_ADVANCE, DESC_ADVANCE, false);
+        updateCardUI(btnAdvanced, LEVEL_ADVANCED, DESC_ADVANCED, false);
 
         btnBeginner.setOnClickListener(v -> selectLevel(LEVEL_BEGINNER));
         btnIntermediate.setOnClickListener(v -> selectLevel(LEVEL_INTERMEDIATE));
-        btnAdvance.setOnClickListener(v -> selectLevel(LEVEL_ADVANCE));
+        btnAdvanced.setOnClickListener(v -> selectLevel(LEVEL_ADVANCED));
 
         btnContinue.setOnClickListener(v -> {
             if (selectedLevel == null) {
                 Toast.makeText(this, "Vui lòng chọn trình độ", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Đã chọn: " + selectedLevel, Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(this, HomeActivity.class);
-                intent.putExtra("level", selectedLevel);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
+                return;
             }
+            btnContinue.setEnabled(false);
+            viewModel.setLevel(selectedLevel, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    btnContinue.setEnabled(true);
+                    goHome();
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    btnContinue.setEnabled(true);
+                    Toast.makeText(ChooseLevelActivity.this, RepoErrors.message(e),
+                            Toast.LENGTH_LONG).show();
+                }
+            });
         });
+    }
+
+    private void goHome() {
+        Intent intent = new Intent(this, HomeActivity.class);
+        intent.putExtra("level", selectedLevel);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void selectLevel(String level) {
@@ -82,29 +111,31 @@ public class ChooseLevelActivity extends AppCompatActivity {
 
         boolean isBeginner = level.equals(LEVEL_BEGINNER);
         boolean isIntermediate = level.equals(LEVEL_INTERMEDIATE);
-        boolean isAdvance = level.equals(LEVEL_ADVANCE);
+        boolean isAdvanced = level.equals(LEVEL_ADVANCED);
 
         btnBeginner.setSelected(isBeginner);
         btnIntermediate.setSelected(isIntermediate);
-        btnAdvance.setSelected(isAdvance);
+        btnAdvanced.setSelected(isAdvanced);
 
         updateCardUI(btnBeginner, LEVEL_BEGINNER, DESC_BEGINNER, isBeginner);
         updateCardUI(btnIntermediate, LEVEL_INTERMEDIATE, DESC_INTERMEDIATE, isIntermediate);
-        updateCardUI(btnAdvance, LEVEL_ADVANCE, DESC_ADVANCE, isAdvance);
+        updateCardUI(btnAdvanced, LEVEL_ADVANCED, DESC_ADVANCED, isAdvanced);
     }
 
     private void updateCardUI(Button btn, String title, String desc, boolean isSelected) {
         String fullText = title + "\n" + desc;
         SpannableString ss = new SpannableString(fullText);
 
-        // Title span: 16sp, Bold, color
         ss.setSpan(new AbsoluteSizeSpan(16, true), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         ss.setSpan(new StyleSpan(Typeface.BOLD), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.WHITE : Color.parseColor("#333333")), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.WHITE : Color.parseColor("#333333")),
+                0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-        // Description span: 13sp, color
-        ss.setSpan(new AbsoluteSizeSpan(13, true), title.length() + 1, fullText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.parseColor("#E0E0E0") : Color.parseColor("#666666")), title.length() + 1, fullText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new AbsoluteSizeSpan(13, true), title.length() + 1, fullText.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.parseColor("#E0E0E0")
+                        : Color.parseColor("#666666")), title.length() + 1, fullText.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         btn.setText(ss);
     }

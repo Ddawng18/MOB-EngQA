@@ -1,0 +1,205 @@
+rules_version = '2';
+
+// EngQA Firestore security rules.
+//
+// Design notes
+// ------------
+// * Admin status is never stored on the profile: it is read from the admins/{uid} collection,
+//   which clients cannot write, so nobody can grant themselves privileges.
+// * Counter fields (question.answerCount, question.score, answer.upCount/downCount,
+//   user.acceptedCount) are maintained by the client, so the rules allow only *bounded* counter
+//   changes on documents the caller does not own. A production build would move these updates into
+//   a Cloud Function (see the report's limitations section).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------------------- helpers
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // A profile may never carry privilege-bearing fields.
+    function hasNoPrivilegeFields() {
+      return !('isAdmin' in request.resource.data)
+          && !('role' in request.resource.data)
+          && !('admin' in request.resource.data);
+    }
+
+    // Any signed-in user may reward an accepted answer (+1 only, nothing else changed).
+    function onlyBumpsAcceptedCount() {
+      return changedKeys().hasOnly(['acceptedCount'])
+          && request.resource.data.acceptedCount == resource.data.acceptedCount + 1;
+    }
+
+    // Answering (or deleting an answer) adjusts the question's answerCount by exactly one.
+    function onlyUpdatesAnswerCount() {
+      return changedKeys().hasOnly(['answerCount'])
+          && (request.resource.data.answerCount == resource.data.answerCount + 1
+              || request.resource.data.answerCount == resource.data.answerCount - 1);
+    }
+
+    // A vote adjusts the question score by at most two (one vote up and down again).
+    function onlyUpdatesScore() {
+      return changedKeys().hasOnly(['score'])
+          && (request.resource.data.score - resource.data.score) >= -2
+          && (request.resource.data.score - resource.data.score) <= 2;
+    }
+
+    // A vote adjusts one answer counter by exactly one step.
+    function onlyUpdatesVoteCounters() {
+      return changedKeys().hasOnly(['upCount', 'downCount'])
+          && (request.resource.data.upCount - resource.data.upCount) >= -1
+          && (request.resource.data.upCount - resource.data.upCount) <= 1
+          && (request.resource.data.downCount - resource.data.downCount) >= -1
+          && (request.resource.data.downCount - resource.data.downCount) <= 1;
+    }
+
+    function questionAuthor(questionId) {
+      return get(/databases/$(database)/documents/questions/$(questionId)).data.authorId;
+    }
+
+    function isCenterManager(centerId) {
+      return isAdmin()
+          || (isSignedIn()
+              && centerId in get(/databases/$(database)/documents/centers/$(centerId)).data.managerUids
+              && get(/databases/$(database)/documents/centers/$(centerId)).data.status == 'approved');
+    }
+
+    // ---------------------------------------------------------------- users
+    match /users/{uid} {
+      allow read: if isSignedIn();
+
+      // The document id *is* the uid, so no duplicated uid field is required.
+      allow create: if isSelf(uid) && hasNoPrivilegeFields()
+          && (!('questionCount' in request.resource.data)
+              || request.resource.data.questionCount == 0)
+          && (!('answerCount' in request.resource.data)
+              || request.resource.data.answerCount == 0)
+          && (!('acceptedCount' in request.resource.data)
+              || request.resource.data.acceptedCount == 0);
+
+      allow update: if isAdmin()
+          || (isSelf(uid) && hasNoPrivilegeFields())
+          || onlyBumpsAcceptedCount();
+
+      allow delete: if isSelf(uid) || isAdmin();
+    }
+
+    // ----------------------------------------------------------- categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ------------------------------------------------------------ questions
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid;
+      // The author (or an admin) may edit everything; other users may only move answerCount
+      // (when answering) or score (when voting).
+      allow update: if isSignedIn()
+          && (resource.data.authorId == request.auth.uid
+              || isAdmin()
+              || onlyUpdatesAnswerCount()
+              || onlyUpdatesScore());
+      allow delete: if isSignedIn()
+          && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      // ------------------------------------------------------------- answers
+      match /answers/{answerId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.upCount == 0
+            && request.resource.data.downCount == 0
+            && request.resource.data.isAccepted == false;
+        // The answer author may edit their answer (but not the counters); the question owner may
+        // accept; any signed-in user may cast a vote (counter-only change, bounded to one step).
+        allow update: if isSignedIn()
+            && ((resource.data.authorId == request.auth.uid
+                    && !changedKeys().hasAny(['upCount', 'downCount']))
+                || questionAuthor(questionId) == request.auth.uid
+                || onlyUpdatesVoteCounters()
+                || isAdmin());
+        allow delete: if isSignedIn()
+            && (resource.data.authorId == request.auth.uid || isAdmin());
+
+        // One vote document per user per answer: the id must equal the voter's uid and the value
+        // must be +1 or -1, so a user can never hold more than one vote.
+        match /votes/{voterId} {
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn()
+              && voterId == request.auth.uid
+              && (request.resource.data.value == 1 || request.resource.data.value == -1);
+          allow delete: if isSelf(voterId);
+        }
+      }
+    }
+
+    // -------------------------------------------------------- notifications
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn()
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.recipientId != request.auth.uid;
+      allow update: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid;
+      allow delete: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid;
+    }
+
+    // --------------------------------------------------------------- centers
+    match /centers/{centerId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+          && request.resource.data.status == 'pending'
+          && request.resource.data.managerUids == [request.auth.uid];
+      allow update: if isAdmin()
+          || (isSignedIn()
+              && centerId in resource.data.managerUids
+              && resource.data.status == 'approved');
+      allow delete: if isAdmin();
+
+      match /courses/{courseId} {
+        allow read: if true;
+        allow write: if isCenterManager(centerId);
+      }
+
+      match /posts/{postId} {
+        allow read: if true;
+        allow write: if isCenterManager(centerId);
+      }
+    }
+
+    // --------------------------------------------------------------- reports
+    match /reports/{reportId} {
+      allow create: if isSignedIn()
+          && request.resource.data.reporterId == request.auth.uid
+          && request.resource.data.status == 'pending';
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------------- admins
+    // Readable only by the admin themselves; writes are always denied.
+    match /admins/{adminId} {
+      allow read: if isSelf(adminId);
+      allow write: if false;
+    }
+  }
+}
