@@ -98,7 +98,7 @@ public class PhoneAuthHelper {
                     @Override
                     public void onVerificationFailed(@NonNull FirebaseException e) {
                         setLoading(false);
-                        showError(RepoErrors.message(e));
+                        showError(RepoErrors.message(e) + "\nDetails: " + e.getMessage());
                     }
 
                     @Override
