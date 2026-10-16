@@ -113,7 +113,11 @@ public class GoogleAuthHelper {
                 callback.onError("Không lấy được ID token từ Google");
             }
         } catch (ApiException e) {
-            callback.onError("Đăng nhập Google thất bại (mã " + e.getStatusCode() + "): " + e.getMessage());
+            if (e.getStatusCode() == 10) {
+                callback.onError("Chưa cấu hình Google Sign-In trên Firebase Console (mã 10). Vui lòng thêm SHA-1 và cập nhật google-services.json.");
+            } else {
+                callback.onError("Đăng nhập Google thất bại (mã " + e.getStatusCode() + "): " + e.getMessage());
+            }
         }
     }
 
