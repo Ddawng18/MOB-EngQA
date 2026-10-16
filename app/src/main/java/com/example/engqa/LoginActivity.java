@@ -15,6 +15,8 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -47,6 +49,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private AuthViewModel viewModel;
     private boolean navigating;
+    private ActivityResultLauncher<Intent> googleSignInLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +60,25 @@ public class LoginActivity extends AppCompatActivity {
             goHome();
             return;
         }
+
+        googleSignInLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getData() != null) {
+                        GoogleAuthHelper.handleActivityResult(result.getData(), new GoogleAuthHelper.GoogleAuthCallback() {
+                            @Override
+                            public void onSuccess(com.google.firebase.auth.AuthCredential credential) {
+                                viewModel.loginWithCredential(credential);
+                            }
+
+                            @Override
+                            public void onError(String errorMessage) {
+                                showError(errorMessage);
+                            }
+                        });
+                    }
+                }
+        );
 
         int barColor = getColor(R.color.bg_topbar);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
@@ -113,10 +135,37 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tvResendVerification).setOnClickListener(
                 v -> viewModel.resendVerificationEmail());
         findViewById(R.id.tvVerifyNow).setOnClickListener(v -> viewModel.refreshEmailVerified());
-        findViewById(R.id.btnPhone).setOnClickListener(
-                v -> toast("Đăng nhập bằng số điện thoại sẽ sớm được hỗ trợ"));
-        findViewById(R.id.btnGoogle).setOnClickListener(
-                v -> toast("Đăng nhập Google sẽ sớm được hỗ trợ"));
+        findViewById(R.id.btnPhone).setOnClickListener(v -> startPhoneSignIn());
+        findViewById(R.id.btnGoogle).setOnClickListener(v -> startGoogleSignIn());
+    }
+
+    private void startPhoneSignIn() {
+        PhoneAuthHelper phoneAuthHelper = new PhoneAuthHelper(this, new PhoneAuthHelper.PhoneAuthCallback() {
+            @Override
+            public void onSuccess(com.google.firebase.auth.AuthCredential credential) {
+                viewModel.loginWithCredential(credential);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                showError(errorMessage);
+            }
+        });
+        phoneAuthHelper.show();
+    }
+
+    private void startGoogleSignIn() {
+        GoogleAuthHelper.startGoogleSignIn(this, googleSignInLauncher, new GoogleAuthHelper.GoogleAuthCallback() {
+            @Override
+            public void onSuccess(com.google.firebase.auth.AuthCredential credential) {
+                viewModel.loginWithCredential(credential);
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                showError(errorMessage);
+            }
+        });
     }
 
     private void observe() {

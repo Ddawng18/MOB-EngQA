@@ -188,4 +188,6 @@
     <string name="hint_current_password">Mật khẩu hiện tại</string>
     <string name="hint_new_password">Mật khẩu mới</string>
     <string name="password_changed">Đã đổi mật khẩu</string>
+
+    <string name="default_web_client_id">13331358113-accountdata-dd29b.apps.googleusercontent.com</string>
 </resources>

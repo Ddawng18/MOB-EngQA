@@ -169,6 +169,20 @@ public class UserRepository {
                 .addOnFailureListener(callback::onError);
     }
 
+    public void loginWithCredential(com.google.firebase.auth.AuthCredential credential,
+                                    Callback<User> callback) {
+        auth.signInWithCredential(credential)
+                .addOnSuccessListener(authResult -> {
+                    FirebaseUser firebaseUser = authResult.getUser();
+                    if (firebaseUser == null) {
+                        callback.onError(new IllegalStateException("Đăng nhập thất bại"));
+                        return;
+                    }
+                    ensureProfile(firebaseUser, callback);
+                })
+                .addOnFailureListener(callback::onError);
+    }
+
     /**
      * Loads the profile, creating a minimal one when the Auth account exists without a document
      * (for example an account created from the Firebase Console).
@@ -182,10 +196,12 @@ public class UserRepository {
                         callback.onSuccess(existing);
                         return;
                     }
-                    String email = firebaseUser.getEmail() != null
-                            ? firebaseUser.getEmail() : "";
-                    String name = firebaseUser.getDisplayName() != null
-                            ? firebaseUser.getDisplayName() : defaultUsername(email);
+                    String email = firebaseUser.getEmail() != null ? firebaseUser.getEmail() : "";
+                    String phone = firebaseUser.getPhoneNumber() != null ? firebaseUser.getPhoneNumber() : "";
+                    String name = firebaseUser.getDisplayName() != null && !firebaseUser.getDisplayName().trim().isEmpty()
+                            ? firebaseUser.getDisplayName().trim()
+                            : (!email.isEmpty() ? defaultUsername(email)
+                            : (!phone.isEmpty() ? "user_" + phone.replaceAll("[^0-9]", "") : "user_" + (System.currentTimeMillis() % 100000)));
                     writeProfile(uid, name, email, firebaseUser, callback);
                 })
                 .addOnFailureListener(callback::onError);

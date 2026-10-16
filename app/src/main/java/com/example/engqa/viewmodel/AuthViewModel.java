@@ -149,6 +149,25 @@ public class AuthViewModel extends ViewModel {
         });
     }
 
+    public void loginWithCredential(com.google.firebase.auth.AuthCredential credential) {
+        loading.setValue(true);
+        userRepository.loginWithCredential(credential, new Callback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                loading.setValue(false);
+                emailVerified.setValue(userRepository.isEmailVerified());
+                authState.setValue(UiState.success(user));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                loading.setValue(false);
+                authState.setValue(UiState.error(RepoErrors.message(e)));
+                errorEvent.setValue(RepoErrors.message(e));
+            }
+        });
+    }
+
     public void register(String email, String password, String confirmPassword, String username) {
         FormErrors errors = validateRegisterForm(email, password, confirmPassword, username);
         if (errors.hasAny()) {
