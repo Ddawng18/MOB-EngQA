@@ -62,8 +62,12 @@ public class CenterRepository {
         data.put("logoUrl", center.getLogoUrl());
         data.put("description", center.getDescription());
         data.put("address", center.getAddress());
+        data.put("city", center.getCity());
+        data.put("website", center.getWebsite());
         data.put("phone", center.getPhone());
         data.put("email", center.getEmail());
+        data.put("ownerUid", ownerUid);
+        data.put("verified", false);
         data.put("managerUids", center.getManagerUids());
         data.put("status", Center.STATUS_PENDING);
         data.put("createdAt", FieldValue.serverTimestamp());
@@ -78,6 +82,12 @@ public class CenterRepository {
         data.put("name", center.getName());
         data.put("description", center.getDescription());
         data.put("address", center.getAddress());
+        if (center.getCity() != null) {
+            data.put("city", center.getCity());
+        }
+        if (center.getWebsite() != null) {
+            data.put("website", center.getWebsite());
+        }
         data.put("phone", center.getPhone());
         data.put("email", center.getEmail());
         if (center.getLogoUrl() != null) {

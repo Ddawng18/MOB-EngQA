@@ -190,4 +190,72 @@
     <string name="password_changed">Đã đổi mật khẩu</string>
 
     <string name="default_web_client_id">13331358113-nm4e03pl63r0q0sa2abdppg3ld9rov02.apps.googleusercontent.com</string>
+
+    <!-- Promo / centre advertising -->
+    <string name="promo_badge">Quảng bá</string>
+    <string name="promo_verified">Đã xác minh</string>
+    <string name="promo_filter_center">Trung tâm</string>
+    <string name="promo_view_deal">Xem ưu đãi ›</string>
+    <string name="promo_views">%1$s lượt xem</string>
+    <string name="promo_leads">%1$d người đã đăng ký</string>
+    <string name="promo_type_course">Khóa học</string>
+    <string name="promo_type_event">Sự kiện</string>
+    <string name="promo_type_scholarship">Học bổng</string>
+    <string name="promo_type_announcement">Thông báo</string>
+    <string name="promo_detail_title">Chi tiết ưu đãi</string>
+    <string name="promo_open_website">Mở website</string>
+    <string name="promo_call_now">Gọi ngay</string>
+    <string name="promo_register_lead">Đăng ký tư vấn</string>
+    <string name="promo_disclaimer">Bài đăng do trung tâm cung cấp. EngQA không chịu trách nhiệm về nội dung và chất lượng dịch vụ.</string>
+    <string name="promo_expired">Ưu đãi đã hết hạn</string>
+    <string name="promo_empty">Chưa có bài quảng bá nào</string>
+    <string name="promo_pending_note">Bài đăng đang chờ quản trị viên duyệt</string>
+
+    <!-- Create promo -->
+    <string name="promo_create_title">Đăng bài quảng bá</string>
+    <string name="promo_field_type">Loại bài</string>
+    <string name="promo_field_level">Trình độ</string>
+    <string name="promo_field_fee">Học phí</string>
+    <string name="promo_field_schedule">Lịch học</string>
+    <string name="promo_field_phone">SĐT liên hệ</string>
+    <string name="promo_field_link">Liên kết (https://...)</string>
+    <string name="promo_field_image">Ảnh banner (URL, không bắt buộc)</string>
+    <string name="promo_field_end_at">Hạn ưu đãi</string>
+    <string name="promo_title_hint">Tiêu đề bài đăng</string>
+    <string name="promo_body_hint">Nội dung giới thiệu / quảng bá</string>
+    <string name="promo_pick_date">Chọn ngày</string>
+    <string name="promo_no_deadline">Không đặt hạn</string>
+    <string name="promo_submit">Gửi duyệt</string>
+    <string name="promo_submitted">Đã gửi bài, chờ quản trị viên duyệt</string>
+    <string name="promo_error_title">Tiêu đề phải từ 5 đến 120 ký tự</string>
+    <string name="promo_error_body">Nội dung tối đa 5000 ký tự</string>
+    <string name="promo_error_phone">Số điện thoại phải có 9 đến 11 chữ số</string>
+    <string name="promo_error_url">Liên kết phải bắt đầu bằng http:// hoặc https://</string>
+    <string name="promo_center_only">Chỉ tài khoản trung tâm mới được đăng bài</string>
+    <string name="promo_center_missing">Tài khoản chưa được gắn với trung tâm nào</string>
+
+    <!-- Lead dialog -->
+    <string name="lead_dialog_title">Đăng ký tư vấn</string>
+    <string name="lead_name">Họ và tên</string>
+    <string name="lead_phone">Số điện thoại</string>
+    <string name="lead_note">Ghi chú (không bắt buộc)</string>
+    <string name="lead_submit">Gửi đăng ký</string>
+    <string name="lead_success">Đã gửi đăng ký, trung tâm sẽ liên hệ với bạn</string>
+    <string name="lead_already">Bạn đã đăng ký bài này rồi</string>
+    <string name="lead_name_required">Vui lòng nhập họ tên</string>
+    <string name="lead_phone_invalid">Số điện thoại phải có 9 đến 11 chữ số</string>
+
+    <!-- Profile menu -->
+    <string name="menu_login">Đăng nhập</string>
+    <string name="menu_create_promo">Đăng bài quảng bá</string>
+    <string name="menu_saved_promos">Bài đã lưu</string>
+    <string name="menu_logout">Đăng xuất</string>
+
+    <!-- Saved promos (Room) -->
+    <string name="saved_promos_title">Bài đã lưu</string>
+    <string name="saved_empty">Chưa lưu bài nào</string>
+    <string name="save_promo">Lưu bài</string>
+    <string name="unsave_promo">Bỏ lưu</string>
+    <string name="promo_saved">Đã lưu bài</string>
+    <string name="saved_removed">Đã bỏ lưu</string>
 </resources>

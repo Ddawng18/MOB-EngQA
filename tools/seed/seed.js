@@ -74,9 +74,11 @@ const categories = readData('categories.json');
 const users = readData('users.json');
 const questions = readData('questions.json');
 const centers = readData('centers.json');
+const promos = readData('promos.json');
 
 const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));
 const usernameByUid = new Map(users.map((user) => [user.uid, user.username]));
+const centerById = new Map(centers.map((center) => [center.id, center]));
 const sampleProfileCreatedAtHours = 200;
 
 // --------------------------------------------------------------------- text
@@ -160,6 +162,8 @@ function buildPlan() {
         email: user.email,
         level: user.level,
         avatarUrl: user.avatarUrl || null,
+        role: user.role || 'USER',
+        centerId: user.centerId || null,
         questionCount: count.questionCount,
         answerCount: count.answerCount,
         acceptedCount: count.acceptedCount,
@@ -262,8 +266,12 @@ function buildPlan() {
         logoUrl: center.logoUrl || null,
         description: center.description,
         address: center.address,
+        city: center.city || '',
+        website: center.website || '',
         phone: center.phone,
         email: center.email,
+        ownerUid: center.ownerUid || null,
+        verified: Boolean(center.verified),
         managerUids: center.managerUids || [],
         status: center.status,
         isSample: true,
@@ -292,6 +300,61 @@ function buildPlan() {
           imageUrl: post.imageUrl || null,
           isSample: true,
           createdAt,
+        },
+      });
+    });
+  });
+
+  promos.forEach((promo) => {
+    const center = centerById.get(promo.centerId);
+    if (!center) {
+      throw new Error(`Unknown centerId "${promo.centerId}" in promos.json`);
+    }
+    const leads = promo.leads || [];
+    const leadCount = leads.length > 0 ? leads.length : (promo.leadCount || 0);
+    const createdAt = timestampFromOffsetHours(promo.createdAtOffsetHours || 0);
+    const endAt = promo.endAtInDays != null
+        ? admin.firestore.Timestamp.fromDate(
+            new Date(Date.now() + promo.endAtInDays * 24 * 3600 * 1000))
+        : null;
+
+    writes.push({
+      path: `promos/${promo.id}`,
+      data: {
+        centerId: promo.centerId,
+        centerName: center.name,
+        centerVerified: Boolean(center.verified),
+        authorUid: promo.authorUid,
+        title: promo.title,
+        body: promo.body,
+        type: promo.type,
+        level: promo.level || '',
+        fee: promo.fee || '',
+        schedule: promo.schedule || '',
+        contactPhone: promo.contactPhone || '',
+        linkUrl: promo.linkUrl || '',
+        imageUrl: promo.imageUrl || null,
+        status: promo.status,
+        viewCount: promo.viewCount || 0,
+        clickCount: promo.clickCount || 0,
+        leadCount,
+        isSample: true,
+        createdAt,
+        endAt,
+      },
+    });
+
+    leads.forEach((lead) => {
+      writes.push({
+        path: `promos/${promo.id}/leads/${lead.uid}`,
+        data: {
+          userUid: lead.uid,
+          name: lead.name,
+          phone: lead.phone,
+          note: lead.note || '',
+          status: lead.status || 'NEW',
+          isSample: true,
+          createdAt: timestampFromOffsetHours(lead.createdAtOffsetHours || 0),
         },
       });
     });
@@ -383,6 +446,7 @@ async function main() {
   console.log(`  users      : ${users.length}`);
   console.log(`  questions  : ${questions.length}`);
   console.log(`  centers    : ${centers.length}`);
+  console.log(`  promos     : ${promos.length}`);
   console.log(`  documents  : ${writes.length}`);
   console.log(`  auth users : ${users.length}`);
   console.log('');

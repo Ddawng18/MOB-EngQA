@@ -1,7 +1,9 @@
 package com.example.engqa.model;
 
 import com.google.firebase.firestore.DocumentId;
+import com.google.firebase.firestore.Exclude;
 import com.google.firebase.firestore.IgnoreExtraProperties;
+import com.google.firebase.firestore.PropertyName;
 import com.google.firebase.firestore.ServerTimestamp;
 
 import java.util.ArrayList;
@@ -12,8 +14,10 @@ import java.util.List;
 @IgnoreExtraProperties
 public class Center {
 
-    public static final String STATUS_PENDING = "pending";
-    public static final String STATUS_APPROVED = "approved";
+    public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_APPROVED = "APPROVED";
+    public static final String STATUS_REJECTED = "REJECTED";
+    public static final String STATUS_SUSPENDED = "SUSPENDED";
 
     @DocumentId
     private String id;
@@ -21,8 +25,12 @@ public class Center {
     private String logoUrl;
     private String description;
     private String address;
+    private String city;
     private String phone;
     private String email;
+    private String website;
+    private String ownerUid;
+    private boolean verified;
     private List<String> managerUids = new ArrayList<>();
     private String status = STATUS_PENDING;
     @ServerTimestamp
@@ -87,6 +95,40 @@ public class Center {
         this.email = email;
     }
 
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getWebsite() {
+        return website;
+    }
+
+    public void setWebsite(String website) {
+        this.website = website;
+    }
+
+    public String getOwnerUid() {
+        return ownerUid;
+    }
+
+    public void setOwnerUid(String ownerUid) {
+        this.ownerUid = ownerUid;
+    }
+
+    @PropertyName("verified")
+    public boolean isVerified() {
+        return verified;
+    }
+
+    @PropertyName("verified")
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
+
     public List<String> getManagerUids() {
         return managerUids;
     }
@@ -111,6 +153,7 @@ public class Center {
         this.createdAt = createdAt;
     }
 
+    @Exclude
     public boolean isApproved() {
         return STATUS_APPROVED.equals(status);
     }

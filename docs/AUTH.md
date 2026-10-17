@@ -118,3 +118,48 @@ Rules hiện tại (bản mới) đã:
 5. Tạo tài khoản thứ hai trùng tên hiển thị → phải bị chặn với "Tên hiển thị này đã được sử dụng".
 6. **Hồ sơ → Đổi mật khẩu** → nhập sai mật khẩu hiện tại phải báo lỗi; nhập đúng thì đổi được.
 7. Xoay màn hình ở màn đăng nhập/đăng ký → không mất dữ liệu đang nhập, không lặp toast.
+
+## 8. Google Sign-In báo mã 10 (DEVELOPER_ERROR)
+
+**Triệu chứng:** bấm "Tiếp tục với Google" → *"Chưa cấu hình Google Sign-In trên Firebase Console
+(mã 10)…"*.
+
+**Nguyên nhân:** mã 10 = chữ ký APK không khớp bất kỳ SHA-1 nào đã đăng ký cho Android app trên
+Firebase. Thường gặp khi:
+
+- Debug keystore bị tạo mới (máy mới, xoá `~/.android/debug.keystore`) → SHA-1 khác.
+- Build bằng keystore release nhưng chưa đăng ký SHA-1 của keystore đó.
+- `google-services.json` cũ, chưa có SHA-1 hiện tại.
+
+Kiểm tra SHA-1 đang dùng:
+
+```powershell
+keytool -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" `
+  -alias androiddebugkey -storepass android -keypass android
+```
+
+So sánh `SHA1:` với `certificate_hash` trong `app/google-services.json` (bỏ dấu `:`).
+Nếu khác, đăng ký + tải lại config bằng một lệnh:
+
+```powershell
+node tools/fix-google-signin.js <sha1-40-hex>
+```
+
+Script sẽ thêm SHA-1 vào Firebase Android app (giữ các SHA-1 cũ), tải lại
+`app/google-services.json` và in web client id. Nếu web client id khác
+`res/values/strings.xml` → `default_web_client_id`, cập nhật lại.
+
+Sau đó **build + cài lại** app:
+
+```powershell
+.\gradlew.bat installDebug
+```
+
+Lưu ý:
+
+- Mỗi máy/keystore cần SHA-1 riêng; thêm nhiều SHA-1 cho cùng app là bình thường (Firebase giữ
+  danh sách).
+- Nếu dùng build release, chạy lại tool với SHA-1 của keystore release.
+- Mã 10 khác với lỗi `auth/operation-not-allowed` (provider Google chưa bật trong
+  Authentication → Sign-in method) và `12501` (người dùng huỷ).
+

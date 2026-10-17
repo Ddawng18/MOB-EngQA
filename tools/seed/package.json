@@ -10,7 +10,8 @@
     "seed:clear": "node seed.js --clear",
     "seed:rest": "node seed-rest.js",
     "seed:rest:dry": "node seed-rest.js --dry-run",
-    "seed:rest:clear": "node seed-rest.js --clear"
+    "seed:rest:clear": "node seed-rest.js --clear",
+    "verify": "node verify.js"
   },
   "dependencies": {
     "firebase-admin": "^12.6.0"

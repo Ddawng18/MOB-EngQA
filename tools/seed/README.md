@@ -8,9 +8,10 @@ content. Everything it writes is marked `isSample: true`, so it can be removed a
 | File              | Writes                                                        |
 |-------------------|---------------------------------------------------------------|
 | `categories.json` | 9 topics → `categories/{slug}`                                |
-| `users.json`      | 7 demo accounts → Firebase Auth + `users/{uid}`               |
+| `users.json`      | 7 demo accounts → Firebase Auth + `users/{uid}` (`role`, `centerId`) |
 | `questions.json`  | 8 questions with answers and votes                            |
-| `centers.json`    | 2 centres (one approved with courses/posts, one pending)      |
+| `centers.json`    | 2 centres (one APPROVED/verified, one PENDING) + courses/posts |
+| `promos.json`     | 4 promo posts (3 APPROVED, 1 PENDING) + 3 leads               |
 
 Every seeded document and the counters on `users/{uid}` (`questionCount`, `answerCount`,
 `acceptedCount`) are **derived from the JSON**, so the numbers always match the actual data.
@@ -30,6 +31,7 @@ node seed-rest.js --dry-run   # in kế hoạch, không gọi mạng
 node seed-rest.js             # ghi dữ liệu + tạo tài khoản demo
 node seed-rest.js --no-auth   # chỉ ghi Firestore (khi không tới được identitytoolkit)
 node seed-rest.js --clear     # xoá documents isSample + tài khoản demo
+node verify.js                # kiểm tra nhanh dữ liệu đã seed (chỉ đọc)
 ```
 
 Script này đọc access token mà Firebase CLI đã lưu ở

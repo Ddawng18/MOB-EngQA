@@ -14,11 +14,11 @@ Cập nhật 2026-10-14:
 | Hạng mục | Trạng thái |
 |---|---|
 | Firestore database | ✅ **Đã tồn tại sẵn** — `(default)`, **FIRESTORE_NATIVE**, edition STANDARD, region **`asia-southeast3`**, tạo `2026-10-13T06:04:17Z`. Không cần tạo lại. |
-| `firestore.rules` | ✅ Đã deploy **bản mới** (sửa lỗi `users` create từng khiến đăng ký bị `PERMISSION_DENIED`). Đã xác minh ruleset live không còn check `uid` cũ. |
-| Firebase Auth user demo | ✅ Đã tạo **7 tài khoản** (verified, displayName đúng, uid khớp dữ liệu seed). Đăng nhập thật đã được kiểm chứng. |
+| `firestore.rules` | ✅ Đã deploy **bản mới** (auth + promos/leads + role/centerId + counter bounds). Rules biên dịch thành công. |
+| Firebase Auth user demo | ✅ Đã tạo **7 tài khoản** (verified, displayName đúng, uid khớp dữ liệu seed). `center.manager@engqa.demo` có `role = CENTER`. |
 | `storage.rules` | ❌ Chưa deploy — **Firebase Storage chưa được bật** trên project. |
-| `firestore.indexes.json` | ✅ Đã deploy — **10/10 index ở trạng thái `READY`**. |
-| Seed dữ liệu Firestore | ✅ Đã ghi **56 documents**: 9 categories, 8 questions (+ 6 answers, + votes), 2 centers (+ 3 courses, + 2 posts), 7 users mẫu. |
+| `firestore.indexes.json` | ✅ Đã deploy — **13 index** (10 cũ + 3 cho `promos`). Index mới có thể còn `CREATING` vài phút. |
+| Seed dữ liệu Firestore | ✅ Đã ghi **63 documents**: 9 categories, câu hỏi + answers/votes, 2 centers (APPROVED/PENDING), **4 promos (3 APPROVED + 1 PENDING) + 3 leads**, 7 users mẫu. |
 
 ### Việc còn lại
 
@@ -231,6 +231,7 @@ cd C:\Users\LENOVO\AndroidStudioProjects\MOB-EngQA
 | `npm i -g firebase-tools` lỗi `ECONNRESET` hoặc `EPERM cleanup` | Mạng chập chờn khi tải cây phụ thuộc lớn + bản cài dở còn bị khoá. Xem mục *Cài firebase-tools khi mạng yếu* bên dưới. |
 | Đăng nhập/đăng ký trong app lỗi; seed báo `fetch failed` | Host `identitytoolkit.googleapis.com` bị mạng chặn (dải `172.217.11x.4`). Dùng `node seed-rest.js --no-auth`, tạo user trong Console, và thử mạng khác/VPN cho app. |
 | `firebase deploy --only storage` báo *Storage has not been set up* | Bật Storage trong Console (Get Started) rồi deploy lại. |
+| Google Sign-In báo **mã 10 (DEVELOPER_ERROR)** | SHA-1 của keystore đang ký chưa được đăng ký. Chạy `node tools/fix-google-signin.js <sha1-40-hex>` rồi cài lại app. Xem chi tiết ở `docs/AUTH.md` mục 8. |
 
 ### Cài firebase-tools khi mạng yếu
 

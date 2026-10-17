@@ -50,6 +50,7 @@ Thumbs.db
 *.keystore
 *.p12
 *.pem
+keystore.properties
 
 # Temporary files
 *.tmp

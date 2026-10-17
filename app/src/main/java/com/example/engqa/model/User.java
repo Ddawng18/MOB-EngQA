@@ -1,6 +1,7 @@
 package com.example.engqa.model;
 
 import com.google.firebase.firestore.DocumentId;
+import com.google.firebase.firestore.Exclude;
 import com.google.firebase.firestore.IgnoreExtraProperties;
 import com.google.firebase.firestore.ServerTimestamp;
 
@@ -10,12 +11,19 @@ import java.util.Date;
 @IgnoreExtraProperties
 public class User {
 
+    /** Roles are granted by an administrator only (see firestore.rules). */
+    public static final String ROLE_USER = "USER";
+    public static final String ROLE_CENTER = "CENTER";
+    public static final String ROLE_ADMIN = "ADMIN";
+
     @DocumentId
     private String uid;
     private String username;
     private String email;
     private String level;
     private String avatarUrl;
+    private String role;
+    private String centerId;
     private long questionCount;
     private long answerCount;
     private long acceptedCount;
@@ -70,6 +78,38 @@ public class User {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getCenterId() {
+        return centerId;
+    }
+
+    public void setCenterId(String centerId) {
+        this.centerId = centerId;
+    }
+
+    /** A missing role is treated as a normal learner. */
+    @Exclude
+    public String roleOrDefault() {
+        return role != null ? role : ROLE_USER;
+    }
+
+    @Exclude
+    public boolean isCenter() {
+        return ROLE_CENTER.equals(role);
+    }
+
+    @Exclude
+    public boolean isAdmin() {
+        return ROLE_ADMIN.equals(role);
     }
 
     public long getQuestionCount() {

@@ -16,6 +16,8 @@ public final class FirestoreRefs {
     public static final String CENTERS = "centers";
     public static final String COURSES = "courses";
     public static final String POSTS = "posts";
+    public static final String PROMOS = "promos";
+    public static final String LEADS = "leads";
     public static final String ADMINS = "admins";
 
     public static final String FIELD_CREATED_AT = "createdAt";
@@ -25,4 +27,6 @@ public final class FirestoreRefs {
     public static final String FIELD_RECIPIENT_ID = "recipientId";
     public static final String FIELD_SEARCH_KEYWORDS = "searchKeywords";
     public static final String FIELD_STATUS = "status";
+    public static final String FIELD_AUTHOR_UID = "authorUid";
+    public static final String FIELD_CENTER_ID = "centerId";
 }

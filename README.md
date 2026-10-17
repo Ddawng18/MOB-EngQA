@@ -227,6 +227,20 @@ See **[docs/AUTH.md](docs/AUTH.md)** for the flow diagrams, validation rules, er
 and the manual test checklist. Auth depends on `firestore.rules`; see
 [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) to deploy it.
 
+## Centre advertising (promos)
+
+Centres can publish promotional posts (course, event, scholarship, announcement) that the home feed
+interleaves with questions (one promo after every two questions). Posts are created as `PENDING` and
+only appear once an administrator approves them; the `promos` collection is separate from
+`questions`, so the Q&A feed is never diluted. A dedicated **Trung tâm** chip shows promos only.
+
+The detail screen counts one view per opening (even across rotation), opens the website/phone through
+implicit intents, saves posts locally with Room, and collects consultation requests at
+`promos/{id}/leads/{uid}` (one per learner, enforced in a transaction). `users.role` / `users.centerId`
+are granted by administrators only, and the security rules enforce approval and bounded counters.
+
+See **[docs/PROMO.md](docs/PROMO.md)** for the data model, file map, rules and test checklist.
+
 ## Screens
 
 | Screen                     | Layout                        | Activity                  |
@@ -240,6 +254,10 @@ and the manual test checklist. Auth depends on `firestore.rules`; see
 | Edit profile               | `activity_edit_profile.xml`   | `EditProfileActivity`     |
 | Notifications              | `activity_notification.xml`   | `NotificationActivity`    |
 | Centres                    | `activity_center_list.xml`, `activity_center_detail.xml`, `activity_center_edit.xml`, `activity_center_request.xml` | `CenterListActivity`, `CenterDetailActivity`, `CenterEditActivity`, `CenterRequestActivity` |
+| Promo detail               | `activity_promo_detail.xml`   | `PromoDetailActivity`     |
+| Create promo               | `activity_create_promo.xml`   | `CreatePromoActivity`     |
+| Saved promos (Room)        | `activity_saved_promos.xml`   | `SavedPromosActivity`     |
+| Consultation dialog        | `dialog_lead.xml`             | `LeadDialogFragment`      |
 | Can't connect to the server| `activity_server_error.xml`   | `ServerErrorActivity`     |
 
 The bottom navigation bar is shared (`view_bottom_nav.xml`, `BaseNavActivity`) and has three tabs:
@@ -261,7 +279,20 @@ ViewModel and mirrored into `onSaveInstanceState` so it also survives process de
 ```
 
 Unit tests cover the pure-Java helpers: `TextUtils2` (accent-free tokenizer and search keywords),
-`Validators` (email/password/title and media limits) and `TimeUtils` (relative-time labels).
+`Validators` (email/password/title and media limits), `TimeUtils` (relative-time labels),
+`FeedMixer` (feed interleaving, expiry and promo search) and `PromoValidator` (promo form rules) —
+31 tests in total.
+
+## Release and distribution
+
+A **release-signed** build is what makes every user's device work, because Google/Phone Sign-In are
+tied to the app's signing certificate. Create one keystore, put its details in the git-ignored
+`keystore.properties` (see `keystore.properties.example`), build `bundleRelease` / `assembleRelease`,
+register its SHA-1 once with `node tools/fix-google-signin.js <sha1>` and ship that build.
+Play App Signing needs its own SHA-1 registered as well.
+
+Full checklist (keystore creation, signing, Play App Signing, API-key restrictions, clean-device
+verification and distribution options): **[docs/RELEASE.md](docs/RELEASE.md)**.
 
 ## Security rules
 
@@ -271,7 +302,11 @@ Unit tests cover the pure-Java helpers: `TextUtils2` (accent-free tokenizer and 
 - An answer starts with zero counters and `isAccepted == false`; only the question owner may accept.
 - Votes are one document per user per answer (`votes/{uid}`) with `value` in `{+1, -1}`.
 - Notifications can only be created for someone else and read only by their recipient.
-- `admins` is read-only from clients; admins are added from the Console.
+- Promos are readable only when `APPROVED`; creation requires the `CENTER` role linked to the
+  promo's centre, `status == 'PENDING'` and zero counters. Counter bumps are capped at +1.
+- A learner can create only their own lead (`promos/{id}/leads/{uid}`); the centre and admins read it.
+- `users.role`/`users.centerId` cannot be changed by the user; admins are added from the Console.
+- `admins` is read-only from clients.
 
 ## Known limitations
 

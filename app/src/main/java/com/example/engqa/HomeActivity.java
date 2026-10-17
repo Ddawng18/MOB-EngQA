@@ -2,51 +2,76 @@ package com.example.engqa;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.engqa.data.Callback;
 import com.example.engqa.data.QuestionRepository;
+import com.example.engqa.data.UserRepository;
 import com.example.engqa.model.Category;
+import com.example.engqa.model.FeedItem;
+import com.example.engqa.model.Promo;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.ui.CategoryChipAdapter;
-import com.example.engqa.ui.QuestionAdapter;
+import com.example.engqa.ui.FeedAdapter;
 import com.example.engqa.ui.StateView;
-import com.example.engqa.viewmodel.HomeViewModel;
+import com.example.engqa.util.FeedMixer;
+import com.example.engqa.viewmodel.FeedViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Feed screen: realtime question list, category filter, sort, keyword search and paging. */
+/**
+ * Home feed: a single RecyclerView that interleaves Q&amp;A questions and approved centre promos,
+ * with category chips (including "Trung tâm"), sort, keyword search, paging and a role-aware
+ * profile {@link PopupMenu}.
+ */
 public class HomeActivity extends BaseNavActivity {
 
-    private HomeViewModel viewModel;
-    private QuestionAdapter questionAdapter;
+    private FeedViewModel viewModel;
+    private FeedAdapter feedAdapter;
     private CategoryChipAdapter categoryAdapter;
     private CategoryChipAdapter sortAdapter;
     private StateView stateView;
     private ProgressBar progressMore;
     private TextView cacheHint;
-    private RecyclerView recyclerQuestions;
-    private boolean loadingMore;
+    private RecyclerView recyclerView;
+    private RecyclerView sortRecycler;
 
-    private static final String[][ ] SORTS = {
-            {"newest", "Mới nhất"},
-            {"popular", "Phổ biến"},
-            {"unanswered", "Chưa trả lời"}
+    private final UserRepository userRepository = new UserRepository();
+    private User currentUser;
+
+    private static final String[][] SORTS = {
+            {QuestionRepository.SORT_NEWEST, "Mới nhất"},
+            {QuestionRepository.SORT_POPULAR, "Phổ biến"},
+            {QuestionRepository.SORT_UNANSWERED, "Chưa trả lời"}
     };
+
+    private final ActivityResultLauncher<Intent> createPromoLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    Toast.makeText(this, R.string.promo_submitted, Toast.LENGTH_SHORT).show();
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,11 +88,12 @@ public class HomeActivity extends BaseNavActivity {
             return insets;
         });
 
-        viewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+        viewModel = new ViewModelProvider(this).get(FeedViewModel.class);
         stateView = findViewById(R.id.stateView);
         progressMore = findViewById(R.id.progressMore);
         cacheHint = findViewById(R.id.tvCacheHint);
-        recyclerQuestions = findViewById(R.id.recyclerQuestions);
+        recyclerView = findViewById(R.id.recyclerQuestions);
+        sortRecycler = findViewById(R.id.recyclerSort);
 
         setupFeed();
         setupCategoryChips();
@@ -81,7 +107,8 @@ public class HomeActivity extends BaseNavActivity {
                 startActivity(new Intent(this, LoginActivity.class));
             }
         });
-        findViewById(R.id.btnProfile).setOnClickListener(v -> onProfileClicked());
+        View profileButton = findViewById(R.id.btnProfile);
+        profileButton.setOnClickListener(this::showProfileMenu);
 
         stateView.setOnRetryListener(v -> {
             viewModel.stop();
@@ -99,6 +126,7 @@ public class HomeActivity extends BaseNavActivity {
     protected void onStart() {
         super.onStart();
         viewModel.start();
+        loadCurrentUser();
     }
 
     @Override
@@ -107,23 +135,57 @@ public class HomeActivity extends BaseNavActivity {
         viewModel.stop();
     }
 
+    private void loadCurrentUser() {
+        String uid = userRepository.currentUid();
+        if (uid == null) {
+            currentUser = null;
+            return;
+        }
+        userRepository.getUser(uid, new Callback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                currentUser = user;
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // Keep the previous value; the menu falls back to the visitor state.
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ feed
+
     private void setupFeed() {
-        questionAdapter = new QuestionAdapter(this::openQuestion);
-        recyclerQuestions.setLayoutManager(new LinearLayoutManager(this));
-        recyclerQuestions.setAdapter(questionAdapter);
-        recyclerQuestions.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        feedAdapter = new FeedAdapter(new FeedAdapter.OnFeedActionListener() {
+            @Override
+            public void onQuestionClick(Question question) {
+                openQuestion(question);
+            }
+
+            @Override
+            public void onPromoClick(Promo promo) {
+                openPromo(promo);
+            }
+        });
+
+        int columns = Math.max(1, getResources().getInteger(R.integer.feed_columns));
+        recyclerView.setLayoutManager(new GridLayoutManager(this, columns));
+        recyclerView.setAdapter(feedAdapter);
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                if (dy <= 0 || loadingMore) {
+                if (dy <= 0 || Boolean.TRUE.equals(viewModel.getLoadingMore().getValue())) {
                     return;
                 }
-                LinearLayoutManager manager =
-                        (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (manager == null) {
-                    return;
+                RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
+                int lastVisible = -1;
+                if (manager instanceof GridLayoutManager) {
+                    lastVisible = ((GridLayoutManager) manager).findLastVisibleItemPosition();
+                } else if (manager instanceof LinearLayoutManager) {
+                    lastVisible = ((LinearLayoutManager) manager).findLastVisibleItemPosition();
                 }
-                if (manager.findLastVisibleItemPosition()
-                        >= questionAdapter.getItemCount() - 3) {
+                if (lastVisible >= feedAdapter.getItemCount() - 3) {
                     viewModel.loadMore();
                 }
             }
@@ -134,38 +196,42 @@ public class HomeActivity extends BaseNavActivity {
                 progressMore.setVisibility(Boolean.TRUE.equals(more) ? View.VISIBLE : View.GONE));
     }
 
-    private void renderFeed(UiState<List<Question>> state) {
+    private void renderFeed(UiState<List<FeedItem>> state) {
         if (state == null) {
             return;
         }
         switch (state.getStatus()) {
             case LOADING:
                 stateView.showLoading();
-                recyclerQuestions.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.GONE);
                 break;
             case SUCCESS:
                 stateView.showContent();
-                recyclerQuestions.setVisibility(View.VISIBLE);
-                questionAdapter.submitList(state.getData());
+                recyclerView.setVisibility(View.VISIBLE);
+                feedAdapter.submitList(state.getData());
                 cacheHint.setVisibility(state.isFromCache() ? View.VISIBLE : View.GONE);
                 break;
             case EMPTY:
                 stateView.showEmpty();
-                recyclerQuestions.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.GONE);
                 break;
             case ERROR:
             default:
                 stateView.showError(state.getMessage());
-                recyclerQuestions.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.GONE);
                 break;
         }
     }
 
+    // ------------------------------------------------------------------ filters
+
     private void setupCategoryChips() {
         RecyclerView recycler = findViewById(R.id.recyclerCategories);
-        categoryAdapter = new CategoryChipAdapter(null, category -> {
+        categoryAdapter = new CategoryChipAdapter(viewModel.getCategoryId(), category -> {
             viewModel.setCategory(category.getId());
             categoryAdapter.setSelectedId(category.getId());
+            sortRecycler.setVisibility(FeedMixer.FILTER_CENTER.equals(category.getId())
+                    ? View.GONE : View.VISIBLE);
         });
         recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
         recycler.setAdapter(categoryAdapter);
@@ -176,18 +242,24 @@ public class HomeActivity extends BaseNavActivity {
             if (categories != null) {
                 items.addAll(categories);
             }
+            items.add(new Category(FeedMixer.FILTER_CENTER,
+                    getString(R.string.promo_filter_center), Integer.MAX_VALUE));
             categoryAdapter.submitList(items);
+            categoryAdapter.setSelectedId(viewModel.getCategoryId());
+            sortRecycler.setVisibility(
+                    FeedMixer.FILTER_CENTER.equals(viewModel.getCategoryId())
+                            ? View.GONE : View.VISIBLE);
         });
     }
 
     private void setupSortChips() {
-        RecyclerView recycler = findViewById(R.id.recyclerSort);
         sortAdapter = new CategoryChipAdapter(QuestionRepository.SORT_NEWEST, category -> {
             viewModel.setSort(category.getId());
             sortAdapter.setSelectedId(category.getId());
         });
-        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
-        recycler.setAdapter(sortAdapter);
+        sortRecycler.setLayoutManager(
+                new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        sortRecycler.setAdapter(sortAdapter);
 
         List<Category> items = new ArrayList<>();
         for (String[] sort : SORTS) {
@@ -206,18 +278,60 @@ public class HomeActivity extends BaseNavActivity {
         });
     }
 
+    // ------------------------------------------------------------------ navigation
+
     private void openQuestion(Question question) {
         Intent intent = new Intent(this, QuestionDetailActivity.class);
         intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, question.getId());
         startActivity(intent);
     }
 
-    private void onProfileClicked() {
-        if (!new SessionManager(this).isLoggedIn()) {
+    private void openPromo(Promo promo) {
+        Intent intent = new Intent(this, PromoDetailActivity.class);
+        intent.putExtra(PromoDetailActivity.EXTRA_PROMO_ID, promo.getPromoId());
+        startActivity(intent);
+    }
+
+    /** Profile menu: login / create promo (centres only) / saved / logout. */
+    private void showProfileMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenuInflater().inflate(R.menu.menu_profile, popup.getMenu());
+
+        boolean loggedIn = new SessionManager(this).isLoggedIn();
+        boolean isCenter = currentUser != null
+                && (User.ROLE_CENTER.equals(currentUser.getRole())
+                    || currentUser.getCenterId() != null);
+
+        popup.getMenu().findItem(R.id.action_login).setVisible(!loggedIn);
+        popup.getMenu().findItem(R.id.action_create_promo).setVisible(loggedIn && isCenter);
+        popup.getMenu().findItem(R.id.action_saved_promos).setVisible(true);
+        popup.getMenu().findItem(R.id.action_logout).setVisible(loggedIn);
+
+        popup.setOnMenuItemClickListener(this::onProfileMenuClick);
+        popup.show();
+    }
+
+    private boolean onProfileMenuClick(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_login) {
             startActivity(new Intent(this, LoginActivity.class));
-            return;
+            return true;
         }
-        startActivity(new Intent(this, MenuScreenActivity.class));
+        if (id == R.id.action_create_promo) {
+            createPromoLauncher.launch(new Intent(this, CreatePromoActivity.class));
+            return true;
+        }
+        if (id == R.id.action_saved_promos) {
+            startActivity(new Intent(this, SavedPromosActivity.class));
+            return true;
+        }
+        if (id == R.id.action_logout) {
+            new SessionManager(this).logout();
+            Toast.makeText(this, R.string.logged_out, Toast.LENGTH_SHORT).show();
+            recreate();
+            return true;
+        }
+        return false;
     }
 
     private abstract static class SimpleTextWatcher implements android.text.TextWatcher {

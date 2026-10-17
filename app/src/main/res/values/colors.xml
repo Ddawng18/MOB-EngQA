@@ -31,4 +31,10 @@
     <color name="vote_up_active">#FFFF4500</color>
     <color name="vote_down_active">#FF64B5F6</color>
     <color name="scrim">#B3000000</color>
+
+    <!-- Promo / centre advertising -->
+    <color name="promo_border">#66FF4500</color>
+    <color name="promo_badge_bg">#33FF4500</color>
+    <color name="verified_blue">#FF4C9AFF</color>
+    <color name="promo_expired">#FF8A8A8A</color>
 </resources>

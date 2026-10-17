@@ -4,12 +4,13 @@ rules_version = '2';
 //
 // Design notes
 // ------------
-// * Admin status is never stored on the profile: it is read from the admins/{uid} collection,
-//   which clients cannot write, so nobody can grant themselves privileges.
-// * Counter fields (question.answerCount, question.score, answer.upCount/downCount,
-//   user.acceptedCount) are maintained by the client, so the rules allow only *bounded* counter
-//   changes on documents the caller does not own. A production build would move these updates into
-//   a Cloud Function (see the report's limitations section).
+// * Roles (USER | CENTER | ADMIN) live on the profile but are granted by administrators only:
+//   a self-update may not touch role/centerId. Admin status itself is read from admins/{uid},
+//   which clients cannot write.
+// * Counter fields are maintained by the client, so the rules allow only *bounded* counter changes
+//   on documents the caller does not own. A production build would move these updates into a
+//   Cloud Function.
+// * Promos are only visible once APPROVED; centres create them as PENDING.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -32,34 +33,23 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
-    // A profile may never carry privilege-bearing fields.
-    function hasNoPrivilegeFields() {
-      return !('isAdmin' in request.resource.data)
-          && !('role' in request.resource.data)
-          && !('admin' in request.resource.data);
-    }
-
-    // Any signed-in user may reward an accepted answer (+1 only, nothing else changed).
     function onlyBumpsAcceptedCount() {
       return changedKeys().hasOnly(['acceptedCount'])
           && request.resource.data.acceptedCount == resource.data.acceptedCount + 1;
     }
 
-    // Answering (or deleting an answer) adjusts the question's answerCount by exactly one.
     function onlyUpdatesAnswerCount() {
       return changedKeys().hasOnly(['answerCount'])
           && (request.resource.data.answerCount == resource.data.answerCount + 1
               || request.resource.data.answerCount == resource.data.answerCount - 1);
     }
 
-    // A vote adjusts the question score by at most two (one vote up and down again).
     function onlyUpdatesScore() {
       return changedKeys().hasOnly(['score'])
           && (request.resource.data.score - resource.data.score) >= -2
           && (request.resource.data.score - resource.data.score) <= 2;
     }
 
-    // A vote adjusts one answer counter by exactly one step.
     function onlyUpdatesVoteCounters() {
       return changedKeys().hasOnly(['upCount', 'downCount'])
           && (request.resource.data.upCount - resource.data.upCount) >= -1
@@ -76,15 +66,43 @@ service cloud.firestore {
       return isAdmin()
           || (isSignedIn()
               && centerId in get(/databases/$(database)/documents/centers/$(centerId)).data.managerUids
-              && get(/databases/$(database)/documents/centers/$(centerId)).data.status == 'approved');
+              && get(/databases/$(database)/documents/centers/$(centerId)).data.status == 'APPROVED');
+    }
+
+    /** The caller's profile must point at this centre with the CENTER role. */
+    function isCenterOwner(centerId) {
+      return isSignedIn()
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CENTER'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.centerId == centerId;
+    }
+
+    function isPromoOwner(promoId) {
+      return isSignedIn()
+          && get(/databases/$(database)/documents/promos/$(promoId)).data.authorUid
+              == request.auth.uid;
+    }
+
+    /** A promo counter may only grow by one, and only on an APPROVED promo. */
+    function onlyBumpsPromoCounter() {
+      return resource.data.status == 'APPROVED'
+          && changedKeys().hasOnly(['viewCount', 'clickCount', 'leadCount'])
+          && (request.resource.data.viewCount - resource.data.viewCount) >= 0
+          && (request.resource.data.viewCount - resource.data.viewCount) <= 1
+          && (request.resource.data.clickCount - resource.data.clickCount) >= 0
+          && (request.resource.data.clickCount - resource.data.clickCount) <= 1
+          && (request.resource.data.leadCount - resource.data.leadCount) >= 0
+          && (request.resource.data.leadCount - resource.data.leadCount) <= 1;
     }
 
     // ---------------------------------------------------------------- users
     match /users/{uid} {
       allow read: if isSignedIn();
 
-      // The document id *is* the uid, so no duplicated uid field is required.
-      allow create: if isSelf(uid) && hasNoPrivilegeFields()
+      // A new profile may never start with privileges.
+      allow create: if isSelf(uid)
+          && (!('role' in request.resource.data) || request.resource.data.role == 'USER')
+          && (!('centerId' in request.resource.data) || request.resource.data.centerId == null)
+          && (!('isAdmin' in request.resource.data))
           && (!('questionCount' in request.resource.data)
               || request.resource.data.questionCount == 0)
           && (!('answerCount' in request.resource.data)
@@ -92,8 +110,10 @@ service cloud.firestore {
           && (!('acceptedCount' in request.resource.data)
               || request.resource.data.acceptedCount == 0);
 
+      // Owners may edit their profile but not their role/centre; admins may do anything.
       allow update: if isAdmin()
-          || (isSelf(uid) && hasNoPrivilegeFields())
+          || (isSelf(uid)
+              && !changedKeys().hasAny(['role', 'centerId', 'isAdmin']))
           || onlyBumpsAcceptedCount();
 
       allow delete: if isSelf(uid) || isAdmin();
@@ -110,8 +130,6 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
           && request.resource.data.authorId == request.auth.uid;
-      // The author (or an admin) may edit everything; other users may only move answerCount
-      // (when answering) or score (when voting).
       allow update: if isSignedIn()
           && (resource.data.authorId == request.auth.uid
               || isAdmin()
@@ -128,8 +146,6 @@ service cloud.firestore {
             && request.resource.data.upCount == 0
             && request.resource.data.downCount == 0
             && request.resource.data.isAccepted == false;
-        // The answer author may edit their answer (but not the counters); the question owner may
-        // accept; any signed-in user may cast a vote (counter-only change, bounded to one step).
         allow update: if isSignedIn()
             && ((resource.data.authorId == request.auth.uid
                     && !changedKeys().hasAny(['upCount', 'downCount']))
@@ -139,8 +155,6 @@ service cloud.firestore {
         allow delete: if isSignedIn()
             && (resource.data.authorId == request.auth.uid || isAdmin());
 
-        // One vote document per user per answer: the id must equal the voter's uid and the value
-        // must be +1 or -1, so a user can never hold more than one vote.
         match /votes/{voterId} {
           allow read: if isSignedIn();
           allow create, update: if isSignedIn()
@@ -168,12 +182,16 @@ service cloud.firestore {
     match /centers/{centerId} {
       allow read: if true;
       allow create: if isSignedIn()
-          && request.resource.data.status == 'pending'
-          && request.resource.data.managerUids == [request.auth.uid];
+          && request.resource.data.status == 'PENDING'
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.managerUids == [request.auth.uid]
+          && (!('verified' in request.resource.data) || request.resource.data.verified == false);
+      // Managers may edit the profile but cannot approve themselves.
       allow update: if isAdmin()
           || (isSignedIn()
               && centerId in resource.data.managerUids
-              && resource.data.status == 'approved');
+              && resource.data.status == 'APPROVED'
+              && !changedKeys().hasAny(['status', 'verified', 'ownerUid']));
       allow delete: if isAdmin();
 
       match /courses/{courseId} {
@@ -187,6 +205,47 @@ service cloud.firestore {
       }
     }
 
+    // ----------------------------------------------------------------- promos
+    match /promos/{promoId} {
+      // Approved promos are public; a pending/rejected one is only visible to its author/admin.
+      allow read: if resource.data.status == 'APPROVED'
+          || (isSignedIn()
+              && (resource.data.authorUid == request.auth.uid || isAdmin()));
+
+      allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.status == 'PENDING'
+          && request.resource.data.viewCount == 0
+          && request.resource.data.clickCount == 0
+          && request.resource.data.leadCount == 0
+          && isCenterOwner(request.resource.data.centerId)
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 5
+          && request.resource.data.title.size() <= 120
+          && (!('body' in request.resource.data)
+              || request.resource.data.body.size() <= 5000);
+
+      allow update: if isSignedIn()
+          && (isAdmin()
+              || resource.data.authorUid == request.auth.uid
+              || onlyBumpsPromoCounter());
+
+      allow delete: if isSignedIn()
+          && (resource.data.authorUid == request.auth.uid || isAdmin());
+
+      // One lead document per learner per promo (document id = uid).
+      match /leads/{leadUid} {
+        allow read: if isSignedIn()
+            && (leadUid == request.auth.uid || isPromoOwner(promoId) || isAdmin());
+        allow create: if isSignedIn()
+            && leadUid == request.auth.uid
+            && request.resource.data.userUid == request.auth.uid
+            && request.resource.data.status == 'NEW';
+        allow update: if isSignedIn() && (isPromoOwner(promoId) || isAdmin());
+        allow delete: if isAdmin();
+      }
+    }
+
     // --------------------------------------------------------------- reports
     match /reports/{reportId} {
       allow create: if isSignedIn()
@@ -196,7 +255,6 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------------- admins
-    // Readable only by the admin themselves; writes are always denied.
     match /admins/{adminId} {
       allow read: if isSelf(adminId);
       allow write: if false;
