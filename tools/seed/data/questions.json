@@ -1,0 +1,208 @@
+[
+  {
+    "id": "sample-q-grammar-present-perfect",
+    "authorUid": "demo-minh-anh",
+    "categorySlug": "grammar",
+    "level": "Beginner",
+    "title": "Khi nào dùng \"has been\" và \"have been\"?",
+    "body": "Mình hay nhầm hai cấu trúc này khi viết câu. Bạn nào giải thích giúp mình với ví dụ được không?",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": true,
+    "acceptedAnswerIndex": 0,
+    "createdAtOffsetHours": 2,
+    "answers": [
+      {
+        "authorUid": "demo-lan-teacher",
+        "body": "Dùng \"has been\" với chủ ngữ số ít (he, she, it, danh từ số ít) và \"have been\" với I, you, we, they. Ví dụ: She has been here since 8 AM. They have been friends for years.",
+        "createdAtOffsetHours": 1,
+        "votes": [
+          { "uid": "demo-khoa", "value": 1 },
+          { "uid": "demo-linh", "value": 1 },
+          { "uid": "demo-hoa", "value": 1 }
+        ]
+      },
+      {
+        "authorUid": "demo-tuan",
+        "body": "Mẹo nhớ nhanh: nhìn chủ ngữ trước, sau đó mới chia động từ. Nếu chủ ngữ là he/she/it thì luôn là has.",
+        "createdAtOffsetHours": 1,
+        "votes": [
+          { "uid": "demo-khoa", "value": 1 },
+          { "uid": "demo-hoa", "value": -1 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sample-q-vocab-affect-effect",
+    "authorUid": "demo-khoa",
+    "categorySlug": "vocabulary",
+    "level": "Intermediate",
+    "title": "Phân biệt affect và effect trong tiếng Anh",
+    "body": "Hai từ này phát âm gần giống nhau nhưng nghĩa khác hẳn. Có mẹo nhớ nào không ạ?",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": false,
+    "acceptedAnswerIndex": null,
+    "createdAtOffsetHours": 4,
+    "answers": [
+      {
+        "authorUid": "demo-lan-teacher",
+        "body": "\"Affect\" thường là động từ (gây ảnh hưởng), còn \"effect\" thường là danh từ (tác động, kết quả). Ví dụ: The weather affects my mood. / The effect of the weather is clear.",
+        "createdAtOffsetHours": 3,
+        "votes": [
+          { "uid": "demo-tuan", "value": 1 },
+          { "uid": "demo-linh", "value": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sample-q-pronunciation-ed",
+    "authorUid": "demo-linh",
+    "categorySlug": "pronunciation",
+    "level": "Intermediate",
+    "title": "Cách phát âm đuôi -ed trong quá khứ đơn?",
+    "body": "Có ba cách phát âm /t/, /d/, /ɪd/. Quy tắc nào để nhớ nhanh nhất?",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": false,
+    "acceptedAnswerIndex": null,
+    "createdAtOffsetHours": 26,
+    "answers": [
+      {
+        "authorUid": "demo-lan-teacher",
+        "body": "Nhớ theo âm cuối của động từ gốc: /t/ sau các âm vô thanh (p, k, f, s, sh, ch), /ɪd/ sau /t/ hoặc /d/, còn lại là /d/.",
+        "createdAtOffsetHours": 24,
+        "votes": [
+          { "uid": "demo-minh-anh", "value": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sample-q-ielts-writing-task2",
+    "authorUid": "demo-hoa",
+    "categorySlug": "ielts",
+    "level": "Advanced",
+    "title": "Cách cải thiện Writing Task 2 lên band 7?",
+    "body": "Mình đang ở band 6.0 và mắc phần lập luận. Xin kinh nghiệm từ mọi người.",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": false,
+    "acceptedAnswerIndex": null,
+    "createdAtOffsetHours": 30,
+    "answers": [
+      {
+        "authorUid": "demo-tuan",
+        "body": "Band 7 nằm ở Task Response và Coherence. Hãy viết mỗi đoạn thân bài theo cấu trúc: câu chủ đề, giải thích, ví dụ, kết luận nhỏ.",
+        "createdAtOffsetHours": 28,
+        "votes": [
+          { "uid": "demo-linh", "value": 1 },
+          { "uid": "demo-hoa", "value": 1 }
+        ]
+      },
+      {
+        "authorUid": "demo-lan-teacher",
+        "body": "Đừng cố dùng từ quá khó. Band 7 ưu tiên độ chính xác và mạch lạc hơn là từ vựng hoa mỹ.",
+        "createdAtOffsetHours": 20,
+        "votes": [
+          { "uid": "demo-khoa", "value": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sample-q-listening-numbers",
+    "authorUid": "demo-tuan",
+    "categorySlug": "listening",
+    "level": "Advanced",
+    "title": "Làm sao nghe được số trong bài thi Listening?",
+    "body": "Phần điền số mình hay nghe lẫn giữa 13 và 30, 15 và 50. Có cách luyện nào hiệu quả?",
+    "passageText": "Trọng âm của 13 là thir-TEEN (trọng âm ở âm tiết thứ hai), còn 30 là THIR-ty (trọng âm ở âm tiết đầu).",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": false,
+    "acceptedAnswerIndex": null,
+    "createdAtOffsetHours": 8,
+    "answers": []
+  },
+  {
+    "id": "sample-q-grammar-present-perfect-vs-past",
+    "authorUid": "demo-khoa",
+    "categorySlug": "grammar",
+    "level": "Intermediate",
+    "title": "Phân biệt thì hiện tại hoàn thành và quá khứ đơn",
+    "body": "Khi nào dùng \"I have visited\" và khi nào dùng \"I visited\" ạ?",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": true,
+    "acceptedAnswerIndex": 0,
+    "createdAtOffsetHours": 50,
+    "answers": [
+      {
+        "authorUid": "demo-lan-teacher",
+        "body": "\"I visited\" gắn với một thời điểm quá khứ đã kết thúc (last year). \"I have visited\" nhấn mạnh trải nghiệm tính đến hiện tại, không nói rõ thời điểm.",
+        "createdAtOffsetHours": 48,
+        "votes": [
+          { "uid": "demo-minh-anh", "value": 1 },
+          { "uid": "demo-hoa", "value": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sample-q-speaking-filler-words",
+    "authorUid": "demo-hoa",
+    "categorySlug": "speaking",
+    "level": "Beginner",
+    "title": "Mẹo giảm ừm khi nói tiếng Anh?",
+    "body": "Mỗi lần bí ý mình lại \"ừm\" rất nhiều. Làm sao để nói trôi chảy hơn?",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": false,
+    "acceptedAnswerIndex": null,
+    "createdAtOffsetHours": 6,
+    "answers": [
+      {
+        "authorUid": "demo-tuan",
+        "body": "Hãy thay \"ừm\" bằng các cụm trì hoãn tự nhiên như \"Well...\", \"That's a good question...\". Luyện ghi âm 1 phút mỗi ngày rồi nghe lại.",
+        "createdAtOffsetHours": 5,
+        "votes": [
+          { "uid": "demo-linh", "value": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sample-q-toeic-part5",
+    "authorUid": "demo-linh",
+    "categorySlug": "toeic",
+    "level": "Intermediate",
+    "title": "Part 5 TOEIC: chiến lược chọn đáp án nhanh?",
+    "body": "Mình hay mất thời gian ở phần từ loại. Có mẹo nhìn đuôi từ để chọn nhanh không?",
+    "passageText": "",
+    "imageUrls": [],
+    "audioUrl": null,
+    "isSolved": false,
+    "acceptedAnswerIndex": null,
+    "createdAtOffsetHours": 12,
+    "answers": [
+      {
+        "authorUid": "demo-lan-teacher",
+        "body": "Xác định vị trí cần điền (trước/ sau danh từ, sau trạng từ) rồi suy ra từ loại. Ví dụ sau tính từ là danh từ, bổ nghĩa cho động từ là trạng từ.",
+        "createdAtOffsetHours": 10,
+        "votes": [
+          { "uid": "demo-khoa", "value": 1 },
+          { "uid": "demo-hoa", "value": 1 }
+        ]
+      }
+    ]
+  }
+]
