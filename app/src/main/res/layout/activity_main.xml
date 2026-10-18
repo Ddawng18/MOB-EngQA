@@ -28,13 +28,23 @@
             android:src="@drawable/ic_arrow_back" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:layout_weight="1"
             android:text="@string/ask_title"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvUploadStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:textColor="@color/accent_orange"
+            android:textSize="12sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ScrollView
@@ -82,39 +92,22 @@
 
             <TextView
                 style="@style/FormLabel"
-                android:layout_marginTop="20dp"
-                android:text="@string/label_images" />
+                android:layout_marginTop="16dp"
+                android:text="@string/label_passage" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/btnAttachImage"
-                    style="@style/OutlineButton"
-                    android:layout_marginEnd="6dp"
-                    android:text="@string/btn_attach_image" />
-
-                <TextView
-                    android:id="@+id/btnTakePhoto"
-                    style="@style/OutlineButton"
-                    android:layout_marginStart="6dp"
-                    android:text="@string/btn_take_photo" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/image_note"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+            <EditText
+                android:id="@+id/etPassage"
+                style="@style/FormInput"
+                android:layout_height="100dp"
+                android:gravity="top|start"
+                android:hint="@string/hint_passage"
+                android:inputType="textMultiLine"
+                android:paddingTop="12dp" />
 
             <TextView
                 style="@style/FormLabel"
                 android:layout_marginTop="16dp"
-                android:text="@string/label_tag" />
+                android:text="@string/label_type" />
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -139,6 +132,111 @@
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_dropdown_arrow" />
             </FrameLayout>
+
+            <TextView
+                style="@style/FormLabel"
+                android:layout_marginTop="16dp"
+                android:text="@string/label_level" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:background="@drawable/bg_input">
+
+                <Spinner
+                    android:id="@+id/spinnerLevel"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@null"
+                    android:dropDownVerticalOffset="46dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="32dp"
+                    android:popupBackground="@color/bg_card" />
+
+                <ImageView
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_gravity="center_vertical|end"
+                    android:layout_marginEnd="12dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_dropdown_arrow" />
+            </FrameLayout>
+
+            <TextView
+                style="@style/FormLabel"
+                android:layout_marginTop="20dp"
+                android:text="@string/label_images" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnAttachImage"
+                    style="@style/OutlineButton"
+                    android:layout_marginEnd="6dp"
+                    android:text="@string/btn_attach_image" />
+
+                <TextView
+                    android:id="@+id/btnTakePhoto"
+                    style="@style/OutlineButton"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/btn_take_photo" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerAttachments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:scrollbars="none" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/image_note"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                style="@style/FormLabel"
+                android:layout_marginTop="16dp"
+                android:text="@string/label_audio" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnAddAudio"
+                    style="@style/OutlineButton"
+                    android:layout_marginEnd="6dp"
+                    android:text="@string/btn_add_audio" />
+
+                <TextView
+                    android:id="@+id/btnRecordAudio"
+                    style="@style/OutlineButton"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/btn_record_audio" />
+            </LinearLayout>
+
+            <com.example.engqa.ui.AudioPlayerView
+                android:id="@+id/audioPlayer"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/audio_note"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
         </LinearLayout>
     </ScrollView>
 
@@ -165,4 +263,10 @@
             android:textSize="15sp"
             android:textStyle="bold" />
     </FrameLayout>
+
+    <include
+        android:id="@+id/bottomNav"
+        layout="@layout/view_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="68dp" />
 </LinearLayout>
