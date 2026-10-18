@@ -1,0 +1,255 @@
+package com.example.engqa.ui;
+
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ListAdapter;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.bumptech.glide.Glide;
+import com.example.engqa.R;
+import com.example.engqa.model.FeedItem;
+import com.example.engqa.model.Promo;
+import com.example.engqa.model.Question;
+import com.example.engqa.util.UiUtils;
+
+/**
+ * One RecyclerView, two card types ({@link FeedItem#TYPE_QUESTION} / {@link FeedItem#TYPE_PROMO}).
+ *
+ * <p>{@code getItemViewType} returns the item type and {@code onCreateViewHolder} picks the matching
+ * layout, which is the two-ViewHolder pattern from the course. DiffUtil keeps realtime updates cheap.
+ */
+public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> {
+
+    public interface OnFeedActionListener {
+        void onQuestionClick(Question question);
+
+        void onPromoClick(Promo promo);
+    }
+
+    private static final int VIEW_QUESTION = 1;
+    private static final int VIEW_PROMO = 2;
+
+    private static final DiffUtil.ItemCallback<FeedItem> DIFF =
+            new DiffUtil.ItemCallback<FeedItem>() {
+                @Override
+                public boolean areItemsTheSame(@NonNull FeedItem oldItem,
+                                               @NonNull FeedItem newItem) {
+                    return oldItem.key().equals(newItem.key());
+                }
+
+                @Override
+                public boolean areContentsTheSame(@NonNull FeedItem oldItem,
+                                                  @NonNull FeedItem newItem) {
+                    if (oldItem.getType() != newItem.getType()) {
+                        return false;
+                    }
+                    if (oldItem.isPromo()) {
+                        Promo a = oldItem.getPromo();
+                        Promo b = newItem.getPromo();
+                        if (a == null || b == null) {
+                            return a == b;
+                        }
+                        return a.getLeadCount() == b.getLeadCount()
+                                && a.getViewCount() == b.getViewCount()
+                                && a.isCenterVerified() == b.isCenterVerified()
+                                && eq(a.getTitle(), b.getTitle());
+                    }
+                    Question a = oldItem.getQuestion();
+                    Question b = newItem.getQuestion();
+                    if (a == null || b == null) {
+                        return a == b;
+                    }
+                    return a.getAnswerCount() == b.getAnswerCount()
+                            && a.getScore() == b.getScore()
+                            && a.isSolved() == b.isSolved()
+                            && eq(a.getTitle(), b.getTitle());
+                }
+
+                private boolean eq(String a, String b) {
+                    return a == null ? b == null : a.equals(b);
+                }
+            };
+
+    private final OnFeedActionListener listener;
+
+    public FeedAdapter(OnFeedActionListener listener) {
+        super(DIFF);
+        this.listener = listener;
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        return getItem(position).isPromo() ? VIEW_PROMO : VIEW_QUESTION;
+    }
+
+    @NonNull
+    @Override
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+        if (viewType == VIEW_PROMO) {
+            return new PromoViewHolder(
+                    inflater.inflate(R.layout.item_promo, parent, false));
+        }
+        return new QuestionViewHolder(
+                inflater.inflate(R.layout.item_question, parent, false));
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        FeedItem item = getItem(position);
+        if (holder instanceof PromoViewHolder) {
+            ((PromoViewHolder) holder).bind(item.getPromo(), listener);
+        } else {
+            ((QuestionViewHolder) holder).bind(item.getQuestion(), listener);
+        }
+    }
+
+    // ------------------------------------------------------------------ holders
+
+    static class QuestionViewHolder extends RecyclerView.ViewHolder {
+
+        private final TextView avatar;
+        private final TextView user;
+        private final TextView time;
+        private final TextView tag;
+        private final TextView title;
+        private final TextView answerCount;
+        private final TextView solved;
+        private final ImageView imageIcon;
+        private final ImageView audioIcon;
+
+        QuestionViewHolder(@NonNull View itemView) {
+            super(itemView);
+            avatar = itemView.findViewById(R.id.tvQuestionAvatar);
+            user = itemView.findViewById(R.id.tvQuestionUser);
+            time = itemView.findViewById(R.id.tvQuestionTime);
+            tag = itemView.findViewById(R.id.tvQuestionTag);
+            title = itemView.findViewById(R.id.tvQuestionTitle);
+            answerCount = itemView.findViewById(R.id.tvQuestionAnswers);
+            solved = itemView.findViewById(R.id.tvQuestionSolved);
+            imageIcon = itemView.findViewById(R.id.ivHasImage);
+            audioIcon = itemView.findViewById(R.id.ivHasAudio);
+        }
+
+        void bind(Question question, OnFeedActionListener listener) {
+            if (question == null) {
+                return;
+            }
+            String name = question.getAuthorName() != null ? question.getAuthorName() : "user";
+            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+            user.setText(name);
+            time.setText(UiUtils.relativeTime(question.getCreatedAt()));
+            tag.setText(question.getCategoryName() != null
+                    ? question.getCategoryName() : question.getCategoryId());
+            title.setText(question.getTitle());
+            answerCount.setText(itemView.getContext()
+                    .getString(R.string.answer_count, question.getAnswerCount()));
+            solved.setVisibility(question.isSolved() ? View.VISIBLE : View.GONE);
+            imageIcon.setVisibility(question.getImageUrls() != null
+                    && !question.getImageUrls().isEmpty() ? View.VISIBLE : View.GONE);
+            audioIcon.setVisibility(question.getAudioUrl() != null
+                    ? View.VISIBLE : View.GONE);
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onQuestionClick(question);
+                }
+            });
+        }
+    }
+
+    static class PromoViewHolder extends RecyclerView.ViewHolder {
+
+        private final TextView avatar;
+        private final TextView center;
+        private final ImageView verified;
+        private final TextView time;
+        private final ImageView banner;
+        private final TextView type;
+        private final TextView title;
+        private final TextView body;
+        private final TextView meta;
+        private final TextView deal;
+
+        PromoViewHolder(@NonNull View itemView) {
+            super(itemView);
+            avatar = itemView.findViewById(R.id.tvPromoAvatar);
+            center = itemView.findViewById(R.id.tvPromoCenter);
+            verified = itemView.findViewById(R.id.ivPromoVerified);
+            time = itemView.findViewById(R.id.tvPromoTime);
+            banner = itemView.findViewById(R.id.ivPromoBanner);
+            type = itemView.findViewById(R.id.tvPromoType);
+            title = itemView.findViewById(R.id.tvPromoTitle);
+            body = itemView.findViewById(R.id.tvPromoBody);
+            meta = itemView.findViewById(R.id.tvPromoMeta);
+            deal = itemView.findViewById(R.id.tvPromoDeal);
+        }
+
+        void bind(Promo promo, OnFeedActionListener listener) {
+            if (promo == null) {
+                return;
+            }
+            String name = promo.getCenterName() != null ? promo.getCenterName() : "Center";
+            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+            center.setText(name);
+            verified.setVisibility(promo.isCenterVerified() ? View.VISIBLE : View.GONE);
+            time.setText(UiUtils.relativeTime(promo.getCreatedAt()));
+            type.setText(typeLabel(promo.getType()));
+            title.setText(promo.getTitle());
+            body.setText(promo.getBody());
+            meta.setText(metaLine(promo));
+            deal.setVisibility(promo.isExpired(System.currentTimeMillis())
+                    ? View.GONE : View.VISIBLE);
+
+            if (promo.getImageUrl() != null && !promo.getImageUrl().isEmpty()) {
+                banner.setVisibility(View.VISIBLE);
+                Glide.with(banner).load(promo.getImageUrl()).centerCrop().into(banner);
+            } else {
+                banner.setVisibility(View.GONE);
+            }
+
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onPromoClick(promo);
+                }
+            });
+        }
+
+        private static String metaLine(Promo promo) {
+            StringBuilder builder = new StringBuilder();
+            append(builder, promo.getLevel());
+            append(builder, promo.getFee());
+            if (promo.isExpired(System.currentTimeMillis())) {
+                append(builder, "Đã hết hạn");
+            }
+            return builder.toString();
+        }
+
+        private static void append(StringBuilder builder, String value) {
+            if (value == null || value.trim().isEmpty()) {
+                return;
+            }
+            if (builder.length() > 0) {
+                builder.append(" · ");
+            }
+            builder.append(value.trim());
+        }
+
+        private String typeLabel(String promoType) {
+            int resId = R.string.promo_type_course;
+            if (Promo.TYPE_EVENT.equals(promoType)) {
+                resId = R.string.promo_type_event;
+            } else if (Promo.TYPE_SCHOLARSHIP.equals(promoType)) {
+                resId = R.string.promo_type_scholarship;
+            } else if (Promo.TYPE_ANNOUNCEMENT.equals(promoType)) {
+                resId = R.string.promo_type_announcement;
+            }
+            return itemView.getContext().getString(resId);
+        }
+    }
+}

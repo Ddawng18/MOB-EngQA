@@ -61,4 +61,44 @@
     <style name="HomeNavItem.Active" parent="HomeNavItem">
         <item name="android:textColor">@color/accent_orange</item>
     </style>
+
+    <!-- Promo / centre advertising -->
+
+    <style name="Promo" />
+
+    <style name="Promo.Badge">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/bg_promo_badge</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingBottom">3dp</item>
+        <item name="android:textColor">@color/accent_orange</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Promo.Title">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Promo.Meta">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="Promo.CenterName">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

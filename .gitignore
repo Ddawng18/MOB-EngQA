@@ -50,9 +50,14 @@ Thumbs.db
 *.keystore
 *.p12
 *.pem
+keystore.properties
 
 # Temporary files
 *.tmp
 *.temp
 *.swp
 *.swo
+
+# Seed tooling
+tools/seed/node_modules/
+tools/seed/package-lock.json

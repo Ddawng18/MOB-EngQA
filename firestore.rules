@@ -1,0 +1,263 @@
+rules_version = '2';
+
+// EngQA Firestore security rules.
+//
+// Design notes
+// ------------
+// * Roles (USER | CENTER | ADMIN) live on the profile but are granted by administrators only:
+//   a self-update may not touch role/centerId. Admin status itself is read from admins/{uid},
+//   which clients cannot write.
+// * Counter fields are maintained by the client, so the rules allow only *bounded* counter changes
+//   on documents the caller does not own. A production build would move these updates into a
+//   Cloud Function.
+// * Promos are only visible once APPROVED; centres create them as PENDING.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------------------- helpers
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function onlyBumpsAcceptedCount() {
+      return changedKeys().hasOnly(['acceptedCount'])
+          && request.resource.data.acceptedCount == resource.data.acceptedCount + 1;
+    }
+
+    function onlyUpdatesAnswerCount() {
+      return changedKeys().hasOnly(['answerCount'])
+          && (request.resource.data.answerCount == resource.data.answerCount + 1
+              || request.resource.data.answerCount == resource.data.answerCount - 1);
+    }
+
+    function onlyUpdatesScore() {
+      return changedKeys().hasOnly(['score'])
+          && (request.resource.data.score - resource.data.score) >= -2
+          && (request.resource.data.score - resource.data.score) <= 2;
+    }
+
+    function onlyUpdatesVoteCounters() {
+      return changedKeys().hasOnly(['upCount', 'downCount'])
+          && (request.resource.data.upCount - resource.data.upCount) >= -1
+          && (request.resource.data.upCount - resource.data.upCount) <= 1
+          && (request.resource.data.downCount - resource.data.downCount) >= -1
+          && (request.resource.data.downCount - resource.data.downCount) <= 1;
+    }
+
+    function questionAuthor(questionId) {
+      return get(/databases/$(database)/documents/questions/$(questionId)).data.authorId;
+    }
+
+    function isCenterManager(centerId) {
+      return isAdmin()
+          || (isSignedIn()
+              && centerId in get(/databases/$(database)/documents/centers/$(centerId)).data.managerUids
+              && get(/databases/$(database)/documents/centers/$(centerId)).data.status == 'APPROVED');
+    }
+
+    /** The caller's profile must point at this centre with the CENTER role. */
+    function isCenterOwner(centerId) {
+      return isSignedIn()
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CENTER'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.centerId == centerId;
+    }
+
+    function isPromoOwner(promoId) {
+      return isSignedIn()
+          && get(/databases/$(database)/documents/promos/$(promoId)).data.authorUid
+              == request.auth.uid;
+    }
+
+    /** A promo counter may only grow by one, and only on an APPROVED promo. */
+    function onlyBumpsPromoCounter() {
+      return resource.data.status == 'APPROVED'
+          && changedKeys().hasOnly(['viewCount', 'clickCount', 'leadCount'])
+          && (request.resource.data.viewCount - resource.data.viewCount) >= 0
+          && (request.resource.data.viewCount - resource.data.viewCount) <= 1
+          && (request.resource.data.clickCount - resource.data.clickCount) >= 0
+          && (request.resource.data.clickCount - resource.data.clickCount) <= 1
+          && (request.resource.data.leadCount - resource.data.leadCount) >= 0
+          && (request.resource.data.leadCount - resource.data.leadCount) <= 1;
+    }
+
+    // ---------------------------------------------------------------- users
+    match /users/{uid} {
+      allow read: if isSignedIn();
+
+      // A new profile may never start with privileges.
+      allow create: if isSelf(uid)
+          && (!('role' in request.resource.data) || request.resource.data.role == 'USER')
+          && (!('centerId' in request.resource.data) || request.resource.data.centerId == null)
+          && (!('isAdmin' in request.resource.data))
+          && (!('questionCount' in request.resource.data)
+              || request.resource.data.questionCount == 0)
+          && (!('answerCount' in request.resource.data)
+              || request.resource.data.answerCount == 0)
+          && (!('acceptedCount' in request.resource.data)
+              || request.resource.data.acceptedCount == 0);
+
+      // Owners may edit their profile but not their role/centre; admins may do anything.
+      allow update: if isAdmin()
+          || (isSelf(uid)
+              && !changedKeys().hasAny(['role', 'centerId', 'isAdmin']))
+          || onlyBumpsAcceptedCount();
+
+      allow delete: if isSelf(uid) || isAdmin();
+    }
+
+    // ----------------------------------------------------------- categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ------------------------------------------------------------ questions
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn()
+          && (resource.data.authorId == request.auth.uid
+              || isAdmin()
+              || onlyUpdatesAnswerCount()
+              || onlyUpdatesScore());
+      allow delete: if isSignedIn()
+          && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      // ------------------------------------------------------------- answers
+      match /answers/{answerId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.upCount == 0
+            && request.resource.data.downCount == 0
+            && request.resource.data.isAccepted == false;
+        allow update: if isSignedIn()
+            && ((resource.data.authorId == request.auth.uid
+                    && !changedKeys().hasAny(['upCount', 'downCount']))
+                || questionAuthor(questionId) == request.auth.uid
+                || onlyUpdatesVoteCounters()
+                || isAdmin());
+        allow delete: if isSignedIn()
+            && (resource.data.authorId == request.auth.uid || isAdmin());
+
+        match /votes/{voterId} {
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn()
+              && voterId == request.auth.uid
+              && (request.resource.data.value == 1 || request.resource.data.value == -1);
+          allow delete: if isSelf(voterId);
+        }
+      }
+    }
+
+    // -------------------------------------------------------- notifications
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn()
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.recipientId != request.auth.uid;
+      allow update: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid;
+      allow delete: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid;
+    }
+
+    // --------------------------------------------------------------- centers
+    match /centers/{centerId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+          && request.resource.data.status == 'PENDING'
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.managerUids == [request.auth.uid]
+          && (!('verified' in request.resource.data) || request.resource.data.verified == false);
+      // Managers may edit the profile but cannot approve themselves.
+      allow update: if isAdmin()
+          || (isSignedIn()
+              && centerId in resource.data.managerUids
+              && resource.data.status == 'APPROVED'
+              && !changedKeys().hasAny(['status', 'verified', 'ownerUid']));
+      allow delete: if isAdmin();
+
+      match /courses/{courseId} {
+        allow read: if true;
+        allow write: if isCenterManager(centerId);
+      }
+
+      match /posts/{postId} {
+        allow read: if true;
+        allow write: if isCenterManager(centerId);
+      }
+    }
+
+    // ----------------------------------------------------------------- promos
+    match /promos/{promoId} {
+      // Approved promos are public; a pending/rejected one is only visible to its author/admin.
+      allow read: if resource.data.status == 'APPROVED'
+          || (isSignedIn()
+              && (resource.data.authorUid == request.auth.uid || isAdmin()));
+
+      allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.status == 'PENDING'
+          && request.resource.data.viewCount == 0
+          && request.resource.data.clickCount == 0
+          && request.resource.data.leadCount == 0
+          && isCenterOwner(request.resource.data.centerId)
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 5
+          && request.resource.data.title.size() <= 120
+          && (!('body' in request.resource.data)
+              || request.resource.data.body.size() <= 5000);
+
+      allow update: if isSignedIn()
+          && (isAdmin()
+              || resource.data.authorUid == request.auth.uid
+              || onlyBumpsPromoCounter());
+
+      allow delete: if isSignedIn()
+          && (resource.data.authorUid == request.auth.uid || isAdmin());
+
+      // One lead document per learner per promo (document id = uid).
+      match /leads/{leadUid} {
+        allow read: if isSignedIn()
+            && (leadUid == request.auth.uid || isPromoOwner(promoId) || isAdmin());
+        allow create: if isSignedIn()
+            && leadUid == request.auth.uid
+            && request.resource.data.userUid == request.auth.uid
+            && request.resource.data.status == 'NEW';
+        allow update: if isSignedIn() && (isPromoOwner(promoId) || isAdmin());
+        allow delete: if isAdmin();
+      }
+    }
+
+    // --------------------------------------------------------------- reports
+    match /reports/{reportId} {
+      allow create: if isSignedIn()
+          && request.resource.data.reporterId == request.auth.uid
+          && request.resource.data.status == 'pending';
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------------- admins
+    match /admins/{adminId} {
+      allow read: if isSelf(adminId);
+      allow write: if false;
+    }
+  }
+}
