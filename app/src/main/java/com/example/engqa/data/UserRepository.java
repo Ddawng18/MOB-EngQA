@@ -197,11 +197,10 @@ public class UserRepository {
                         return;
                     }
                     String email = firebaseUser.getEmail() != null ? firebaseUser.getEmail() : "";
-                    String phone = firebaseUser.getPhoneNumber() != null ? firebaseUser.getPhoneNumber() : "";
                     String name = firebaseUser.getDisplayName() != null && !firebaseUser.getDisplayName().trim().isEmpty()
                             ? firebaseUser.getDisplayName().trim()
                             : (!email.isEmpty() ? defaultUsername(email)
-                            : (!phone.isEmpty() ? "user_" + phone.replaceAll("[^0-9]", "") : "user_" + (System.currentTimeMillis() % 100000)));
+                            : "user_" + (System.currentTimeMillis() % 100000));
                     writeProfile(uid, name, email, firebaseUser, callback);
                 })
                 .addOnFailureListener(callback::onError);

@@ -92,7 +92,7 @@ public final class RepoErrors {
                 case "ERROR_WEAK_PASSWORD":
                     return "Mật khẩu quá yếu";
                 case "ERROR_OPERATION_NOT_ALLOWED":
-                    return "Phương thức đăng nhập này chưa được bật trên Firebase Console. Lưu ý: Cần thêm số điện thoại vào mục 'Phone numbers for testing' trên Firebase Console khi dùng thử nghiệm.";
+                    return "Phương thức đăng nhập này chưa được bật trên Firebase Console.";
                 case "ERROR_REQUIRES_RECENT_LOGIN":
                     return "Vui lòng đăng nhập lại để tiếp tục";
                 case "ERROR_NETWORK_REQUEST_FAILED":

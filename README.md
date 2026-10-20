@@ -285,7 +285,7 @@ Unit tests cover the pure-Java helpers: `TextUtils2` (accent-free tokenizer and 
 
 ## Release and distribution
 
-A **release-signed** build is what makes every user's device work, because Google/Phone Sign-In are
+A **release-signed** build is what makes every user's device work, because Google Sign-In is
 tied to the app's signing certificate. Create one keystore, put its details in the git-ignored
 `keystore.properties` (see `keystore.properties.example`), build `bundleRelease` / `assembleRelease`,
 register its SHA-1 once with `node tools/fix-google-signin.js <sha1>` and ship that build.

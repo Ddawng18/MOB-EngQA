@@ -62,7 +62,7 @@ Firebase Console → chọn project `accountdata-dd29b` → **Build → Firestor
 Firebase Console → **Build → Authentication → Get started** →
 tab **Sign-in method** → bật **Email/Password** → Save.
 
-(Google Sign-In **không** cần cho giai đoạn này; code hiện đang để nút Google/Phone ở dạng
+(Google Sign-In **không** cần cho giai đoạn này; code hiện đang để nút Google ở dạng
 "chưa triển khai".)
 
 ---

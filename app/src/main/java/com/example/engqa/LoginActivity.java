@@ -135,23 +135,7 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tvResendVerification).setOnClickListener(
                 v -> viewModel.resendVerificationEmail());
         findViewById(R.id.tvVerifyNow).setOnClickListener(v -> viewModel.refreshEmailVerified());
-        findViewById(R.id.btnPhone).setOnClickListener(v -> startPhoneSignIn());
         findViewById(R.id.btnGoogle).setOnClickListener(v -> startGoogleSignIn());
-    }
-
-    private void startPhoneSignIn() {
-        PhoneAuthHelper phoneAuthHelper = new PhoneAuthHelper(this, new PhoneAuthHelper.PhoneAuthCallback() {
-            @Override
-            public void onSuccess(com.google.firebase.auth.AuthCredential credential) {
-                viewModel.loginWithCredential(credential);
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                showError(errorMessage);
-            }
-        });
-        phoneAuthHelper.show();
     }
 
     private void startGoogleSignIn() {

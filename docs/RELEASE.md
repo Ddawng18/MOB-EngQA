@@ -7,11 +7,10 @@
 | Email/mật khẩu | Không (chỉ cần mạng + Firebase) |
 | Đọc/ghi Firestore, feed, promos | Không |
 | **Google Sign-In** | **Có** — Google kiểm tra SHA-1 của APK đang cài |
-| **Phone Sign-In** | **Có** (Play Integrity/reCAPTCHA gắn với SHA-1) |
 | Thông báo, Room, media | Không |
 
 Mỗi máy dev có `~/.android/debug.keystore` **khác nhau** → SHA-1 khác nhau. Vì vậy bản **debug** chỉ
-chạy Google/Phone login trên máy đã đăng ký SHA-1 của máy đó.
+chạy Google login trên máy đã đăng ký SHA-1 của máy đó.
 
 **Cách đúng:** build bản **release** ký bằng **một keystore cố định**, đăng ký SHA-1 của keystore đó
 **một lần**. Mọi máy cài cùng file APK/AAB đó đều dùng được đầy đủ tính năng.
@@ -78,7 +77,7 @@ Script thêm SHA-1 vào Android app trên Firebase và tải lại `app/google-s
 SHA-1 cũ). Sau đó **build lại** để đóng gói config mới.
 
 > Chỉ cần đăng ký **một lần** cho keystore release. Mọi máy cài APK/AAB ký bằng keystore này đều
-> đăng nhập Google/Phone được.
+> đăng nhập Google được.
 
 ## 5. Nếu phát hành qua Google Play (Play App Signing)
 
@@ -94,7 +93,6 @@ Play có thể **ký lại** app bằng khoá của Google. Khi đó app trên m
 Firebase Console → **Authentication → Sign-in method**:
 
 - Bật **Google** (nếu chưa).
-- Bật **Phone** nếu dùng đăng nhập số điện thoại.
 
 Google Cloud Console → **OAuth consent screen**: điền tên app, email hỗ trợ, (khi public) chính sách
 riêng tư. Thiếu bước này Google có thể chặn đăng nhập.

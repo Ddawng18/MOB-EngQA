@@ -81,7 +81,6 @@
     <string name="btn_login">Đăng nhập</string>
     <string name="btn_register">Tiếp tục</string>
     <string name="or">Hoặc</string>
-    <string name="btn_phone">Tiếp tục với số điện thoại</string>
     <string name="btn_google">Tiếp tục với Google</string>
     <string name="terms_text">Bằng việc tiếp tục, bạn đồng ý với &lt;a href=\"terms\">Thỏa thuận người dùng&lt;/a> của chúng tôi, đồng thời xác nhận rằng bạn hiểu rõ &lt;a href=\"privacy\">Chính sách quyền riêng tư&lt;/a> của chúng tôi.</string>
     <string name="forgot_password">Bạn quên mật khẩu ?</string>
