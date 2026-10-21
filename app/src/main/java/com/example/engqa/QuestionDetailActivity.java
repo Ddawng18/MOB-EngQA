@@ -130,11 +130,17 @@ public class QuestionDetailActivity extends BaseNavActivity {
         answerAdapter = new AnswerAdapter(new AnswerAdapter.OnAnswerActionListener() {
             @Override
             public void onVote(Answer answer, int requestedValue) {
+                if (!ensureOnline()) {
+                    return;
+                }
                 viewModel.vote(answer.getId(), requestedValue);
             }
 
             @Override
             public void onAccept(Answer answer) {
+                if (!ensureOnline()) {
+                    return;
+                }
                 viewModel.accept(answer.getId());
             }
         });
@@ -295,7 +301,11 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 new androidx.appcompat.app.AlertDialog.Builder(this)
                         .setTitle(R.string.confirm_delete_question)
                         .setMessage(R.string.confirm_delete_question_msg)
-                        .setPositiveButton(R.string.delete, (dialog, which) -> viewModel.deleteQuestion())
+                        .setPositiveButton(R.string.delete, (dialog, which) -> {
+                            if (ensureOnline()) {
+                                viewModel.deleteQuestion();
+                            }
+                        })
                         .setNegativeButton(R.string.cancel, null)
                         .show();
                 return true;
@@ -313,6 +323,15 @@ public class QuestionDetailActivity extends BaseNavActivity {
         ReportDialogFragment fragment = ReportDialogFragment.newInstance(
                 "questions/" + questionId);
         fragment.show(getSupportFragmentManager(), "report");
+    }
+
+    /** Shows the offline message and returns false when there is no network. */
+    private boolean ensureOnline() {
+        if (NetworkUtils.isOnline(this)) {
+            return true;
+        }
+        toast(getString(R.string.auth_err_network));
+        return false;
     }
 
     private void toast(String message) {

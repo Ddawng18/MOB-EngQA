@@ -27,6 +27,13 @@ public final class RepoErrors {
         if (e instanceof FirebaseAuthException) {
             return authMessage((FirebaseAuthException) e);
         }
+        if (e instanceof UserRepository.UsernameTakenException
+                || e instanceof IllegalStateException) {
+            String own = e.getMessage();
+            if (own != null && !own.isEmpty()) {
+                return own;
+            }
+        }
         if (e instanceof FirebaseFirestoreException) {
             FirebaseFirestoreException.Code code = ((FirebaseFirestoreException) e).getCode();
             if (code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {

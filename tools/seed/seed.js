@@ -159,6 +159,7 @@ function buildPlan() {
       path: `users/${user.uid}`,
       data: {
         username: user.username,
+        usernameLower: user.username.toLowerCase(),
         email: user.email,
         level: user.level,
         avatarUrl: user.avatarUrl || null,
@@ -176,6 +177,13 @@ function buildPlan() {
         password: user.password,
         displayName: user.username,
       },
+    });
+  });
+
+  users.forEach((user) => {
+    writes.push({
+      path: `usernames/${user.username.toLowerCase()}`,
+      data: { uid: user.uid, username: user.username, isSample: true },
     });
   });
 
@@ -398,11 +406,11 @@ async function ensureAuthUser(authUser) {
 async function clearSampleData() {
   if (DRY_RUN) {
     console.log(`[dry-run] would delete sample documents in: ` +
-      'questions, centers, categories, users, notifications, reports');
+      'questions, centers, categories, users, usernames, notifications, reports');
     console.log(`[dry-run] would delete ${users.length} demo auth account(s).`);
     return;
   }
-  const collections = ['questions', 'centers', 'categories', 'users', 'notifications', 'reports'];
+  const collections = ['questions', 'centers', 'categories', 'users', 'usernames', 'notifications', 'reports'];
   for (const name of collections) {
     const snapshot = await db.collection(name).where('isSample', '==', true).get();
     if (snapshot.empty) {

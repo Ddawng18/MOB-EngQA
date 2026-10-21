@@ -36,6 +36,7 @@ public class QuestionDetailViewModel extends ViewModel {
     private final MutableLiveData<UiState<String>> actionState = new SingleLiveEvent<>();
 
     private final Map<String, ListenerRegistration> voteRegistrations = new HashMap<>();
+    private final java.util.Set<String> notifiedUpvotes = new java.util.HashSet<>();
 
     private ListenerRegistration questionRegistration;
     private ListenerRegistration answersRegistration;
@@ -150,7 +151,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 }
                 myVotes.setValue(updated);
 
-                if (result.value == Vote.UP) {
+                if (result.value == Vote.UP && notifiedUpvotes.add(answerId)) {
                     notifyAnswerAuthor(answerId, AppNotification.TYPE_VOTE, "Có lượt bình chọn",
                             "Câu trả lời của bạn vừa được upvote");
                 }

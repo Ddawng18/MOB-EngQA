@@ -38,7 +38,7 @@ function argValue(flag) {
 const projectArg = argValue('--project') || process.env.FIREBASE_PROJECT;
 const tokenArg = argValue('--token') || process.env.FIREBASE_ACCESS_TOKEN;
 
-const TOP_LEVEL_COLLECTIONS = ['questions', 'centers', 'categories', 'users', 'notifications', 'reports'];
+const TOP_LEVEL_COLLECTIONS = ['questions', 'centers', 'categories', 'users', 'usernames', 'notifications', 'reports'];
 const COLLECTION_GROUPS = ['answers', 'votes', 'courses', 'posts'];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

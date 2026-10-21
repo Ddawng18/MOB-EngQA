@@ -162,7 +162,9 @@ service cloud.firestore {
                 || onlyUpdatesVoteCounters()
                 || isAdmin());
         allow delete: if isSignedIn()
-            && (resource.data.authorId == request.auth.uid || isAdmin());
+            && (resource.data.authorId == request.auth.uid
+                || questionAuthor(questionId) == request.auth.uid
+                || isAdmin());
 
         match /votes/{voterId} {
           allow read: if isSignedIn();

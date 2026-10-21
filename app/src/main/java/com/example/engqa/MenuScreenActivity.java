@@ -112,15 +112,16 @@ public class MenuScreenActivity extends BaseNavActivity {
         answerAdapter = new AnswerAdapter(new AnswerAdapter.OnAnswerActionListener() {
             @Override
             public void onVote(Answer answer, int requestedValue) {
-                if (answer != null && answer.getQuestionId() != null) {
-                    Intent intent = new Intent(MenuScreenActivity.this, QuestionDetailActivity.class);
-                    intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, answer.getQuestionId());
-                    startActivity(intent);
-                }
+                // Voting is disabled on the profile screen.
             }
 
             @Override
             public void onAccept(Answer answer) {
+                // Accepting is not available on the profile screen.
+            }
+
+            @Override
+            public void onItemClick(Answer answer) {
                 if (answer != null && answer.getQuestionId() != null) {
                     Intent intent = new Intent(MenuScreenActivity.this, QuestionDetailActivity.class);
                     intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, answer.getQuestionId());

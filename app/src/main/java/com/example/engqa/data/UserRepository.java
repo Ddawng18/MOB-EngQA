@@ -5,10 +5,12 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Transaction;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.util.HashMap;
@@ -26,12 +28,13 @@ import java.util.Map;
 public class UserRepository {
 
     /** Thrown when a display name is already used by another profile. */
-    public static final class UsernameTakenException extends Exception {
+    public static final class UsernameTakenException extends RuntimeException {
         public UsernameTakenException() {
             super("Tên hiển thị này đã được sử dụng");
         }
     }
 
+    private static final String USERNAMES = "usernames";
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -306,87 +309,98 @@ public class UserRepository {
     }
 
     /**
-     * Updates the editable parts of a profile. When the display name changes it is checked for
-     * uniqueness first.
+     * Updates the editable parts of a profile. The display name is checked for uniqueness first
+     * (ignoring the caller's own profile), then the profile and the usernames/{lower} reservation
+     * are written in one transaction.
      */
     public void updateProfile(String uid, String username, String avatarUrl, String level,
                               Callback<Void> callback) {
-        String name = username != null ? username.trim() : null;
-        if (name != null && !name.isEmpty()) {
-            isUsernameTaken(name, uid, new Callback<Boolean>() {
-                @Override
-                public void onSuccess(Boolean taken) {
-                    if (Boolean.TRUE.equals(taken)) {
-                        callback.onError(new UsernameTakenException());
-                        return;
-                    }
-                    db.collection(FirestoreRefs.USERS).document(uid).get()
-                            .addOnSuccessListener(snapshot -> {
-                                String oldLower = snapshot != null ? snapshot.getString("usernameLower") : null;
-                                if (oldLower == null && snapshot != null && snapshot.getString("username") != null) {
-                                    oldLower = snapshot.getString("username").toLowerCase(Locale.ROOT);
-                                }
-                                applyProfileUpdate(uid, name, oldLower, avatarUrl, level, callback);
-                            })
-                            .addOnFailureListener(e -> applyProfileUpdate(uid, name, null, avatarUrl, level, callback));
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    callback.onError(e);
-                }
-            });
+        final String name = username != null ? username.trim() : "";
+        if (name.isEmpty()) {
+            applyProfileUpdate(uid, null, avatarUrl, level, callback);
             return;
         }
-        applyProfileUpdate(uid, null, null, avatarUrl, level, callback);
+        isUsernameTaken(name, uid, new Callback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean taken) {
+                if (Boolean.TRUE.equals(taken)) {
+                    callback.onError(new UsernameTakenException());
+                    return;
+                }
+                applyProfileUpdate(uid, name, avatarUrl, level, callback);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
     }
 
-    private void applyProfileUpdate(String uid, String username, String oldLower, String avatarUrl, String level,
+    private void applyProfileUpdate(String uid, String username, String avatarUrl, String level,
                                     Callback<Void> callback) {
-        Map<String, Object> data = new HashMap<>();
-        String newLower = null;
-        if (username != null) {
-            data.put("username", username);
-            newLower = username.toLowerCase(Locale.ROOT);
-            data.put("usernameLower", newLower);
-        }
-        if (avatarUrl != null) {
-            data.put("avatarUrl", avatarUrl);
-        }
-        if (level != null) {
-            data.put("level", level);
-        }
-        if (data.isEmpty()) {
-            callback.onSuccess(null);
-            return;
-        }
+        final DocumentReference userRef = db.collection(FirestoreRefs.USERS).document(uid);
+        final String newLower = username != null ? username.toLowerCase(Locale.ROOT) : null;
 
-        final String finalNewLower = newLower;
-        final String finalOldLower = oldLower;
-
-        WriteBatch batch = db.batch();
-        batch.update(db.collection(FirestoreRefs.USERS).document(uid), data);
-
-        if (finalNewLower != null) {
-            Map<String, Object> uData = new HashMap<>();
-            uData.put("uid", uid);
-            uData.put("username", username);
-            batch.set(db.collection("usernames").document(finalNewLower), uData);
-
-            if (finalOldLower != null && !finalOldLower.equals(finalNewLower)) {
-                batch.delete(db.collection("usernames").document(finalOldLower));
+        db.runTransaction((Transaction.Function<Void>) transaction -> {
+            // ---- all reads first
+            DocumentSnapshot userSnap = transaction.get(userRef);
+            String oldLower = userSnap.getString("usernameLower");
+            if (oldLower == null && userSnap.getString("username") != null) {
+                oldLower = userSnap.getString("username").toLowerCase(Locale.ROOT);
             }
-        }
+            DocumentReference newRef = null;
+            DocumentSnapshot newSnap = null;
+            DocumentReference oldRef = null;
+            DocumentSnapshot oldSnap = null;
+            boolean nameChanged = newLower != null && !newLower.equals(oldLower);
+            if (newLower != null) {
+                newRef = db.collection(USERNAMES).document(newLower);
+                newSnap = transaction.get(newRef);
+                if (newSnap.exists() && !uid.equals(newSnap.getString("uid"))) {
+                    throw new UsernameTakenException();
+                }
+            }
+            if (nameChanged && oldLower != null) {
+                oldRef = db.collection(USERNAMES).document(oldLower);
+                oldSnap = transaction.get(oldRef);
+            }
 
-        batch.commit()
-                .addOnSuccessListener(aVoid -> {
-                    FirebaseUser firebaseUser = auth.getCurrentUser();
-                    if (firebaseUser != null && username != null) {
-                        updateAuthDisplayName(firebaseUser, username);
-                    }
-                    callback.onSuccess(null);
-                })
-                .addOnFailureListener(callback::onError);
+            // ---- writes
+            Map<String, Object> data = new HashMap<>();
+            if (username != null) {
+                data.put("username", username);
+                data.put("usernameLower", newLower);
+            }
+            if (avatarUrl != null) {
+                data.put("avatarUrl", avatarUrl);
+            }
+            if (level != null) {
+                data.put("level", level);
+            }
+            if (!data.isEmpty()) {
+                transaction.update(userRef, data);
+            }
+            // Reserve the name only when no reservation exists yet.
+            if (newRef != null && !newSnap.exists()) {
+                Map<String, Object> reservation = new HashMap<>();
+                reservation.put("uid", uid);
+                reservation.put("username", username);
+                transaction.set(newRef, reservation);
+            }
+            // Release the old name only if the reservation exists and is ours.
+            if (oldRef != null && oldSnap != null && oldSnap.exists()
+                    && uid.equals(oldSnap.getString("uid"))) {
+                transaction.delete(oldRef);
+            }
+            return null;
+        }).addOnSuccessListener(aVoid -> {
+            FirebaseUser firebaseUser = auth.getCurrentUser();
+            if (firebaseUser != null && username != null) {
+                updateAuthDisplayName(firebaseUser, username);
+            }
+            callback.onSuccess(null);
+        }).addOnFailureListener(callback::onError);
     }
 
     // ------------------------------------------------------------------ password / email

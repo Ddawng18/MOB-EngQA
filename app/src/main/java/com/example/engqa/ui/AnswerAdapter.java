@@ -26,6 +26,10 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
         void onVote(Answer answer, int requestedValue);
 
         void onAccept(Answer answer);
+
+        /** Tap on the answer row itself (not on a vote/accept control). Optional. */
+        default void onItemClick(Answer answer) {
+        }
     }
 
     private static final DiffUtil.ItemCallback<Answer> DIFF = new DiffUtil.ItemCallback<Answer>() {
@@ -181,7 +185,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
             });
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onVote(answer, 0);
+                    listener.onItemClick(answer);
                 }
             });
         }
