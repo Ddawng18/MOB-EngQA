@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.storage.StorageException;
 
 import java.util.Locale;
 
@@ -26,6 +27,9 @@ public final class RepoErrors {
         }
         if (e instanceof FirebaseAuthException) {
             return authMessage((FirebaseAuthException) e);
+        }
+        if (e instanceof StorageException) {
+            return storageMessage((StorageException) e);
         }
         if (e instanceof FirebaseFirestoreException) {
             FirebaseFirestoreException.Code code = ((FirebaseFirestoreException) e).getCode();
@@ -120,5 +124,36 @@ public final class RepoErrors {
                 || lower.contains("unable to resolve host")
                 || lower.contains("timeout")
                 || lower.contains("connect");
+    }
+
+    /**
+     * Firebase Storage failures used to surface as the raw English message
+     * ("Object does not exist at location."), which is confusing when the real cause is that
+     * Cloud Storage has not been provisioned for the project.
+     */
+    private static String storageMessage(StorageException e) {
+        int code = e.getErrorCode();
+        String message = e.getMessage() != null ? e.getMessage() : "";
+        String lower = message.toLowerCase(Locale.ROOT);
+
+        if (code == StorageException.ERROR_OBJECT_NOT_FOUND
+                || lower.contains("bucket does not exist")
+                || lower.contains("object does not exist")) {
+            return "Không tải được tệp lên Cloud Storage: bucket chưa tồn tại. "
+                    + "Hãy bật Storage trong Firebase Console rồi thử lại.";
+        }
+        if (code == StorageException.ERROR_QUOTA_EXCEEDED) {
+            return "Đã vượt hạn mức Cloud Storage";
+        }
+        if (code == StorageException.ERROR_CANCELED) {
+            return "Tải tệp đã bị huỷ";
+        }
+        if (lower.contains("permission") || lower.contains("unauthorized")) {
+            return "Bạn không có quyền tải tệp lên Cloud Storage";
+        }
+        if (lower.contains("network") || lower.contains("timeout")) {
+            return "Không có kết nối mạng. Kiểm tra lại đường truyền.";
+        }
+        return "Tải tệp thất bại: " + (message.isEmpty() ? "lỗi không xác định" : message);
     }
 }

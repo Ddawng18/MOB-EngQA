@@ -294,13 +294,24 @@ Play App Signing needs its own SHA-1 registered as well.
 Full checklist (keystore creation, signing, Play App Signing, API-key restrictions, clean-device
 verification and distribution options): **[docs/RELEASE.md](docs/RELEASE.md)**.
 
+## Team work split
+
+The repository is divided into four non-overlapping work packages — **Auth & Profile**, **Q&A core**,
+**Feed / Promos / Centres**, and **Platform / Infra / QA** — so each person commits only their own
+files. See **[docs/TEAM_DIVISION.md](docs/TEAM_DIVISION.md)** for the exact file list per person,
+the shared-file protocol and the Git conventions. `docs/CODEOWNERS.template` becomes
+`.github/CODEOWNERS` once the GitHub usernames are filled in.
+
 ## Security rules
 
-`firestore.rules` and `storage.rules` are deployed from this repository. Highlights:
+`firestore.rules` and `storage.rules` are deployed from this repository (`storage.rules` only
+applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md)).
 
 - A question may only be created with `authorId == request.auth.uid`.
 - An answer starts with zero counters and `isAccepted == false`; only the question owner may accept.
 - Votes are one document per user per answer (`votes/{uid}`) with `value` in `{+1, -1}`.
+  Answers show a **net score** (up minus down, which can be negative) and are ordered highest
+  first, Reddit-style, with accepted/newest as tie-breakers.
 - Notifications can only be created for someone else and read only by their recipient.
 - Promos are readable only when `APPROVED`; creation requires the `CENTER` role linked to the
   promo's centre, `status == 'PENDING'` and zero counters. Counter bumps are capped at +1.
@@ -317,5 +328,7 @@ verification and distribution options): **[docs/RELEASE.md](docs/RELEASE.md)**.
   A production build would move the counter updates into a Cloud Function or add `getAfter()`
   delta checks.
 - **Search** matches a single normalised keyword (`array-contains`), not arbitrary substrings.
-- Cloud Storage cleanup is not automated when a question is deleted; orphaned objects require a
-  manual sweep or a scheduled Function.
+- **Media storage** uploads images/audio to a free anonymous HTTPS host and stores only the URL in
+  Firestore, because Cloud Storage for Firebase requires the Blaze plan. The links may expire;
+  switch to Firebase Storage or Cloudinary for a long-lived deployment — see
+  [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md).

@@ -89,6 +89,7 @@ public class AnswerRepository {
         data.put("authorId", answer.getAuthorId());
         data.put("authorName", answer.getAuthorName());
         data.put("body", answer.getBody());
+        data.put("questionTitle", answer.getQuestionTitle());
         data.put("upCount", 0);
         data.put("downCount", 0);
         data.put("isAccepted", false);

@@ -73,8 +73,10 @@ Dữ liệu: `PromoRepository` (snapshot listener, tạo `PENDING`, bump counter
 - **Up navigation**: `PromoDetailActivity` và `CreatePromoActivity` khai báo
   `android:parentActivityName=".HomeActivity"`.
 - **Room**: lưu/bỏ lưu bài, danh sách tự cập nhật qua `LiveData`; ghi DB trên thread nền.
-- **Landscape/tablet**: `feed_columns` = 1 (portrait) / 2 (`values-land`, `values-sw600dp`) và
-  `GridLayoutManager`.
+- **Feed 1 cột** (kiểu Reddit) ở mọi kích thước: `LinearLayoutManager`, ảnh bìa full-width cao
+  220dp; `feed_columns` = 1.
+- **Landscape**: `layout-land/activity_home.xml` dùng rail lọc bên trái (chip dạng lưới 2 cột) và
+  feed ở pane phải; cả app theo cảm biến (`android:screenOrientation="fullSensor"`).
 
 ## 6. Security rules
 
@@ -115,7 +117,7 @@ node verify.js         # kiểm tra nhanh: 4 promos, 3 APPROVED, role CENTER, le
 - [ ] Bài hết `endAt` không hiện trên feed.
 - [ ] Tài khoản `USER` không thấy mục **Đăng bài quảng bá**; gọi thẳng API bị rules chặn.
 - [ ] **Bài đã lưu**: lưu → mở lại app vẫn còn; bỏ lưu → mất.
-- [ ] Xoay ngang: feed 2 cột, giữ chip và vị trí cuộn.
+- [ ] Xoay ngang: feed vẫn 1 cột, giữ chip và vị trí cuộn.
 
 ## 9. Ngoài phạm vi
 

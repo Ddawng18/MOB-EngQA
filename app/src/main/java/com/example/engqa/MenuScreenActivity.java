@@ -39,6 +39,8 @@ public class MenuScreenActivity extends BaseNavActivity {
     private RecyclerView recyclerQuestions;
     private RecyclerView recyclerAnswers;
     private String uid;
+    private String questionsError;
+    private String answersError;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +121,14 @@ public class MenuScreenActivity extends BaseNavActivity {
             }
         });
         answerAdapter.setVotingEnabled(false);
+        answerAdapter.setShowQuestionTitle(true);
+        answerAdapter.setOnAnswerOpenListener(answer -> {
+            if (answer.getQuestionId() != null) {
+                Intent intent = new Intent(this, QuestionDetailActivity.class);
+                intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, answer.getQuestionId());
+                startActivity(intent);
+            }
+        });
         recyclerAnswers.setLayoutManager(new LinearLayoutManager(this));
         recyclerAnswers.setAdapter(answerAdapter);
         recyclerAnswers.setNestedScrollingEnabled(false);
@@ -133,11 +143,15 @@ public class MenuScreenActivity extends BaseNavActivity {
         viewModel.getMyQuestions().observe(this, state -> {
             List<Question> data = state != null ? state.getData() : null;
             questionAdapter.submitList(data != null ? data : Collections.emptyList());
+            questionsError = state != null && state.getStatus() == UiState.Status.ERROR
+                    ? state.getMessage() : null;
             updateEmpty();
         });
         viewModel.getMyAnswers().observe(this, state -> {
             List<Answer> data = state != null ? state.getData() : null;
             answerAdapter.submitList(data != null ? data : Collections.emptyList());
+            answersError = state != null && state.getStatus() == UiState.Status.ERROR
+                    ? state.getMessage() : null;
             updateEmpty();
         });
         viewModel.getActionState().observe(this, state -> {
@@ -187,11 +201,18 @@ public class MenuScreenActivity extends BaseNavActivity {
     }
 
     private void updateEmpty() {
-        boolean questionsEmpty = questionAdapter.getItemCount() == 0
-                && recyclerQuestions.getVisibility() == View.VISIBLE;
-        boolean answersEmpty = answerAdapter.getItemCount() == 0
-                && recyclerAnswers.getVisibility() == View.VISIBLE;
-        emptyView.setVisibility((questionsEmpty || answersEmpty) ? View.VISIBLE : View.GONE);
+        boolean questionsTab = recyclerQuestions.getVisibility() == View.VISIBLE;
+        int count = questionsTab ? questionAdapter.getItemCount() : answerAdapter.getItemCount();
+        String error = questionsTab ? questionsError : answersError;
+        if (error != null) {
+            emptyView.setText(error);
+            emptyView.setVisibility(View.VISIBLE);
+        } else if (count == 0) {
+            emptyView.setText(R.string.state_empty);
+            emptyView.setVisibility(View.VISIBLE);
+        } else {
+            emptyView.setVisibility(View.GONE);
+        }
     }
 
     private void logout() {

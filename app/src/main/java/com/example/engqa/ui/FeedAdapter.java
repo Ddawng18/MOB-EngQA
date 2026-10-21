@@ -18,6 +18,8 @@ import com.example.engqa.model.Promo;
 import com.example.engqa.model.Question;
 import com.example.engqa.util.UiUtils;
 
+import java.util.List;
+
 /**
  * One RecyclerView, two card types ({@link FeedItem#TYPE_QUESTION} / {@link FeedItem#TYPE_PROMO}).
  *
@@ -123,6 +125,9 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
         private final TextView solved;
         private final ImageView imageIcon;
         private final ImageView audioIcon;
+        private final View imageWrap;
+        private final ImageView thumbnail;
+        private final TextView imageCount;
 
         QuestionViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -135,6 +140,9 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
             solved = itemView.findViewById(R.id.tvQuestionSolved);
             imageIcon = itemView.findViewById(R.id.ivHasImage);
             audioIcon = itemView.findViewById(R.id.ivHasAudio);
+            imageWrap = itemView.findViewById(R.id.questionImageWrap);
+            thumbnail = itemView.findViewById(R.id.ivQuestionThumbnail);
+            imageCount = itemView.findViewById(R.id.tvQuestionImageCount);
         }
 
         void bind(Question question, OnFeedActionListener listener) {
@@ -151,10 +159,30 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
             answerCount.setText(itemView.getContext()
                     .getString(R.string.answer_count, question.getAnswerCount()));
             solved.setVisibility(question.isSolved() ? View.VISIBLE : View.GONE);
-            imageIcon.setVisibility(question.getImageUrls() != null
-                    && !question.getImageUrls().isEmpty() ? View.VISIBLE : View.GONE);
             audioIcon.setVisibility(question.getAudioUrl() != null
                     ? View.VISIBLE : View.GONE);
+
+            List<String> images = question.getImageUrls();
+            String cover = images != null && !images.isEmpty() ? images.get(0) : null;
+            boolean hasCover = cover != null && !cover.trim().isEmpty();
+            if (hasCover) {
+                imageWrap.setVisibility(View.VISIBLE);
+                Glide.with(thumbnail).load(cover).centerCrop().into(thumbnail);
+                if (images != null && images.size() > 1) {
+                    imageCount.setText(itemView.getContext()
+                            .getString(R.string.more_images, images.size() - 1));
+                    imageCount.setVisibility(View.VISIBLE);
+                } else {
+                    imageCount.setVisibility(View.GONE);
+                }
+            } else {
+                imageWrap.setVisibility(View.GONE);
+                imageCount.setVisibility(View.GONE);
+                Glide.with(thumbnail).clear(thumbnail);
+            }
+            imageIcon.setVisibility(!hasCover && images != null && !images.isEmpty()
+                    ? View.VISIBLE : View.GONE);
+
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onQuestionClick(question);

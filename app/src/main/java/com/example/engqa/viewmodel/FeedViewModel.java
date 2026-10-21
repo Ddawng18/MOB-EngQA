@@ -13,11 +13,13 @@ import com.example.engqa.data.CategoryRepository;
 import com.example.engqa.data.PromoRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
+import com.example.engqa.data.UserRepository;
 import com.example.engqa.model.Category;
 import com.example.engqa.model.FeedItem;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.util.FeedMixer;
 import com.example.engqa.util.PrefsHelper;
 import com.example.engqa.util.TextUtils2;
@@ -45,12 +47,14 @@ public class FeedViewModel extends AndroidViewModel {
     private final QuestionRepository questionRepository = new QuestionRepository();
     private final CategoryRepository categoryRepository = new CategoryRepository();
     private final PromoRepository promoRepository = new PromoRepository();
+    private final UserRepository userRepository = new UserRepository();
 
     private final MutableLiveData<UiState<List<Question>>> questionState = new MutableLiveData<>();
     private final MutableLiveData<List<Promo>> promoState = new MutableLiveData<>(new ArrayList<>());
     private final MutableLiveData<List<Category>> categories = new MutableLiveData<>();
     private final MutableLiveData<Boolean> loadingMore = new MutableLiveData<>(false);
     private final MediatorLiveData<UiState<List<FeedItem>>> feed = new MediatorLiveData<>();
+    private final MutableLiveData<User> currentUser = new MutableLiveData<>();
 
     private ListenerRegistration questionRegistration;
     private ListenerRegistration categoriesRegistration;
@@ -86,6 +90,11 @@ public class FeedViewModel extends AndroidViewModel {
 
     public LiveData<Boolean> getLoadingMore() {
         return loadingMore;
+    }
+
+    /** Signed-in profile (role, centre) used by the home profile menu. */
+    public LiveData<User> getCurrentUser() {
+        return currentUser;
     }
 
     public String getCategoryId() {
@@ -137,6 +146,27 @@ public class FeedViewModel extends AndroidViewModel {
         } else {
             rebuild();
         }
+        refreshCurrentUser();
+    }
+
+    /** Loads the signed-in profile (one read) so the profile menu knows the role. */
+    public void refreshCurrentUser() {
+        String uid = userRepository.currentUid();
+        if (uid == null) {
+            currentUser.setValue(null);
+            return;
+        }
+        userRepository.getUser(uid, new Callback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                currentUser.setValue(user);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // Keep the previous value; the menu falls back to the visitor state.
+            }
+        });
     }
 
     public void stop() {

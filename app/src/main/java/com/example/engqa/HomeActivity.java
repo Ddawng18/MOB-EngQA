@@ -1,6 +1,7 @@
 package com.example.engqa;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -22,9 +23,8 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.data.Callback;
 import com.example.engqa.data.QuestionRepository;
-import com.example.engqa.data.UserRepository;
+import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Category;
 import com.example.engqa.model.FeedItem;
 import com.example.engqa.model.Promo;
@@ -36,6 +36,7 @@ import com.example.engqa.ui.FeedAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.FeedMixer;
 import com.example.engqa.viewmodel.FeedViewModel;
+import com.example.engqa.viewmodel.NotificationViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,8 +57,10 @@ public class HomeActivity extends BaseNavActivity {
     private TextView cacheHint;
     private RecyclerView recyclerView;
     private RecyclerView sortRecycler;
+    private TextView profileButton;
+    private TextView notificationBadge;
+    private NotificationViewModel notificationViewModel;
 
-    private final UserRepository userRepository = new UserRepository();
     private User currentUser;
 
     private static final String[][] SORTS = {
@@ -89,25 +92,27 @@ public class HomeActivity extends BaseNavActivity {
         });
 
         viewModel = new ViewModelProvider(this).get(FeedViewModel.class);
+        notificationViewModel = new ViewModelProvider(this).get(NotificationViewModel.class);
         stateView = findViewById(R.id.stateView);
         progressMore = findViewById(R.id.progressMore);
         cacheHint = findViewById(R.id.tvCacheHint);
         recyclerView = findViewById(R.id.recyclerQuestions);
         sortRecycler = findViewById(R.id.recyclerSort);
+        notificationBadge = findViewById(R.id.tvNotificationBadge);
 
         setupFeed();
         setupCategoryChips();
         setupSortChips();
         setupSearch();
 
-        findViewById(R.id.btnNotifications).setOnClickListener(v -> {
+        findViewById(R.id.notificationButton).setOnClickListener(v -> {
             if (new SessionManager(this).isLoggedIn()) {
                 startActivity(new Intent(this, NotificationActivity.class));
             } else {
                 startActivity(new Intent(this, LoginActivity.class));
             }
         });
-        View profileButton = findViewById(R.id.btnProfile);
+        profileButton = findViewById(R.id.btnProfile);
         profileButton.setOnClickListener(this::showProfileMenu);
 
         stateView.setOnRetryListener(v -> {
@@ -115,6 +120,8 @@ public class HomeActivity extends BaseNavActivity {
             viewModel.start();
         });
         bindBottomNav();
+        viewModel.getCurrentUser().observe(this, this::bindCurrentUser);
+        notificationViewModel.getNotifications().observe(this, this::bindNotificationBadge);
     }
 
     @Override
@@ -126,32 +133,49 @@ public class HomeActivity extends BaseNavActivity {
     protected void onStart() {
         super.onStart();
         viewModel.start();
-        loadCurrentUser();
+        String uid = new SessionManager(this).getUserId();
+        if (uid != null) {
+            notificationViewModel.start(uid);
+        }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         viewModel.stop();
+        notificationViewModel.stop();
     }
 
-    private void loadCurrentUser() {
-        String uid = userRepository.currentUid();
-        if (uid == null) {
-            currentUser = null;
+    /** Red badge with the unread notification count (hidden at zero). */
+    private void bindNotificationBadge(UiState<List<AppNotification>> state) {
+        int unread = 0;
+        if (state != null && state.getData() != null) {
+            for (AppNotification notification : state.getData()) {
+                if (!notification.isRead()) {
+                    unread++;
+                }
+            }
+        }
+        if (notificationBadge == null) {
             return;
         }
-        userRepository.getUser(uid, new Callback<User>() {
-            @Override
-            public void onSuccess(User user) {
-                currentUser = user;
-            }
+        if (unread <= 0) {
+            notificationBadge.setVisibility(View.GONE);
+        } else {
+            notificationBadge.setText(unread > 99 ? "99+" : String.valueOf(unread));
+            notificationBadge.setVisibility(View.VISIBLE);
+        }
+    }
 
-            @Override
-            public void onError(Exception e) {
-                // Keep the previous value; the menu falls back to the visitor state.
-            }
-        });
+    private void bindCurrentUser(User user) {
+        currentUser = user;
+        if (profileButton == null) {
+            return;
+        }
+        String name = user != null && user.getUsername() != null ? user.getUsername() : "";
+        profileButton.setText(name.isEmpty()
+                ? getString(R.string.avatar_placeholder)
+                : String.valueOf(name.charAt(0)).toUpperCase());
     }
 
     // ------------------------------------------------------------------ feed
@@ -169,8 +193,8 @@ public class HomeActivity extends BaseNavActivity {
             }
         });
 
-        int columns = Math.max(1, getResources().getInteger(R.integer.feed_columns));
-        recyclerView.setLayoutManager(new GridLayoutManager(this, columns));
+        // Reddit-style feed: always one full-width column, even on wide screens.
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(feedAdapter);
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -178,14 +202,11 @@ public class HomeActivity extends BaseNavActivity {
                 if (dy <= 0 || Boolean.TRUE.equals(viewModel.getLoadingMore().getValue())) {
                     return;
                 }
-                RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
-                int lastVisible = -1;
-                if (manager instanceof GridLayoutManager) {
-                    lastVisible = ((GridLayoutManager) manager).findLastVisibleItemPosition();
-                } else if (manager instanceof LinearLayoutManager) {
-                    lastVisible = ((LinearLayoutManager) manager).findLastVisibleItemPosition();
-                }
-                if (lastVisible >= feedAdapter.getItemCount() - 3) {
+                LinearLayoutManager manager =
+                        (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (manager != null
+                        && manager.findLastVisibleItemPosition()
+                            >= feedAdapter.getItemCount() - 3) {
                     viewModel.loadMore();
                 }
             }
@@ -233,7 +254,13 @@ public class HomeActivity extends BaseNavActivity {
             sortRecycler.setVisibility(FeedMixer.FILTER_CENTER.equals(category.getId())
                     ? View.GONE : View.VISIBLE);
         });
-        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            // The landscape layout puts the chips in a narrow left rail, so use a 2-column grid.
+            recycler.setLayoutManager(new GridLayoutManager(this, 2));
+        } else {
+            recycler.setLayoutManager(
+                    new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        }
         recycler.setAdapter(categoryAdapter);
 
         viewModel.getCategories().observe(this, categories -> {

@@ -57,6 +57,7 @@
     <string name="accepted_badge">Đã chấp nhận</string>
     <string name="btn_accept">Chấp nhận</string>
     <string name="accepted_success">Đã chấp nhận câu trả lời</string>
+    <string name="answer_posted">Đã gửi câu trả lời</string>
     <string name="upvote">Upvote</string>
     <string name="downvote">Downvote</string>
     <string name="report">Báo cáo nội dung</string>
@@ -68,6 +69,11 @@
     <string name="nav_home">home</string>
     <string name="nav_ask">ask</string>
     <string name="nav_profile">profile</string>
+    <string name="nav_home_item">⌂\nTrang chủ</string>
+    <string name="nav_ask_item">＋\nĐặt câu hỏi</string>
+    <string name="nav_profile_item">👤\nCá nhân</string>
+    <string name="avatar_placeholder">U</string>
+    <string name="detail_link">Xem chi tiết ›</string>
     <string name="server_error_illustration">Không thể kết nối tới máy chủ</string>
     <string name="server_error_offline">Không có kết nối mạng. Vui lòng kiểm tra lại.</string>
     <string name="profile_soon">Hồ sơ cá nhân (chưa triển khai)</string>
@@ -99,6 +105,8 @@
     <string name="sort_popular">Phổ biến</string>
     <string name="sort_unanswered">Chưa trả lời</string>
     <string name="answer_count">%1$d câu trả lời</string>
+    <string name="answered_in">Trả lời: %1$s</string>
+    <string name="more_images">+%1$d</string>
     <string name="load_more">Tải thêm</string>
     <string name="solved_label">Đã giải đáp</string>
 

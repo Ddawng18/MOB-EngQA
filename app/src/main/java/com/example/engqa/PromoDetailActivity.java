@@ -18,12 +18,9 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
-import com.example.engqa.data.local.SavedPromo;
-import com.example.engqa.data.local.SavedPromoRepository;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.UiState;
 import com.example.engqa.ui.StateView;
-import com.example.engqa.util.UiUtils;
 import com.example.engqa.viewmodel.PromoViewModel;
 
 import java.text.SimpleDateFormat;
@@ -40,7 +37,6 @@ public class PromoDetailActivity extends AppCompatActivity {
     public static final String EXTRA_PROMO_ID = "com.example.engqa.extra.PROMO_ID";
 
     private PromoViewModel viewModel;
-    private SavedPromoRepository savedRepository;
     private StateView stateView;
     private TextView tvSave;
     private Promo currentPromo;
@@ -71,7 +67,6 @@ public class PromoDetailActivity extends AppCompatActivity {
         uid = new SessionManager(this).getUserId();
 
         viewModel = new ViewModelProvider(this).get(PromoViewModel.class);
-        savedRepository = new SavedPromoRepository(this);
         stateView = findViewById(R.id.stateView);
         tvSave = findViewById(R.id.btnSavePromo);
 
@@ -98,13 +93,29 @@ public class PromoDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, state.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
+        viewModel.getSaved().observe(this, value -> {
+            saved = Boolean.TRUE.equals(value);
+            updateSaveButton();
+        });
+        viewModel.getSaveEvent().observe(this, message -> {
+            if (message == null) {
+                return;
+            }
+            if ("saved".equals(message)) {
+                Toast.makeText(this, R.string.promo_saved, Toast.LENGTH_SHORT).show();
+            } else if ("removed".equals(message)) {
+                Toast.makeText(this, R.string.saved_removed, Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         viewModel.start(promoId);
-        refreshSavedState();
+        viewModel.refreshSaved();
     }
 
     @Override
@@ -225,55 +236,7 @@ public class PromoDetailActivity extends AppCompatActivity {
     }
 
     private void toggleSaved() {
-        if (currentPromo == null) {
-            return;
-        }
-        if (saved) {
-            savedRepository.remove(promoId, new com.example.engqa.data.Callback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    saved = false;
-                    updateSaveButton();
-                    UiUtils.toast(PromoDetailActivity.this, getString(R.string.saved_removed));
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    UiUtils.toast(PromoDetailActivity.this, e.getLocalizedMessage());
-                }
-            });
-        } else {
-            SavedPromo entity = new SavedPromo(promoId, currentPromo.getCenterName(),
-                    currentPromo.getTitle(), currentPromo.getImageUrl(), System.currentTimeMillis());
-            savedRepository.save(entity, new com.example.engqa.data.Callback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    saved = true;
-                    updateSaveButton();
-                    UiUtils.toast(PromoDetailActivity.this, getString(R.string.promo_saved));
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    UiUtils.toast(PromoDetailActivity.this, e.getLocalizedMessage());
-                }
-            });
-        }
-    }
-
-    private void refreshSavedState() {
-        savedRepository.isSaved(promoId, new com.example.engqa.data.Callback<Boolean>() {
-            @Override
-            public void onSuccess(Boolean result) {
-                saved = Boolean.TRUE.equals(result);
-                updateSaveButton();
-            }
-
-            @Override
-            public void onError(Exception e) {
-                // Keep the current label.
-            }
-        });
+        viewModel.toggleSaved(currentPromo);
     }
 
     private void updateSaveButton() {

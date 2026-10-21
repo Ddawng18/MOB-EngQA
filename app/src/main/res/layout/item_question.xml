@@ -79,6 +79,38 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
+    <!-- Cover image: the first attached image is shown inline, like a promo banner. -->
+    <FrameLayout
+        android:id="@+id/questionImageWrap"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/question_image_height"
+        android:layout_marginTop="10dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/ivQuestionThumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_attachment"
+            android:contentDescription="@string/label_images"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/tvQuestionImageCount"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="8dp"
+            android:background="@drawable/bg_image_badge"
+            android:gravity="center"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </FrameLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -116,7 +148,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Xem chi tiết  ›"
+            android:text="@string/detail_link"
             android:textColor="@color/accent_orange"
             android:textSize="12sp" />
     </LinearLayout>

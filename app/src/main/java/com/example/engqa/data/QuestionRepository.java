@@ -92,6 +92,15 @@ public class QuestionRepository {
                 });
     }
 
+    /** One-shot read used to fill the denormalised title for answers created before it existed. */
+    public void getQuestionOnce(String questionId, Callback<Question> callback) {
+        db.collection(FirestoreRefs.QUESTIONS).document(questionId).get()
+                .addOnSuccessListener(document -> callback.onSuccess(
+                        document != null && document.exists()
+                                ? document.toObject(Question.class) : null))
+                .addOnFailureListener(callback::onError);
+    }
+
     public void loadMore(String categoryId, String sort, int limit, DocumentSnapshot after,
                          Callback<Page> callback) {
         Query query = buildQuery(categoryId, sort, limit);

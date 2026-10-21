@@ -124,7 +124,7 @@ Checklist:
 - [ ] Mở chi tiết promo, gọi/mở web, đăng ký tư vấn.
 - [ ] Đăng câu hỏi có ảnh/âm thanh (cần **Storage đã bật** — xem `docs/FIREBASE_SETUP.md`).
 - [ ] Bật thông báo → nhận thông báo khi có người trả lời.
-- [ ] Xoay ngang: feed 2 cột, không mất trạng thái.
+- [ ] Xoay ngang: feed vẫn 1 cột, không mất trạng thái.
 
 ## 9. Cách phân phối
 

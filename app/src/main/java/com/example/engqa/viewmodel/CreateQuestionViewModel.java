@@ -1,17 +1,21 @@
 package com.example.engqa.viewmodel;
 
+import android.app.Application;
 import android.net.Uri;
 
+import androidx.annotation.NonNull;
+import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 
 import com.example.engqa.data.Callback;
+import com.example.engqa.data.LinkStorageRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
-import com.example.engqa.data.StorageRepository;
+import com.example.engqa.data.UserRepository;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.util.TextUtils2;
 import com.example.engqa.util.Validators;
 
@@ -22,10 +26,18 @@ import java.util.List;
  * Holds everything typed on the "Đặt câu hỏi" screen so a rotation does not lose the draft, and
  * orchestrates media upload followed by the question write.
  */
-public class CreateQuestionViewModel extends ViewModel {
+public class CreateQuestionViewModel extends AndroidViewModel {
 
     private final QuestionRepository questionRepository = new QuestionRepository();
-    private final StorageRepository storageRepository = new StorageRepository();
+    private final UserRepository userRepository = new UserRepository();
+    // Cloud Storage needs the Blaze plan, so media is uploaded to a free HTTPS host and only the
+    // resulting URL is stored in Firestore. Swap back to StorageRepository once Blaze is enabled.
+    private final LinkStorageRepository storageRepository;
+
+    public CreateQuestionViewModel(@NonNull Application application) {
+        super(application);
+        storageRepository = new LinkStorageRepository(application);
+    }
 
     private final MutableLiveData<UiState<String>> submitState = new MutableLiveData<>();
     private final MutableLiveData<Integer> uploadProgress = new MutableLiveData<>(0);
@@ -112,11 +124,17 @@ public class CreateQuestionViewModel extends ViewModel {
         return !title.isEmpty() || !body.isEmpty() || !imageUris.isEmpty() || audioUri != null;
     }
 
+    @Override
+    protected void onCleared() {
+        storageRepository.shutdown();
+        super.onCleared();
+    }
+
     /**
-     * Validates, uploads media to {@code questions/{uid}/{qid}/...} then writes the question.
-     * Progress is reported as a percentage across all attachments.
+     * Validates, resolves the signed-in author, uploads media and writes the question. Progress is
+     * reported as a percentage across all attachments.
      */
-    public void submit(String uid, String authorName) {
+    public void submit() {
         if (!Validators.isValidTitle(title)) {
             submitState.setValue(UiState.error("Tiêu đề cần ít nhất 10 ký tự"));
             return;
@@ -125,9 +143,30 @@ public class CreateQuestionViewModel extends ViewModel {
             submitState.setValue(UiState.error("Vui lòng nhập mô tả chi tiết"));
             return;
         }
+        final String uid = userRepository.currentUid();
+        if (uid == null) {
+            submitState.setValue(UiState.error("Bạn cần đăng nhập"));
+            return;
+        }
         submitState.setValue(UiState.loading());
         uploadProgress.setValue(0);
 
+        userRepository.getUser(uid, new Callback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                String name = user != null && user.getUsername() != null
+                        ? user.getUsername() : "user";
+                startUpload(uid, name);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                startUpload(uid, "user");
+            }
+        });
+    }
+
+    private void startUpload(String uid, String authorName) {
         final String questionId = questionRepository.newQuestionId();
         final List<String> uploadedImageUrls = new ArrayList<>();
         final int totalAttachments = imageUris.size() + (audioUri != null ? 1 : 0);

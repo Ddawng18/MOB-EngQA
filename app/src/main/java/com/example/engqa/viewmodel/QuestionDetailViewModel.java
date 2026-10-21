@@ -9,12 +9,15 @@ import com.example.engqa.data.Callback;
 import com.example.engqa.data.NotificationRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
+import com.example.engqa.data.UserRepository;
 import com.example.engqa.data.VoteRepository;
 import com.example.engqa.model.Answer;
 import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.model.Vote;
+import com.example.engqa.util.AnswerRanking;
 import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.HashMap;
@@ -28,6 +31,7 @@ public class QuestionDetailViewModel extends ViewModel {
     private final AnswerRepository answerRepository = new AnswerRepository();
     private final VoteRepository voteRepository = new VoteRepository();
     private final NotificationRepository notificationRepository = new NotificationRepository();
+    private final UserRepository userRepository = new UserRepository();
 
     private final MutableLiveData<UiState<Question>> question = new MutableLiveData<>();
     private final MutableLiveData<UiState<List<Answer>>> answers = new MutableLiveData<>();
@@ -39,6 +43,7 @@ public class QuestionDetailViewModel extends ViewModel {
 
     private String questionId;
     private String uid;
+    private boolean submittingAnswer;
 
     public LiveData<UiState<Question>> getQuestion() {
         return question;
@@ -87,7 +92,10 @@ public class QuestionDetailViewModel extends ViewModel {
         super.onCleared();
     }
 
-    public void addAnswer(String body, String authorName) {
+    public void addAnswer(String body) {
+        if (submittingAnswer) {
+            return;
+        }
         if (uid == null) {
             actionState.setValue(UiState.error("Bạn cần đăng nhập"));
             return;
@@ -96,21 +104,45 @@ public class QuestionDetailViewModel extends ViewModel {
             actionState.setValue(UiState.error("Vui lòng nhập câu trả lời"));
             return;
         }
+        submittingAnswer = true;
+        actionState.setValue(UiState.<String>loading());
+        userRepository.getUser(uid, new Callback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                String name = user != null && user.getUsername() != null
+                        ? user.getUsername() : "user";
+                createAnswer(body, name);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                createAnswer(body, "user");
+            }
+        });
+    }
+
+    private void createAnswer(String body, String authorName) {
         Answer answer = new Answer();
         answer.setQuestionId(questionId);
         answer.setAuthorId(uid);
         answer.setAuthorName(authorName);
         answer.setBody(body.trim());
+        Question current = question.getValue() != null ? question.getValue().getData() : null;
+        if (current != null) {
+            answer.setQuestionTitle(current.getTitle());
+        }
         answerRepository.addAnswer(answer, new Callback<String>() {
             @Override
             public void onSuccess(String answerId) {
-                actionState.setValue(UiState.success(answerId));
+                submittingAnswer = false;
+                actionState.setValue(UiState.success("answer_posted"));
                 notifyQuestionAuthor(AppNotification.TYPE_ANSWER, authorName,
                         "Có câu trả lời mới", authorName + " đã trả lời câu hỏi của bạn");
             }
 
             @Override
             public void onError(Exception e) {
+                submittingAnswer = false;
                 actionState.setValue(UiState.error(RepoErrors.message(e)));
             }
         });
@@ -233,7 +265,7 @@ public class QuestionDetailViewModel extends ViewModel {
                         if (result.isEmpty()) {
                             answers.setValue(UiState.<List<Answer>>empty());
                         } else {
-                            answers.setValue(UiState.success(result));
+                            answers.setValue(UiState.success(AnswerRanking.sort(result)));
                         }
                     }
 

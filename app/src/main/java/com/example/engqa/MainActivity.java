@@ -24,13 +24,10 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.data.Callback;
-import com.example.engqa.data.UserRepository;
 import com.example.engqa.media.AudioRecorder;
 import com.example.engqa.media.ImageUtils;
 import com.example.engqa.model.Categories;
 import com.example.engqa.model.UiState;
-import com.example.engqa.model.User;
 import com.example.engqa.ui.AttachmentAdapter;
 import com.example.engqa.ui.AudioPlayerView;
 import com.example.engqa.util.PermissionHelper;
@@ -57,8 +54,6 @@ public class MainActivity extends BaseNavActivity {
     private Uri pendingCameraUri;
     private AudioRecorder audioRecorder;
     private boolean recording;
-
-    private final UserRepository userRepository = new UserRepository();
 
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -329,7 +324,7 @@ public class MainActivity extends BaseNavActivity {
     }
 
     private void submit() {
-        String uid = userRepository.currentUid();
+        String uid = new SessionManager(this).getUserId();
         if (uid == null) {
             toast("Bạn cần đăng nhập");
             startActivity(new Intent(this, LoginActivity.class));
@@ -343,17 +338,7 @@ public class MainActivity extends BaseNavActivity {
         viewModel.setLevel((String) spinnerLevel.getSelectedItem());
 
         btnPost.setEnabled(false);
-        userRepository.getUser(uid, new Callback<User>() {
-            @Override
-            public void onSuccess(User user) {
-                viewModel.submit(uid, user != null ? user.getUsername() : "user");
-            }
-
-            @Override
-            public void onError(Exception e) {
-                viewModel.submit(uid, "user");
-            }
-        });
+        viewModel.submit();
     }
 
     private void observeSubmit() {

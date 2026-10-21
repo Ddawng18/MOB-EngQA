@@ -37,4 +37,5 @@
     <color name="promo_badge_bg">#33FF4500</color>
     <color name="verified_blue">#FF4C9AFF</color>
     <color name="promo_expired">#FF8A8A8A</color>
+    <color name="notification_badge">#FFE53935</color>
 </resources>

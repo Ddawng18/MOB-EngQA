@@ -17,7 +17,8 @@
 
     <!-- Promo cards -->
     <dimen name="promo_card_radius">14dp</dimen>
-    <dimen name="promo_banner_height">160dp</dimen>
+    <dimen name="promo_banner_height">220dp</dimen>
     <dimen name="promo_gap">10dp</dimen>
     <dimen name="promo_badge_padding">6dp</dimen>
+    <dimen name="question_image_height">220dp</dimen>
 </resources>

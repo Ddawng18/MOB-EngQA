@@ -2,6 +2,7 @@ package com.example.engqa.media;
 
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.util.Log;
 
 import java.io.IOException;
 
@@ -12,6 +13,8 @@ import java.io.IOException;
  * {@link #getPosition()} so playback resumes at the same place after a rotation.
  */
 public class AudioPlayerManager {
+
+    private static final String TAG = "AudioPlayerManager";
 
     public interface Listener {
         void onPlaybackStateChanged(boolean playing, int positionMs, int durationMs);
@@ -70,7 +73,7 @@ public class AudioPlayerManager {
             });
             player.prepareAsync();
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.w(TAG, "Không phát được audio: " + url, e);
         }
     }
 

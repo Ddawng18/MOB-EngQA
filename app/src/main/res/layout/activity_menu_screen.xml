@@ -80,7 +80,7 @@
                         android:layout_height="64dp"
                         android:background="@drawable/bg_avatar"
                         android:gravity="center"
-                        android:text="N"
+                        android:text="@string/avatar_placeholder"
                         android:textColor="@color/accent_orange"
                         android:textSize="24sp"
                         android:textStyle="bold" />

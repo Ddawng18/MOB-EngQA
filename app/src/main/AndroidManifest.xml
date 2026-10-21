@@ -24,6 +24,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:resizeableActivity="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.EngQA">
@@ -31,6 +32,7 @@
         <activity
             android:name=".LoginActivity"
             android:exported="true"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -42,76 +44,93 @@
         <activity
             android:name=".RegisterActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ChooseLevelActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".HomeActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".QuestionDetailActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ImageViewerActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
         <activity
             android:name=".ServerErrorActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".MenuScreenActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".EditProfileActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".NotificationActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".CenterListActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CenterDetailActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CenterEditActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CenterRequestActivity"
             android:exported="false"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".PromoDetailActivity"
             android:exported="false"
             android:parentActivityName=".HomeActivity"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CreatePromoActivity"
             android:exported="false"
             android:parentActivityName=".HomeActivity"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".SavedPromosActivity"
             android:exported="false"
-            android:parentActivityName=".HomeActivity" />
+            android:parentActivityName=".HomeActivity"
+            android:screenOrientation="fullSensor" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -1,33 +1,49 @@
 package com.example.engqa.viewmodel;
 
+import android.app.Application;
+
+import androidx.annotation.NonNull;
+import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 
 import com.example.engqa.data.Callback;
 import com.example.engqa.data.PromoRepository;
 import com.example.engqa.data.RepoErrors;
+import com.example.engqa.data.local.SavedPromo;
+import com.example.engqa.data.local.SavedPromoRepository;
 import com.example.engqa.model.Lead;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.UiState;
+import com.example.engqa.util.SingleLiveEvent;
 import com.google.firebase.firestore.ListenerRegistration;
 
 /**
  * Backs the promo detail screen.
  *
  * <p>{@code viewCounted} lives in the ViewModel, so opening the screen bumps {@code viewCount}
- * exactly once even across a rotation. {@code clickCount} is bumped per tap on call/website.
+ * exactly once even across a rotation. {@code clickCount} is bumped per tap on call/website. The
+ * local "saved" flag also lives here (Room), so the screen never talks to a repository directly.
  */
-public class PromoViewModel extends ViewModel {
+public class PromoViewModel extends AndroidViewModel {
 
     private final PromoRepository repository = new PromoRepository();
+    private final SavedPromoRepository savedRepository;
 
     private final MutableLiveData<UiState<Promo>> promo = new MutableLiveData<>();
     private final MutableLiveData<UiState<String>> actionState = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> saved = new MutableLiveData<>(false);
+    private final SingleLiveEvent<String> saveEvent = new SingleLiveEvent<>();
 
     private ListenerRegistration registration;
     private String promoId;
     private boolean viewCounted;
+    private boolean saving;
+
+    public PromoViewModel(@NonNull Application application) {
+        super(application);
+        savedRepository = new SavedPromoRepository(application);
+    }
 
     public LiveData<UiState<Promo>> getPromo() {
         return promo;
@@ -35,6 +51,15 @@ public class PromoViewModel extends ViewModel {
 
     public LiveData<UiState<String>> getActionState() {
         return actionState;
+    }
+
+    public LiveData<Boolean> getSaved() {
+        return saved;
+    }
+
+    /** One-shot "saved" / "removed" / error message for the screen to toast. */
+    public LiveData<String> getSaveEvent() {
+        return saveEvent;
     }
 
     public String getPromoId() {
@@ -50,6 +75,7 @@ public class PromoViewModel extends ViewModel {
         }
         if (!newPromoId.equals(promoId)) {
             viewCounted = false;
+            saved.setValue(false);
         }
         promoId = newPromoId;
         attach();
@@ -109,6 +135,67 @@ public class PromoViewModel extends ViewModel {
                 }
             }
         });
+    }
+
+    /** Re-reads the Room flag after returning to the screen. */
+    public void refreshSaved() {
+        if (promoId == null) {
+            saved.setValue(false);
+            return;
+        }
+        savedRepository.isSaved(promoId, new Callback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean result) {
+                saved.setValue(Boolean.TRUE.equals(result));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // Keep the current value.
+            }
+        });
+    }
+
+    /** Saves or removes the promo locally and reports the outcome as a one-shot event. */
+    public void toggleSaved(Promo currentPromo) {
+        if (saving || promoId == null || currentPromo == null) {
+            return;
+        }
+        saving = true;
+        if (Boolean.TRUE.equals(saved.getValue())) {
+            savedRepository.remove(promoId, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    saving = false;
+                    saved.setValue(false);
+                    saveEvent.setValue("removed");
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    saving = false;
+                    saveEvent.setValue(RepoErrors.message(e));
+                }
+            });
+        } else {
+            SavedPromo entity = new SavedPromo(promoId, currentPromo.getCenterName(),
+                    currentPromo.getTitle(), currentPromo.getImageUrl(),
+                    System.currentTimeMillis());
+            savedRepository.save(entity, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    saving = false;
+                    saved.setValue(true);
+                    saveEvent.setValue("saved");
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    saving = false;
+                    saveEvent.setValue(RepoErrors.message(e));
+                }
+            });
+        }
     }
 
     private void attach() {

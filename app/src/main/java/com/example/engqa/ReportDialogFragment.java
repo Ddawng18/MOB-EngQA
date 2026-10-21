@@ -10,14 +10,12 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
+import androidx.lifecycle.ViewModelProvider;
 
-import com.example.engqa.data.Callback;
-import com.example.engqa.data.ReportRepository;
-import com.example.engqa.data.UserRepository;
-import com.example.engqa.model.Report;
-import com.example.engqa.model.User;
+import com.example.engqa.model.UiState;
+import com.example.engqa.viewmodel.ReportViewModel;
 
-/** Collects a reason and writes a {@code reports/{id}} document for a question or answer. */
+/** Collects a reason and sends it through {@link ReportViewModel}. */
 public class ReportDialogFragment extends DialogFragment {
 
     private static final String ARG_TARGET_PATH = "targetPath";
@@ -37,50 +35,46 @@ public class ReportDialogFragment extends DialogFragment {
                 .inflate(R.layout.dialog_report, null, false);
         EditText reason = view.findViewById(R.id.etReportReason);
 
-        return new AlertDialog.Builder(requireContext())
+        ReportViewModel viewModel =
+                new ViewModelProvider(requireActivity()).get(ReportViewModel.class);
+        viewModel.reset();
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
                 .setTitle(R.string.report_title)
                 .setView(view)
-                .setPositiveButton(R.string.ok, (dialog, which) -> submit(reason.getText().toString()))
+                .setPositiveButton(R.string.ok, null)
                 .setNegativeButton(R.string.cancel, null)
                 .create();
-    }
 
-    private void submit(String reasonText) {
-        String targetPath = getArguments() != null
-                ? getArguments().getString(ARG_TARGET_PATH) : null;
-        if (reasonText == null || reasonText.trim().isEmpty()) {
-            Toast.makeText(requireContext(), R.string.report_reason_hint, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        String uid = new UserRepository().currentUid();
-        if (uid == null) {
-            return;
-        }
-        new UserRepository().getUser(uid, new Callback<User>() {
-            @Override
-            public void onSuccess(User user) {
-                String name = user != null ? user.getUsername() : "user";
-                Report report = new Report(targetPath, uid, name, reasonText.trim());
-                new ReportRepository().report(report, new Callback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        Toast.makeText(requireContext(), R.string.report_sent,
-                                Toast.LENGTH_SHORT).show();
+        // Keep the dialog open while the request runs so errors can be corrected.
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String text = reason.getText().toString().trim();
+                    if (text.isEmpty()) {
+                        reason.setError(getString(R.string.report_reason_hint));
+                        reason.requestFocus();
+                        return;
                     }
+                    String targetPath = getArguments() != null
+                            ? getArguments().getString(ARG_TARGET_PATH) : null;
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    viewModel.submit(targetPath, text);
+                }));
 
-                    @Override
-                    public void onError(Exception e) {
-                        Toast.makeText(requireContext(), e.getLocalizedMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
+        viewModel.getReportState().observe(this, state -> {
+            if (state == null) {
+                return;
             }
-
-            @Override
-            public void onError(Exception e) {
-                Report report = new Report(targetPath, uid, "user", reasonText.trim());
-                new ReportRepository().report(report, null);
+            if (state.getStatus() == UiState.Status.LOADING) {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            } else if (state.getStatus() == UiState.Status.SUCCESS) {
+                Toast.makeText(requireContext(), R.string.report_sent, Toast.LENGTH_SHORT).show();
+                dismiss();
+            } else if (state.getStatus() == UiState.Status.ERROR) {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                Toast.makeText(requireContext(), state.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+        return dialog;
     }
 }

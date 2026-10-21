@@ -12,15 +12,15 @@
     <TextView
         android:id="@+id/navHome"
         style="@style/HomeNavItem"
-        android:text="⌂\nTrang chủ" />
+        android:text="@string/nav_home_item" />
 
     <TextView
         android:id="@+id/navAsk"
         style="@style/HomeNavItem"
-        android:text="＋\nĐặt câu hỏi" />
+        android:text="@string/nav_ask_item" />
 
     <TextView
         android:id="@+id/navProfile"
         style="@style/HomeNavItem"
-        android:text="👤\nCá nhân" />
+        android:text="@string/nav_profile_item" />
 </LinearLayout>

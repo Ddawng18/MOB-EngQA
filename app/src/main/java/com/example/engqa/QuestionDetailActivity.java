@@ -19,12 +19,9 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.data.Callback;
-import com.example.engqa.data.UserRepository;
 import com.example.engqa.model.Answer;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
-import com.example.engqa.model.User;
 import com.example.engqa.ui.AnswerAdapter;
 import com.example.engqa.ui.AudioPlayerView;
 import com.example.engqa.ui.ImageAdapter;
@@ -46,10 +43,9 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private AudioPlayerView audioPlayer;
     private TextView tvAnswersHeader;
     private EditText etAnswer;
+    private TextView btnSend;
     private String questionId;
     private String uid;
-    private String currentUsername = "user";
-    private final UserRepository userRepository = new UserRepository();
     private Question currentQuestion;
 
     @Override
@@ -72,21 +68,6 @@ public class QuestionDetailActivity extends BaseNavActivity {
             return;
         }
         uid = new SessionManager(this).getUserId();
-        if (uid != null) {
-            userRepository.getUser(uid, new Callback<User>() {
-                @Override
-                public void onSuccess(User user) {
-                    if (user != null && user.getUsername() != null) {
-                        currentUsername = user.getUsername();
-                    }
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    // keep the default name
-                }
-            });
-        }
 
         viewModel = new ViewModelProvider(this).get(QuestionDetailViewModel.class);
         stateView = findViewById(R.id.stateView);
@@ -98,7 +79,8 @@ public class QuestionDetailActivity extends BaseNavActivity {
         setupImages();
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
-        findViewById(R.id.btnSend).setOnClickListener(v -> submitAnswer());
+        btnSend = findViewById(R.id.btnSend);
+        btnSend.setOnClickListener(v -> submitAnswer());
         findViewById(R.id.btnMore).setOnClickListener(this::showOptionsMenu);
         stateView.setOnRetryListener(v -> {
             viewModel.stop();
@@ -169,17 +151,24 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 return;
             }
             switch (state.getStatus()) {
+                case LOADING:
+                    btnSend.setEnabled(false);
+                    break;
                 case SUCCESS:
+                    btnSend.setEnabled(true);
                     if ("question_deleted".equals(state.getData())) {
                         finish();
                     } else if ("deleted".equals(state.getData())) {
                         toast(getString(R.string.answer_deleted));
-                    } else {
+                    } else if ("answer_posted".equals(state.getData())) {
                         etAnswer.setText("");
+                        toast(getString(R.string.answer_posted));
+                    } else {
                         toast(getString(R.string.accepted_success));
                     }
                     break;
                 case ERROR:
+                    btnSend.setEnabled(true);
                     toast(state.getMessage());
                     break;
                 default:
@@ -260,8 +249,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
             startActivity(new Intent(this, LoginActivity.class));
             return;
         }
-        String authorName = currentUsername;
-        viewModel.addAnswer(etAnswer.getText().toString(), authorName);
+        viewModel.addAnswer(etAnswer.getText().toString());
     }
 
     private void showOptionsMenu(View anchor) {

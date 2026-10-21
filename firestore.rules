@@ -125,6 +125,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---------------------------------------------------------------- answers (collection group)
+    // The profile screen lists "my answers" with a collection-group query. Rules nested under
+    // questions/{qid} only authorize direct document access; a collection-group read also needs a
+    // path-agnostic rule that ends with the collection-group name.
+    match /{path=**}/answers/{answerId} {
+      allow read: if isSignedIn();
+    }
+
     // ------------------------------------------------------------ questions
     match /questions/{questionId} {
       allow read: if isSignedIn();
