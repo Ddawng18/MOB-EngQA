@@ -174,8 +174,10 @@ public class QuestionDetailActivity extends BaseNavActivity {
                         finish();
                     } else if ("deleted".equals(state.getData())) {
                         toast(getString(R.string.answer_deleted));
-                    } else {
+                    } else if ("answer_added".equals(state.getData())) {
                         etAnswer.setText("");
+                        toast(getString(R.string.answer_submitted));
+                    } else if ("accepted".equals(state.getData())) {
                         toast(getString(R.string.accepted_success));
                     }
                     break;
@@ -236,6 +238,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
 
         answerAdapter.setContext(question.getAuthorId(), uid);
         answerAdapter.setVotingEnabled(uid != null);
+        answerAdapter.setQuestionSolved(question.isSolved());
     }
 
     private void renderAnswers(UiState<List<Answer>> state) {
@@ -260,7 +263,19 @@ public class QuestionDetailActivity extends BaseNavActivity {
             startActivity(new Intent(this, LoginActivity.class));
             return;
         }
+        if (!NetworkUtils.isOnline(this)) {
+            toast(getString(R.string.auth_err_network));
+            return;
+        }
         String authorName = currentUsername;
+        if (authorName == null || authorName.trim().isEmpty() || "user".equals(authorName)) {
+            com.google.firebase.auth.FirebaseUser fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+            if (fbUser != null && fbUser.getDisplayName() != null && !fbUser.getDisplayName().trim().isEmpty()) {
+                authorName = fbUser.getDisplayName().trim();
+            } else if (fbUser != null && fbUser.getEmail() != null) {
+                authorName = UserRepository.defaultUsername(fbUser.getEmail());
+            }
+        }
         viewModel.addAnswer(etAnswer.getText().toString(), authorName);
     }
 
@@ -277,7 +292,12 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 return true;
             }
             if (item.getItemId() == 2) {
-                viewModel.deleteQuestion();
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle(R.string.confirm_delete_question)
+                        .setMessage(R.string.confirm_delete_question_msg)
+                        .setPositiveButton(R.string.delete, (dialog, which) -> viewModel.deleteQuestion())
+                        .setNegativeButton(R.string.cancel, null)
+                        .show();
                 return true;
             }
             return false;

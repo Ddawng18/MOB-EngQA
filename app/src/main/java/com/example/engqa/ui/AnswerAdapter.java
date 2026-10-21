@@ -52,6 +52,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
     private String questionOwnerId;
     private String currentUid;
     private boolean votingEnabled = true;
+    private boolean isQuestionSolved = false;
 
     public AnswerAdapter(OnAnswerActionListener listener) {
         super(DIFF);
@@ -63,12 +64,30 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
     }
 
     public void setContext(String questionOwnerId, String currentUid) {
+        boolean changed = !eq(this.questionOwnerId, questionOwnerId) || !eq(this.currentUid, currentUid);
         this.questionOwnerId = questionOwnerId;
         this.currentUid = currentUid;
+        if (changed) {
+            notifyDataSetChanged();
+        }
     }
 
     public void setVotingEnabled(boolean votingEnabled) {
-        this.votingEnabled = votingEnabled;
+        if (this.votingEnabled != votingEnabled) {
+            this.votingEnabled = votingEnabled;
+            notifyDataSetChanged();
+        }
+    }
+
+    public void setQuestionSolved(boolean isQuestionSolved) {
+        if (this.isQuestionSolved != isQuestionSolved) {
+            this.isQuestionSolved = isQuestionSolved;
+            notifyDataSetChanged();
+        }
+    }
+
+    private static boolean eq(String a, String b) {
+        return a == null ? b == null : a.equals(b);
     }
 
     @NonNull
@@ -81,7 +100,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
 
     @Override
     public void onBindViewHolder(@NonNull AnswerViewHolder holder, int position) {
-        holder.bind(getItem(position), myVotes, questionOwnerId, currentUid, votingEnabled, listener);
+        holder.bind(getItem(position), myVotes, questionOwnerId, currentUid, votingEnabled, isQuestionSolved, listener);
     }
 
     static class AnswerViewHolder extends RecyclerView.ViewHolder {
@@ -108,7 +127,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
         }
 
         void bind(Answer answer, Map<String, Integer> myVotes, String questionOwnerId,
-                  String currentUid, boolean votingEnabled, OnAnswerActionListener listener) {
+                  String currentUid, boolean votingEnabled, boolean isQuestionSolved, OnAnswerActionListener listener) {
             String name = answer.getAuthorName() != null ? answer.getAuthorName() : "user";
             avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
             username.setText(name);
@@ -126,7 +145,9 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
             acceptedBadge.setVisibility(answer.isAccepted() ? View.VISIBLE : View.GONE);
 
             boolean isOwner = questionOwnerId != null && questionOwnerId.equals(currentUid);
-            acceptButton.setVisibility(isOwner && !answer.isAccepted() ? View.VISIBLE : View.GONE);
+            boolean isSelfAnswer = currentUid != null && currentUid.equals(answer.getAuthorId());
+            boolean canAccept = isOwner && !isQuestionSolved && !answer.isAccepted() && !isSelfAnswer;
+            acceptButton.setVisibility(canAccept ? View.VISIBLE : View.GONE);
 
             if (votingEnabled) {
                 upvote.setOnClickListener(v -> {
@@ -141,6 +162,14 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
                         listener.onVote(answer, requested);
                     }
                 });
+            } else if (currentUid == null) {
+                View.OnClickListener guestListener = v -> {
+                    android.content.Context ctx = v.getContext();
+                    android.widget.Toast.makeText(ctx, "Bạn cần đăng nhập", android.widget.Toast.LENGTH_SHORT).show();
+                    ctx.startActivity(new android.content.Intent(ctx, com.example.engqa.LoginActivity.class));
+                };
+                upvote.setOnClickListener(guestListener);
+                downvote.setOnClickListener(guestListener);
             } else {
                 upvote.setOnClickListener(null);
                 downvote.setOnClickListener(null);
@@ -148,6 +177,11 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
             acceptButton.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onAccept(answer);
+                }
+            });
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onVote(answer, 0);
                 }
             });
         }

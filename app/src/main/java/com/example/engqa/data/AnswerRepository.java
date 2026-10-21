@@ -108,28 +108,31 @@ public class AnswerRepository {
 
     /**
      * Accepts one answer: marks the answer accepted, marks the question solved and rewards the
-     * answer author's {@code acceptedCount} — all in a single batch.
+     * answer author's {@code acceptedCount}. Runs in a transaction to prevent accepting multiple answers.
      */
     public void accept(String questionId, String answerId, String answerAuthorId,
                        Callback<Void> callback) {
         DocumentReference questionRef = db.collection(FirestoreRefs.QUESTIONS).document(questionId);
         DocumentReference acceptedRef = questionRef.collection(FirestoreRefs.ANSWERS).document(answerId);
 
-        WriteBatch batch = db.batch();
-        batch.update(acceptedRef, "isAccepted", true);
-        Map<String, Object> questionUpdates = new HashMap<>();
-        questionUpdates.put("isSolved", true);
-        questionUpdates.put("acceptedAnswerId", answerId);
-        questionUpdates.put("updatedAt", FieldValue.serverTimestamp());
-        batch.update(questionRef, questionUpdates);
-        if (answerAuthorId != null) {
-            // Allowed by the rules only when acceptedCount grows by exactly one.
-            batch.update(db.collection(FirestoreRefs.USERS).document(answerAuthorId),
-                    "acceptedCount", FieldValue.increment(1));
-        }
-        batch.commit()
-                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onError);
+        db.runTransaction((com.google.firebase.firestore.Transaction.Function<Void>) transaction -> {
+            DocumentSnapshot qSnap = transaction.get(questionRef);
+            if (qSnap.exists() && Boolean.TRUE.equals(qSnap.getBoolean("isSolved"))) {
+                throw new IllegalStateException("Câu hỏi đã được giải đáp");
+            }
+            transaction.update(acceptedRef, "isAccepted", true);
+            Map<String, Object> questionUpdates = new HashMap<>();
+            questionUpdates.put("isSolved", true);
+            questionUpdates.put("acceptedAnswerId", answerId);
+            questionUpdates.put("updatedAt", FieldValue.serverTimestamp());
+            transaction.update(questionRef, questionUpdates);
+            if (answerAuthorId != null) {
+                transaction.update(db.collection(FirestoreRefs.USERS).document(answerAuthorId),
+                        "acceptedCount", FieldValue.increment(1));
+            }
+            return null;
+        }).addOnSuccessListener(callback::onSuccess)
+          .addOnFailureListener(callback::onError);
     }
 
     public void delete(String questionId, String answerId, String answerAuthorId,

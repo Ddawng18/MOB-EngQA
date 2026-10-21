@@ -65,6 +65,8 @@ public class ValidatorsTest {
         assertTrue(Validators.usernameError("a".repeat(25)).contains("3 đến 24"));
         assertTrue(Validators.usernameError("tên có dấu").contains("chữ, số"));
         assertTrue(Validators.usernameError("bad name").contains("chữ, số"));
+        assertTrue(Validators.usernameError("user#name").contains("chữ, số"));
+        assertTrue(Validators.usernameError("user@domain").contains("chữ, số"));
     }
 
     @Test

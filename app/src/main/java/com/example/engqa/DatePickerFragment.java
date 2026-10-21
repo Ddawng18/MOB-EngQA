@@ -38,10 +38,12 @@ public class DatePickerFragment extends DialogFragment
         if (getArguments() != null && getArguments().containsKey(ARG_INITIAL_MILLIS)) {
             calendar.setTimeInMillis(getArguments().getLong(ARG_INITIAL_MILLIS));
         }
-        return new DatePickerDialog(requireContext(), this,
+        DatePickerDialog dialog = new DatePickerDialog(requireContext(), this,
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
                 calendar.get(Calendar.DAY_OF_MONTH));
+        dialog.getDatePicker().setMinDate(System.currentTimeMillis() - 1000);
+        return dialog;
     }
 
     @Override

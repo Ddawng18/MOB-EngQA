@@ -15,6 +15,7 @@ import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.Vote;
+import com.example.engqa.util.SingleLiveEvent;
 import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.HashMap;
@@ -32,7 +33,9 @@ public class QuestionDetailViewModel extends ViewModel {
     private final MutableLiveData<UiState<Question>> question = new MutableLiveData<>();
     private final MutableLiveData<UiState<List<Answer>>> answers = new MutableLiveData<>();
     private final MutableLiveData<Map<String, Integer>> myVotes = new MutableLiveData<>(new HashMap<>());
-    private final MutableLiveData<UiState<String>> actionState = new MutableLiveData<>();
+    private final MutableLiveData<UiState<String>> actionState = new SingleLiveEvent<>();
+
+    private final Map<String, ListenerRegistration> voteRegistrations = new HashMap<>();
 
     private ListenerRegistration questionRegistration;
     private ListenerRegistration answersRegistration;
@@ -79,6 +82,16 @@ public class QuestionDetailViewModel extends ViewModel {
             answersRegistration.remove();
             answersRegistration = null;
         }
+        clearVoteRegistrations();
+    }
+
+    private void clearVoteRegistrations() {
+        for (ListenerRegistration reg : voteRegistrations.values()) {
+            if (reg != null) {
+                reg.remove();
+            }
+        }
+        voteRegistrations.clear();
     }
 
     @Override
@@ -104,7 +117,7 @@ public class QuestionDetailViewModel extends ViewModel {
         answerRepository.addAnswer(answer, new Callback<String>() {
             @Override
             public void onSuccess(String answerId) {
-                actionState.setValue(UiState.success(answerId));
+                actionState.setValue(UiState.success("answer_added"));
                 notifyQuestionAuthor(AppNotification.TYPE_ANSWER, authorName,
                         "Có câu trả lời mới", authorName + " đã trả lời câu hỏi của bạn");
             }
@@ -138,7 +151,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 myVotes.setValue(updated);
 
                 if (result.value == Vote.UP) {
-                    notifyAnswerAuthor(answerId, "Có lượt bình chọn",
+                    notifyAnswerAuthor(answerId, AppNotification.TYPE_VOTE, "Có lượt bình chọn",
                             "Câu trả lời của bạn vừa được upvote");
                 }
             }
@@ -154,8 +167,8 @@ public class QuestionDetailViewModel extends ViewModel {
         answerRepository.accept(questionId, answerId, authorIdOf(answerId), new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                actionState.setValue(UiState.success(answerId));
-                notifyAnswerAuthor(answerId, "Câu trả lời được chấp nhận",
+                actionState.setValue(UiState.success("accepted"));
+                notifyAnswerAuthor(answerId, AppNotification.TYPE_ACCEPTED, "Câu trả lời được chấp nhận",
                         "Câu trả lời của bạn đã được chấp nhận");
             }
 
@@ -230,6 +243,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 new Callback<List<Answer>>() {
                     @Override
                     public void onSuccess(List<Answer> result) {
+                        updateVoteListeners(result);
                         if (result.isEmpty()) {
                             answers.setValue(UiState.<List<Answer>>empty());
                         } else {
@@ -242,6 +256,67 @@ public class QuestionDetailViewModel extends ViewModel {
                         answers.setValue(UiState.<List<Answer>>error(RepoErrors.message(e)));
                     }
                 });
+    }
+
+    private void updateVoteListeners(List<Answer> result) {
+        if (uid == null) {
+            return;
+        }
+        java.util.Set<String> activeIds = new java.util.HashSet<>();
+        if (result != null) {
+            for (Answer answer : result) {
+                if (answer.getId() != null) {
+                    activeIds.add(answer.getId());
+                }
+            }
+        }
+        java.util.Iterator<Map.Entry<String, ListenerRegistration>> it = voteRegistrations.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, ListenerRegistration> entry = it.next();
+            if (!activeIds.contains(entry.getKey())) {
+                if (entry.getValue() != null) {
+                    entry.getValue().remove();
+                }
+                it.remove();
+                Map<String, Integer> current = myVotes.getValue();
+                if (current != null && current.containsKey(entry.getKey())) {
+                    Map<String, Integer> updated = new HashMap<>(current);
+                    updated.remove(entry.getKey());
+                    myVotes.setValue(updated);
+                }
+            }
+        }
+        if (result != null) {
+            for (Answer answer : result) {
+                String answerId = answer.getId();
+                if (answerId != null && !voteRegistrations.containsKey(answerId)) {
+                    ListenerRegistration reg = voteRepository.observeMyVote(questionId, answerId, uid,
+                            new Callback<Integer>() {
+                                @Override
+                                public void onSuccess(Integer val) {
+                                    Map<String, Integer> current = myVotes.getValue();
+                                    if (current == null) {
+                                        current = new HashMap<>();
+                                    }
+                                    Map<String, Integer> updated = new HashMap<>(current);
+                                    if (val == null || val == 0) {
+                                        updated.remove(answerId);
+                                    } else {
+                                        updated.put(answerId, val);
+                                    }
+                                    myVotes.setValue(updated);
+                                }
+
+                                @Override
+                                public void onError(Exception e) {
+                                }
+                            });
+                    if (reg != null) {
+                        voteRegistrations.put(answerId, reg);
+                    }
+                }
+            }
+        }
     }
 
     private void notifyQuestionAuthor(String type, String actorName, String title, String body) {
@@ -260,7 +335,7 @@ public class QuestionDetailViewModel extends ViewModel {
         notificationRepository.create(notification, null);
     }
 
-    private void notifyAnswerAuthor(String answerId, String title, String body) {
+    private void notifyAnswerAuthor(String answerId, String type, String title, String body) {
         UiState<List<Answer>> state = answers.getValue();
         if (state == null || state.getData() == null) {
             return;
@@ -271,7 +346,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 notification.setRecipientId(answer.getAuthorId());
                 notification.setActorId(uid);
                 notification.setActorName(null);
-                notification.setType(AppNotification.TYPE_ACCEPTED);
+                notification.setType(type);
                 notification.setQuestionId(questionId);
                 notification.setAnswerId(answerId);
                 notification.setTitle(title);

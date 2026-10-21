@@ -154,19 +154,38 @@ public class QuestionRepository {
         return data;
     }
 
-    /** Deletes the question and decrements the author's {@code questionCount}. */
+    /** Deletes the question and decrements the author's {@code questionCount}, removing child answers. */
     public void deleteQuestion(String questionId, String authorId, Callback<Void> callback) {
         DocumentReference questionRef =
                 db.collection(FirestoreRefs.QUESTIONS).document(questionId);
-        WriteBatch batch = db.batch();
-        batch.delete(questionRef);
-        if (authorId != null) {
-            batch.update(db.collection(FirestoreRefs.USERS).document(authorId),
-                    "questionCount", FieldValue.increment(-1));
-        }
-        batch.commit()
-                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onError);
+        questionRef.collection(FirestoreRefs.ANSWERS).get()
+                .addOnSuccessListener(querySnapshot -> {
+                    WriteBatch batch = db.batch();
+                    if (querySnapshot != null) {
+                        for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                            batch.delete(doc.getReference());
+                        }
+                    }
+                    batch.delete(questionRef);
+                    if (authorId != null) {
+                        batch.update(db.collection(FirestoreRefs.USERS).document(authorId),
+                                "questionCount", FieldValue.increment(-1));
+                    }
+                    batch.commit()
+                            .addOnSuccessListener(aVoid -> callback.onSuccess(null))
+                            .addOnFailureListener(callback::onError);
+                })
+                .addOnFailureListener(e -> {
+                    WriteBatch batch = db.batch();
+                    batch.delete(questionRef);
+                    if (authorId != null) {
+                        batch.update(db.collection(FirestoreRefs.USERS).document(authorId),
+                                "questionCount", FieldValue.increment(-1));
+                    }
+                    batch.commit()
+                            .addOnSuccessListener(aVoid -> callback.onSuccess(null))
+                            .addOnFailureListener(callback::onError);
+                });
     }
 
     /** Marks the question solved and stores the accepted answer id. */

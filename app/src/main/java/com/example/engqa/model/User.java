@@ -19,6 +19,7 @@ public class User {
     @DocumentId
     private String uid;
     private String username;
+    private String usernameLower;
     private String email;
     private String level;
     private String avatarUrl;
@@ -54,6 +55,14 @@ public class User {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getUsernameLower() {
+        return usernameLower;
+    }
+
+    public void setUsernameLower(String usernameLower) {
+        this.usernameLower = usernameLower;
     }
 
     public String getEmail() {

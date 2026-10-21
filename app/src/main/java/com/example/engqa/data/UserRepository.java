@@ -9,6 +9,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -121,8 +122,10 @@ public class UserRepository {
 
     private void writeProfile(String uid, String name, String email, FirebaseUser firebaseUser,
                               Callback<User> callback) {
+        String lowerName = name.toLowerCase(Locale.ROOT);
         Map<String, Object> data = new HashMap<>();
         data.put("username", name);
+        data.put("usernameLower", lowerName);
         data.put("email", email);
         data.put("level", null);
         data.put("avatarUrl", null);
@@ -131,11 +134,17 @@ public class UserRepository {
         data.put("acceptedCount", 0);
         data.put("createdAt", FieldValue.serverTimestamp());
 
-        db.collection(FirestoreRefs.USERS).document(uid).set(data)
+        Map<String, Object> usernameData = new HashMap<>();
+        usernameData.put("uid", uid);
+        usernameData.put("username", name);
+
+        WriteBatch batch = db.batch();
+        batch.set(db.collection(FirestoreRefs.USERS).document(uid), data);
+        batch.set(db.collection("usernames").document(lowerName), usernameData);
+
+        batch.commit()
                 .addOnSuccessListener(aVoid -> {
-                    // Keep the Auth display name in step with the profile.
                     updateAuthDisplayName(firebaseUser, name);
-                    // Best effort: a failure to send the verification email must not block sign-up.
                     firebaseUser.sendEmailVerification();
                     callback.onSuccess(new User(uid, name, email, null));
                 })
@@ -226,18 +235,64 @@ public class UserRepository {
                 });
     }
 
-    /** {@code true} when another profile already uses this display name. */
+    /** {@code true} when another profile already uses this display name (case-insensitive). */
     public void isUsernameTaken(String username, Callback<Boolean> callback) {
+        isUsernameTaken(username, null, callback);
+    }
+
+    public void isUsernameTaken(String username, String currentUid, Callback<Boolean> callback) {
         if (username == null || username.trim().isEmpty()) {
             callback.onSuccess(false);
             return;
         }
         String value = username.trim();
-        db.collection(FirestoreRefs.USERS)
-                .whereEqualTo("username", value)
-                .limit(1)
-                .get()
-                .addOnSuccessListener(querySnapshot -> callback.onSuccess(!querySnapshot.isEmpty()))
+        String lowerValue = value.toLowerCase(Locale.ROOT);
+
+        db.collection("usernames").document(lowerValue).get()
+                .addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        String docUid = doc.getString("uid");
+                        if (currentUid != null && currentUid.equals(docUid)) {
+                            callback.onSuccess(false);
+                        } else {
+                            callback.onSuccess(true);
+                        }
+                    } else {
+                        db.collection(FirestoreRefs.USERS)
+                                .whereEqualTo("usernameLower", lowerValue)
+                                .limit(2)
+                                .get()
+                                .addOnSuccessListener(querySnapshot -> {
+                                    boolean taken = false;
+                                    for (DocumentSnapshot userDoc : querySnapshot.getDocuments()) {
+                                        if (currentUid == null || !userDoc.getId().equals(currentUid)) {
+                                            taken = true;
+                                            break;
+                                        }
+                                    }
+                                    if (taken) {
+                                        callback.onSuccess(true);
+                                    } else {
+                                        db.collection(FirestoreRefs.USERS)
+                                                .whereEqualTo("username", value)
+                                                .limit(2)
+                                                .get()
+                                                .addOnSuccessListener(qs -> {
+                                                    boolean t = false;
+                                                    for (DocumentSnapshot ud : qs.getDocuments()) {
+                                                        if (currentUid == null || !ud.getId().equals(currentUid)) {
+                                                            t = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                    callback.onSuccess(t);
+                                                })
+                                                .addOnFailureListener(callback::onError);
+                                    }
+                                })
+                                .addOnFailureListener(callback::onError);
+                    }
+                })
                 .addOnFailureListener(callback::onError);
     }
 
@@ -258,14 +313,22 @@ public class UserRepository {
                               Callback<Void> callback) {
         String name = username != null ? username.trim() : null;
         if (name != null && !name.isEmpty()) {
-            isUsernameTaken(name, new Callback<Boolean>() {
+            isUsernameTaken(name, uid, new Callback<Boolean>() {
                 @Override
                 public void onSuccess(Boolean taken) {
                     if (Boolean.TRUE.equals(taken)) {
                         callback.onError(new UsernameTakenException());
                         return;
                     }
-                    applyProfileUpdate(uid, name, avatarUrl, level, callback);
+                    db.collection(FirestoreRefs.USERS).document(uid).get()
+                            .addOnSuccessListener(snapshot -> {
+                                String oldLower = snapshot != null ? snapshot.getString("usernameLower") : null;
+                                if (oldLower == null && snapshot != null && snapshot.getString("username") != null) {
+                                    oldLower = snapshot.getString("username").toLowerCase(Locale.ROOT);
+                                }
+                                applyProfileUpdate(uid, name, oldLower, avatarUrl, level, callback);
+                            })
+                            .addOnFailureListener(e -> applyProfileUpdate(uid, name, null, avatarUrl, level, callback));
                 }
 
                 @Override
@@ -275,14 +338,17 @@ public class UserRepository {
             });
             return;
         }
-        applyProfileUpdate(uid, null, avatarUrl, level, callback);
+        applyProfileUpdate(uid, null, null, avatarUrl, level, callback);
     }
 
-    private void applyProfileUpdate(String uid, String username, String avatarUrl, String level,
+    private void applyProfileUpdate(String uid, String username, String oldLower, String avatarUrl, String level,
                                     Callback<Void> callback) {
         Map<String, Object> data = new HashMap<>();
+        String newLower = null;
         if (username != null) {
             data.put("username", username);
+            newLower = username.toLowerCase(Locale.ROOT);
+            data.put("usernameLower", newLower);
         }
         if (avatarUrl != null) {
             data.put("avatarUrl", avatarUrl);
@@ -294,7 +360,25 @@ public class UserRepository {
             callback.onSuccess(null);
             return;
         }
-        db.collection(FirestoreRefs.USERS).document(uid).update(data)
+
+        final String finalNewLower = newLower;
+        final String finalOldLower = oldLower;
+
+        WriteBatch batch = db.batch();
+        batch.update(db.collection(FirestoreRefs.USERS).document(uid), data);
+
+        if (finalNewLower != null) {
+            Map<String, Object> uData = new HashMap<>();
+            uData.put("uid", uid);
+            uData.put("username", username);
+            batch.set(db.collection("usernames").document(finalNewLower), uData);
+
+            if (finalOldLower != null && !finalOldLower.equals(finalNewLower)) {
+                batch.delete(db.collection("usernames").document(finalOldLower));
+            }
+        }
+
+        batch.commit()
                 .addOnSuccessListener(aVoid -> {
                     FirebaseUser firebaseUser = auth.getCurrentUser();
                     if (firebaseUser != null && username != null) {

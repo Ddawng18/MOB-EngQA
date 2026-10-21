@@ -112,10 +112,20 @@ public class MenuScreenActivity extends BaseNavActivity {
         answerAdapter = new AnswerAdapter(new AnswerAdapter.OnAnswerActionListener() {
             @Override
             public void onVote(Answer answer, int requestedValue) {
+                if (answer != null && answer.getQuestionId() != null) {
+                    Intent intent = new Intent(MenuScreenActivity.this, QuestionDetailActivity.class);
+                    intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, answer.getQuestionId());
+                    startActivity(intent);
+                }
             }
 
             @Override
             public void onAccept(Answer answer) {
+                if (answer != null && answer.getQuestionId() != null) {
+                    Intent intent = new Intent(MenuScreenActivity.this, QuestionDetailActivity.class);
+                    intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, answer.getQuestionId());
+                    startActivity(intent);
+                }
             }
         });
         answerAdapter.setVotingEnabled(false);
@@ -128,14 +138,22 @@ public class MenuScreenActivity extends BaseNavActivity {
         viewModel.getUser().observe(this, state -> {
             if (state != null && state.getStatus() == UiState.Status.SUCCESS) {
                 bindUser(state.getData());
+            } else if (state != null && state.getStatus() == UiState.Status.ERROR) {
+                toast(state.getMessage());
             }
         });
         viewModel.getMyQuestions().observe(this, state -> {
+            if (state != null && state.getStatus() == UiState.Status.ERROR) {
+                toast(state.getMessage());
+            }
             List<Question> data = state != null ? state.getData() : null;
             questionAdapter.submitList(data != null ? data : Collections.emptyList());
             updateEmpty();
         });
         viewModel.getMyAnswers().observe(this, state -> {
+            if (state != null && state.getStatus() == UiState.Status.ERROR) {
+                toast(state.getMessage());
+            }
             List<Answer> data = state != null ? state.getData() : null;
             answerAdapter.submitList(data != null ? data : Collections.emptyList());
             updateEmpty();

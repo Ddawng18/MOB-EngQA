@@ -162,8 +162,9 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private void save() {
         String username = etUsername.getText().toString().trim();
-        if (username.isEmpty()) {
-            etUsername.setError(getString(R.string.label_username));
+        String usernameError = com.example.engqa.util.Validators.usernameError(username);
+        if (usernameError != null) {
+            etUsername.setError(usernameError);
             return;
         }
         String level = (String) spinnerLevel.getSelectedItem();

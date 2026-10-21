@@ -1,0 +1,23 @@
+--- a/app/src/main/java/com/example/engqa/MainActivity.java
++++ b/app/src/main/java/com/example/engqa/MainActivity.java
+@@ -40,7 +40,7 @@ import com.example.engqa.model.User;
+ import com.example.engqa.ui.AttachmentAdapter;
+ import com.example.engqa.ui.AudioPlayerView;
+ import com.example.engqa.util.PermissionHelper;
+ import com.example.engqa.util.Validators;
+-import com.example.engqa.viewmodel.CreateQuestionViewModel;
++import com.example.engqa.viewmodel.CreateQuestionMediaViewModel;
+
+ import java.io.File;
+
+@@ -46,7 +46,7 @@ public class MainActivity extends BaseNavActivity {
+
+-    private CreateQuestionViewModel viewModel;
++    private CreateQuestionMediaViewModel viewModel;
+     private EditText etTitle;
+     private EditText etDescription;
+
+@@ -118,7 +118,7 @@ public class MainActivity extends BaseNavActivity {
+
+-        viewModel = new ViewModelProvider(this).get(CreateQuestionViewModel.class);
++        viewModel = new ViewModelProvider(this).get(CreateQuestionMediaViewModel.class);

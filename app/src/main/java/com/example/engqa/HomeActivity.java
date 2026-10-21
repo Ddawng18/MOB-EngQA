@@ -1,6 +1,7 @@
 package com.example.engqa;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -35,6 +36,7 @@ import com.example.engqa.ui.CategoryChipAdapter;
 import com.example.engqa.ui.FeedAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.FeedMixer;
+import com.example.engqa.util.PermissionHelper;
 import com.example.engqa.viewmodel.FeedViewModel;
 
 import java.util.ArrayList;
@@ -60,17 +62,22 @@ public class HomeActivity extends BaseNavActivity {
     private final UserRepository userRepository = new UserRepository();
     private User currentUser;
 
+    private static boolean notificationPermissionRequestedThisSession = false;
+
     private static final String[][] SORTS = {
             {QuestionRepository.SORT_NEWEST, "Mới nhất"},
             {QuestionRepository.SORT_POPULAR, "Phổ biến"},
             {QuestionRepository.SORT_UNANSWERED, "Chưa trả lời"}
     };
 
+    private final ActivityResultLauncher<String> requestNotificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                // Permission result handled
+            });
+
     private final ActivityResultLauncher<Intent> createPromoLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == RESULT_OK) {
-                    Toast.makeText(this, R.string.promo_submitted, Toast.LENGTH_SHORT).show();
-                }
+                // Toast is already shown inside CreatePromoActivity
             });
 
     @Override
@@ -127,6 +134,17 @@ public class HomeActivity extends BaseNavActivity {
         super.onStart();
         viewModel.start();
         loadCurrentUser();
+        checkNotificationPermission();
+    }
+
+    private void checkNotificationPermission() {
+        if (!notificationPermissionRequestedThisSession
+                && new SessionManager(this).isLoggedIn()
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && !PermissionHelper.hasNotifications(this)) {
+            notificationPermissionRequestedThisSession = true;
+            requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+        }
     }
 
     @Override
@@ -292,7 +310,7 @@ public class HomeActivity extends BaseNavActivity {
         startActivity(intent);
     }
 
-    /** Profile menu: login / create promo (centres only) / saved / logout. */
+    /** Profile menu: login / create promo (centres only) / center list / saved / logout. */
     private void showProfileMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenuInflater().inflate(R.menu.menu_profile, popup.getMenu());
@@ -304,6 +322,9 @@ public class HomeActivity extends BaseNavActivity {
 
         popup.getMenu().findItem(R.id.action_login).setVisible(!loggedIn);
         popup.getMenu().findItem(R.id.action_create_promo).setVisible(loggedIn && isCenter);
+        if (popup.getMenu().findItem(R.id.action_center_list) != null) {
+            popup.getMenu().findItem(R.id.action_center_list).setVisible(true);
+        }
         popup.getMenu().findItem(R.id.action_saved_promos).setVisible(true);
         popup.getMenu().findItem(R.id.action_logout).setVisible(loggedIn);
 
@@ -319,6 +340,10 @@ public class HomeActivity extends BaseNavActivity {
         }
         if (id == R.id.action_create_promo) {
             createPromoLauncher.launch(new Intent(this, CreatePromoActivity.class));
+            return true;
+        }
+        if (id == R.id.action_center_list) {
+            startActivity(new Intent(this, CenterListActivity.class));
             return true;
         }
         if (id == R.id.action_saved_promos) {

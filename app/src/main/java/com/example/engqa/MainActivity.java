@@ -335,6 +335,10 @@ public class MainActivity extends BaseNavActivity {
             startActivity(new Intent(this, LoginActivity.class));
             return;
         }
+        if (!NetworkUtils.isOnline(this)) {
+            toast(getString(R.string.auth_err_network));
+            return;
+        }
         viewModel.setTitle(etTitle.getText().toString().trim());
         viewModel.setBody(etDescription.getText().toString().trim());
         viewModel.setPassageText(etPassage.getText().toString().trim());
@@ -346,12 +350,27 @@ public class MainActivity extends BaseNavActivity {
         userRepository.getUser(uid, new Callback<User>() {
             @Override
             public void onSuccess(User user) {
-                viewModel.submit(uid, user != null ? user.getUsername() : "user");
+                String authorName = user != null ? user.getUsername() : null;
+                if (authorName == null || authorName.trim().isEmpty() || "user".equals(authorName)) {
+                    com.google.firebase.auth.FirebaseUser fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+                    if (fbUser != null && fbUser.getDisplayName() != null && !fbUser.getDisplayName().trim().isEmpty()) {
+                        authorName = fbUser.getDisplayName().trim();
+                    } else if (fbUser != null && fbUser.getEmail() != null) {
+                        authorName = UserRepository.defaultUsername(fbUser.getEmail());
+                    } else {
+                        authorName = "qa_user";
+                    }
+                }
+                viewModel.submit(uid, authorName);
             }
 
             @Override
             public void onError(Exception e) {
-                viewModel.submit(uid, "user");
+                com.google.firebase.auth.FirebaseUser fbUser = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+                String authorName = (fbUser != null && fbUser.getDisplayName() != null && !fbUser.getDisplayName().trim().isEmpty())
+                        ? fbUser.getDisplayName().trim()
+                        : (fbUser != null && fbUser.getEmail() != null ? UserRepository.defaultUsername(fbUser.getEmail()) : "qa_user");
+                viewModel.submit(uid, authorName);
             }
         });
     }

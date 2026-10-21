@@ -57,6 +57,9 @@
     <string name="accepted_badge">Đã chấp nhận</string>
     <string name="btn_accept">Chấp nhận</string>
     <string name="accepted_success">Đã chấp nhận câu trả lời</string>
+    <string name="answer_submitted">Đã gửi câu trả lời</string>
+    <string name="confirm_delete_question">Xoá câu hỏi</string>
+    <string name="confirm_delete_question_msg">Bạn có chắc chắn muốn xoá câu hỏi này?</string>
     <string name="upvote">Upvote</string>
     <string name="downvote">Downvote</string>
     <string name="report">Báo cáo nội dung</string>

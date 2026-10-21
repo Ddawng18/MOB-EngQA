@@ -12,6 +12,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -141,10 +142,38 @@ public class CreatePromoActivity extends AppCompatActivity
         Calendar calendar = Calendar.getInstance();
         calendar.set(year, month, dayOfMonth, 23, 59, 59);
         calendar.set(Calendar.MILLISECOND, 0);
-        endAt = calendar.getTime();
+        Date selected = calendar.getTime();
+        Calendar now = Calendar.getInstance();
+        now.set(Calendar.HOUR_OF_DAY, 0);
+        now.set(Calendar.MINUTE, 0);
+        now.set(Calendar.SECOND, 0);
+        now.set(Calendar.MILLISECOND, 0);
+        if (selected.before(now.getTime())) {
+            Toast.makeText(this, "Hạn ưu đãi không thể ở quá khứ", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        endAt = selected;
         tvDeadline.setText(new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                 .format(endAt));
         tvDeadline.setTextColor(getColor(R.color.text_primary));
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (endAt != null) {
+            outState.putLong("endAtMillis", endAt.getTime());
+        }
+    }
+
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        if (savedInstanceState.containsKey("endAtMillis")) {
+            endAt = new Date(savedInstanceState.getLong("endAtMillis"));
+            tvDeadline.setText(new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(endAt));
+            tvDeadline.setTextColor(getColor(R.color.text_primary));
+        }
     }
 
     private void setupTypeSpinner() {
@@ -183,7 +212,7 @@ public class CreatePromoActivity extends AppCompatActivity
             }
             if (state.getStatus() == UiState.Status.SUCCESS) {
                 loadedUser = state.getData();
-                if (loadedUser != null && !User.ROLE_CENTER.equals(loadedUser.getRole())) {
+                if (loadedUser != null && !User.ROLE_CENTER.equals(loadedUser.getRole()) && loadedUser.getCenterId() == null) {
                     Toast.makeText(this, R.string.promo_center_only, Toast.LENGTH_LONG).show();
                     finish();
                 }
@@ -235,6 +264,10 @@ public class CreatePromoActivity extends AppCompatActivity
 
     private void submit() {
         hideError();
+        if (!NetworkUtils.isOnline(this)) {
+            showError(getString(R.string.auth_err_network));
+            return;
+        }
         String title = etTitle.getText().toString();
         String body = etBody.getText().toString();
         String phone = etPhone.getText().toString();

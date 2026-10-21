@@ -7,6 +7,9 @@
         android:id="@+id/action_create_promo"
         android:title="@string/menu_create_promo" />
     <item
+        android:id="@+id/action_center_list"
+        android:title="@string/center_list_title" />
+    <item
         android:id="@+id/action_saved_promos"
         android:title="@string/menu_saved_promos" />
     <item
