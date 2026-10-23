@@ -8,7 +8,6 @@ import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
 import com.example.engqa.R;
 
 import java.util.ArrayList;
@@ -67,7 +66,7 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageViewHol
 
         void bind(String url, OnImageClickListener listener) {
             remove.setVisibility(View.GONE);
-            Glide.with(image).load(url).into(image);
+            ImageLoader.load(image, url, null);
             image.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onImageClick(url);

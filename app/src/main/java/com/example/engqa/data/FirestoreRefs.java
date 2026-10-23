@@ -19,6 +19,7 @@ public final class FirestoreRefs {
     public static final String PROMOS = "promos";
     public static final String LEADS = "leads";
     public static final String ADMINS = "admins";
+    public static final String IMAGES = "images";
 
     public static final String FIELD_CREATED_AT = "createdAt";
     public static final String FIELD_SCORE = "score";

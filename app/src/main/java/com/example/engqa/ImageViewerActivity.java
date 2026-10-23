@@ -7,7 +7,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.bumptech.glide.Glide;
+import com.example.engqa.ui.ImageLoader;
 
 /** Full-screen image viewer with pinch-to-zoom support (via the ImageView scale type). */
 public class ImageViewerActivity extends AppCompatActivity {
@@ -24,7 +24,7 @@ public class ImageViewerActivity extends AppCompatActivity {
         ImageView image = findViewById(R.id.ivFullImage);
         String url = getIntent().getStringExtra(EXTRA_IMAGE_URL);
         if (url != null) {
-            Glide.with(this).load(url).into(image);
+            ImageLoader.load(image, url, null);
         }
         findViewById(R.id.btnClose).setOnClickListener(v -> finish());
     }

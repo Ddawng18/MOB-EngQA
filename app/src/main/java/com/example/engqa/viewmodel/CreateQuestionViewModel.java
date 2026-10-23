@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.example.engqa.data.Callback;
+import com.example.engqa.data.ImageRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
 import com.example.engqa.data.StorageRepository;
@@ -26,6 +27,7 @@ public class CreateQuestionViewModel extends ViewModel {
 
     private final QuestionRepository questionRepository = new QuestionRepository();
     private final StorageRepository storageRepository = new StorageRepository();
+    private final ImageRepository imageRepository = new ImageRepository();
 
     private final MutableLiveData<UiState<String>> submitState = new MutableLiveData<>();
     private final MutableLiveData<Integer> uploadProgress = new MutableLiveData<>(0);
@@ -145,7 +147,7 @@ public class CreateQuestionViewModel extends ViewModel {
         }
         Uri uri = imageUris.get(index);
         String fileName = "img_" + index + "_" + System.currentTimeMillis() + ".jpg";
-        storageRepository.uploadImage(uri, uid, questionId, fileName, percent -> {
+        imageRepository.uploadImage(uri, uid, questionId, fileName, percent -> {
             if (total > 0) {
                 uploadProgress.setValue((int) ((index + percent / 100f) * 100 / total));
             }
