@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel;
 
 import com.example.engqa.data.AnswerRepository;
 import com.example.engqa.data.Callback;
+import com.example.engqa.data.FirestoreMediaRepository;
 import com.example.engqa.data.NotificationRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
@@ -14,12 +15,14 @@ import com.example.engqa.data.VoteRepository;
 import com.example.engqa.model.Answer;
 import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Question;
+import com.example.engqa.model.StoredMedia;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
 import com.example.engqa.model.Vote;
 import com.example.engqa.util.AnswerRanking;
 import com.google.firebase.firestore.ListenerRegistration;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,14 +35,18 @@ public class QuestionDetailViewModel extends ViewModel {
     private final VoteRepository voteRepository = new VoteRepository();
     private final NotificationRepository notificationRepository = new NotificationRepository();
     private final UserRepository userRepository = new UserRepository();
+    private final FirestoreMediaRepository mediaRepository = new FirestoreMediaRepository();
 
     private final MutableLiveData<UiState<Question>> question = new MutableLiveData<>();
     private final MutableLiveData<UiState<List<Answer>>> answers = new MutableLiveData<>();
     private final MutableLiveData<Map<String, Integer>> myVotes = new MutableLiveData<>(new HashMap<>());
     private final MutableLiveData<UiState<String>> actionState = new MutableLiveData<>();
+    private final MutableLiveData<List<StoredMedia>> media =
+            new MutableLiveData<>(new ArrayList<>());
 
     private ListenerRegistration questionRegistration;
     private ListenerRegistration answersRegistration;
+    private ListenerRegistration mediaRegistration;
 
     private String questionId;
     private String uid;
@@ -59,6 +66,10 @@ public class QuestionDetailViewModel extends ViewModel {
 
     public LiveData<UiState<String>> getActionState() {
         return actionState;
+    }
+
+    public LiveData<List<StoredMedia>> getMedia() {
+        return media;
     }
 
     public String getQuestionId() {
@@ -83,6 +94,10 @@ public class QuestionDetailViewModel extends ViewModel {
         if (answersRegistration != null) {
             answersRegistration.remove();
             answersRegistration = null;
+        }
+        if (mediaRegistration != null) {
+            mediaRegistration.remove();
+            mediaRegistration = null;
         }
     }
 
@@ -243,6 +258,7 @@ public class QuestionDetailViewModel extends ViewModel {
 
     private void attach() {
         question.setValue(UiState.<Question>loading());
+        media.setValue(new ArrayList<>());
         questionRegistration = questionRepository.observeQuestion(questionId, new Callback<Question>() {
             @Override
             public void onSuccess(Question result) {
@@ -272,6 +288,17 @@ public class QuestionDetailViewModel extends ViewModel {
                     @Override
                     public void onError(Exception e) {
                         answers.setValue(UiState.<List<Answer>>error(RepoErrors.message(e)));
+                    }
+                });
+        mediaRegistration = mediaRepository.observeMedia(questionId,
+                new Callback<List<StoredMedia>>() {                    @Override
+                    public void onSuccess(List<StoredMedia> result) {
+                        media.setValue(result);
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        media.setValue(new ArrayList<>());
                     }
                 });
     }

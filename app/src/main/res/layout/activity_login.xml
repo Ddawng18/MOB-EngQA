@@ -74,7 +74,7 @@
                 android:contentDescription="@string/toggle_password"
                 android:padding="10dp"
                 android:src="@drawable/ic_visibility_off"
-                android:tint="#AAAAAA" />
+                app:tint="#AAAAAA" />
         </FrameLayout>
 
         <!-- Inline error -->

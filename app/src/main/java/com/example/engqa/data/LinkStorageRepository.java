@@ -71,6 +71,11 @@ public class LinkStorageRepository {
         executor.shutdown();
     }
 
+    /** Synchronous upload used by the WorkManager worker (already on a background thread). */
+    public String uploadFileSync(Context context, Uri uri, String kind) throws IOException {
+        return uploadBlocking(context, uri, kind, null);
+    }
+
     private void upload(Uri uri, String kind, ProgressCallback progress,
                         Callback<String> callback) {
         executor.execute(() -> {

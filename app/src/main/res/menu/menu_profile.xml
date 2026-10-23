@@ -10,6 +10,9 @@
         android:id="@+id/action_saved_promos"
         android:title="@string/menu_saved_promos" />
     <item
+        android:id="@+id/action_settings"
+        android:title="@string/settings_title" />
+    <item
         android:id="@+id/action_logout"
         android:title="@string/menu_logout" />
 </menu>

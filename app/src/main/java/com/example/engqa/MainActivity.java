@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -26,6 +28,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.engqa.media.AudioRecorder;
 import com.example.engqa.media.ImageUtils;
+import com.example.engqa.media.MediaBudget;
 import com.example.engqa.model.Categories;
 import com.example.engqa.model.UiState;
 import com.example.engqa.ui.AttachmentAdapter;
@@ -54,6 +57,8 @@ public class MainActivity extends BaseNavActivity {
     private Uri pendingCameraUri;
     private AudioRecorder audioRecorder;
     private boolean recording;
+    private final Handler recordHandler = new Handler(Looper.getMainLooper());
+    private final Runnable autoStopRecording = this::stopRecording;
 
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -267,6 +272,10 @@ public class MainActivity extends BaseNavActivity {
             toast("Ảnh vượt quá 5MB");
             return;
         }
+        if (viewModel.getImageUris().size() >= MediaBudget.MAX_IMAGES) {
+            toast(getString(R.string.image_limit));
+            return;
+        }
         viewModel.addImage(uri);
         attachmentAdapter.submit(viewModel.getImageUris());
     }
@@ -276,8 +285,8 @@ public class MainActivity extends BaseNavActivity {
             return;
         }
         long size = ImageUtils.sizeBytes(this, uri);
-        if (size > Validators.MAX_AUDIO_BYTES) {
-            toast("Âm thanh vượt quá 10MB");
+        if (size > MediaBudget.MAX_AUDIO_BYTES) {
+            toast(getString(R.string.audio_too_large));
             return;
         }
         viewModel.setAudioUri(uri);
@@ -302,6 +311,9 @@ public class MainActivity extends BaseNavActivity {
             audioRecorder.start(this);
             recording = true;
             btnRecordAudio.setText(R.string.btn_stop_record);
+            recordHandler.removeCallbacks(autoStopRecording);
+            recordHandler.postDelayed(autoStopRecording,
+                    MediaBudget.MAX_AUDIO_SECONDS * 1000L);
         } catch (Exception e) {
             audioRecorder = null;
             recording = false;
@@ -310,6 +322,7 @@ public class MainActivity extends BaseNavActivity {
     }
 
     private void stopRecording() {
+        recordHandler.removeCallbacks(autoStopRecording);
         recording = false;
         btnRecordAudio.setText(R.string.btn_record_audio);
         if (audioRecorder == null) {
@@ -354,10 +367,15 @@ public class MainActivity extends BaseNavActivity {
                 case SUCCESS:
                     btnPost.setEnabled(true);
                     tvUploadStatus.setVisibility(View.GONE);
-                    toast(getString(R.string.post_success));
-                    Intent intent = new Intent(this, QuestionDetailActivity.class);
-                    intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, state.getData());
-                    startActivity(intent);
+                    if ("pending_saved".equals(state.getData())) {
+                        toast(getString(R.string.pending_saved));
+                    } else {
+                        toast(getString(R.string.post_success));
+                        Intent intent = new Intent(this, QuestionDetailActivity.class);
+                        intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID,
+                                state.getData());
+                        startActivity(intent);
+                    }
                     finish();
                     break;
                 case ERROR:
@@ -378,6 +396,7 @@ public class MainActivity extends BaseNavActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        recordHandler.removeCallbacks(autoStopRecording);
         if (recording && audioRecorder != null) {
             audioRecorder.cancel();
             audioRecorder = null;

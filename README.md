@@ -11,8 +11,10 @@ contains the native Android client.
 | Language   | Java 11                                                                |
 | UI         | XML layouts, `RecyclerView`, `ConstraintLayout`, Material 3            |
 | Architecture | `model` / `data` (Repository) / `viewmodel` (ViewModel + LiveData) / `ui` |
-| Backend    | Firebase Auth + Cloud Firestore + Cloud Storage                        |
-| Media      | Glide (images), `MediaPlayer` (audio playback), `MediaRecorder` (record) |
+| Backend    | Firebase Auth + Cloud Firestore (media also on Firestore, Base64)       |
+| Media      | Glide, `MediaPlayer`, `MediaRecorder`; client compression/Base64; OkHttp + Gson |
+| Background | `WorkManager` (offline posts, cache cleanup), `ExecutorService`          |
+| Settings   | `PreferenceFragmentCompat` + `SharedPreferences`                        |
 | Build      | Gradle (Kotlin DSL), `compileSdk 37`, `minSdk 29`                       |
 | Theme      | Dark-only (`Theme.Material3.Dark.NoActionBar`)                         |
 
@@ -29,7 +31,9 @@ com.example.engqa
 │              CreateQuestionViewModel, QuestionDetailViewModel, ProfileViewModel,
 │              CenterViewModel, NotificationViewModel)
 ├── ui         RecyclerView adapters, the shared StateView and AudioPlayerView
-├── media      ImageUtils, AudioPlayerManager, AudioRecorder
+├── media      ImageUtils, AudioPlayerManager, AudioRecorder, MediaCompressor,
+│              MediaBudget, ThumbnailLoader
+├── worker     WorkManager jobs: offline question queue, cache cleanup, scheduling
 ├── notification NotificationHelper (channel) and NotificationWatcher
 ├── util       Validators, TextUtils2 (search keywords), TimeUtils, PermissionHelper
 └── *.java     Activities (one per screen) plus BaseNavActivity, SessionManager, NetworkUtils
@@ -258,10 +262,30 @@ See **[docs/PROMO.md](docs/PROMO.md)** for the data model, file map, rules and t
 | Create promo               | `activity_create_promo.xml`   | `CreatePromoActivity`     |
 | Saved promos (Room)        | `activity_saved_promos.xml`   | `SavedPromosActivity`     |
 | Consultation dialog        | `dialog_lead.xml`             | `LeadDialogFragment`      |
+| Settings                   | `activity_settings.xml`, `xml/preferences.xml` | `SettingsActivity` / `SettingsFragment` |
+| Word of the Day detail     | `activity_word_detail.xml`    | `WordDetailActivity`      |
 | Can't connect to the server| `activity_server_error.xml`   | `ServerErrorActivity`     |
 
 The bottom navigation bar is shared (`view_bottom_nav.xml`, `BaseNavActivity`) and has three tabs:
 Home, Ask, Profile.
+
+## Learning extras and background work
+
+- **Media (Firestore-only)**: images are compressed to ≤1024 px and audio to AAC mono 24 kbps /
+  120 s, then stored as Base64 documents under `questions/{qid}/media/*`; the feed uses a small
+  `thumbBase64` thumbnail. Budgets and trade-offs: [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md).
+- **Settings** (`PreferenceFragmentCompat`): notification switch (requesting
+  `POST_NOTIFICATIONS`), clear cache, about and logout. Values live in `SharedPreferences`.
+- **Word of the Day**: a third feed view type (`FeedItem.TYPE_WORD`). `WordRepository` requests
+  `dictionaryapi.dev` with OkHttp, parses JSON with Gson, caches today's entry in
+  `SharedPreferences`, and `WordDetailActivity` renders all meanings, examples and pronunciation
+  audio (cache-first, so it still works offline after the first fetch).
+- **Offline posts** (`WorkManager`): when the device is offline, the question and its media are
+  copied into internal storage and queued with a `NetworkType.CONNECTED` constraint. On reconnect
+  the worker uploads the files, writes the question, posts a notification and sends an in-app
+  broadcast that refreshes the open feed.
+- **Cache cleanup** (`WorkManager`): a daily periodic worker deletes cached images/audio older
+  than seven days.
 
 ## Rotation and state
 
@@ -273,15 +297,20 @@ ViewModel and mirrored into `onSaveInstanceState` so it also survives process de
 ## Build and test
 
 ```bash
-./gradlew assembleDebug      # build the APK
-./gradlew installDebug       # install on a connected device
-./gradlew testDebugUnitTest  # run the JVM unit tests
+./gradlew assembleDebug             # build the APK
+./gradlew installDebug              # install on a connected device
+./gradlew testDebugUnitTest         # JVM unit tests
+./gradlew lintDebug                 # lint (must stay green)
+./gradlew assembleDebugAndroidTest  # compile Espresso tests
+./gradlew connectedDebugAndroidTest # run Espresso (requires an emulator)
 ```
 
 Unit tests cover the pure-Java helpers: `TextUtils2` (accent-free tokenizer and search keywords),
 `Validators` (email/password/title and media limits), `TimeUtils` (relative-time labels),
-`FeedMixer` (feed interleaving, expiry and promo search) and `PromoValidator` (promo form rules) —
-31 tests in total.
+`FeedMixer` (feed interleaving, expiry and promo search), `PromoValidator` (promo form rules),
+`AnswerRanking` (Reddit-style ordering) and `PendingQuestionDraft` (Gson round-trip) —
+**37 tests in total**. Instrumented tests cover login/register validation, the Settings
+preferences and the cached Word detail.
 
 ## Release and distribution
 
@@ -328,7 +357,7 @@ applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA
   A production build would move the counter updates into a Cloud Function or add `getAfter()`
   delta checks.
 - **Search** matches a single normalised keyword (`array-contains`), not arbitrary substrings.
-- **Media storage** uploads images/audio to a free anonymous HTTPS host and stores only the URL in
-  Firestore, because Cloud Storage for Firebase requires the Blaze plan. The links may expire;
-  switch to Firebase Storage or Cloudinary for a long-lived deployment — see
+- **Media storage** is Firestore-only because Cloud Storage requires Blaze: each item is a Base64
+  document capped at 600 000 chars (≤450 KB binary), audio is limited to ~120 s and 5 images per
+  question. This keeps the free Spark plan but consumes Firestore's 1 GiB storage — see
   [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md).

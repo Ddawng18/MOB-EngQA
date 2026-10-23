@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Interface 2: "Chi tiết câu hỏi" -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/detailRoot"
     android:layout_width="match_parent"
@@ -46,7 +47,7 @@
             android:contentDescription="@string/report"
             android:padding="8dp"
             android:src="@drawable/ic_more"
-            android:tint="@color/text_body" />
+            app:tint="@color/text_body" />
     </LinearLayout>
 
     <FrameLayout

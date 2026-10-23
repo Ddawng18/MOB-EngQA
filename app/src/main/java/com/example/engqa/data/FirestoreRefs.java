@@ -11,6 +11,7 @@ public final class FirestoreRefs {
     public static final String QUESTIONS = "questions";
     public static final String ANSWERS = "answers";
     public static final String VOTES = "votes";
+    public static final String MEDIA = "media";
     public static final String REPORTS = "reports";
     public static final String NOTIFICATIONS = "notifications";
     public static final String CENTERS = "centers";

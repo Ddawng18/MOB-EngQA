@@ -3,6 +3,7 @@ package com.example.engqa;
 import android.content.Context;
 
 import com.example.engqa.notification.NotificationWatcher;
+import com.example.engqa.util.PrefsHelper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -10,9 +11,10 @@ import com.google.firebase.auth.FirebaseUser;
 public class SessionManager {
 
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
+    private final android.content.Context appContext;
 
-    public SessionManager(Context context) {
-        // Context kept for API symmetry with the original class; FirebaseAuth is a singleton.
+    public SessionManager(android.content.Context context) {
+        this.appContext = context.getApplicationContext();
     }
 
     public String getUserId() {
@@ -27,7 +29,7 @@ public class SessionManager {
     /** Call after a successful sign-in so notifications start arriving immediately. */
     public void onLoginSuccess() {
         String uid = getUserId();
-        if (uid != null) {
+        if (uid != null && PrefsHelper.areNotificationsEnabled(appContext)) {
             NotificationWatcher.start(uid);
         }
     }

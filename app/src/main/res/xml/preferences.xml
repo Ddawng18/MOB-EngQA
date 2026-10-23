@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/settings_general">
+        <androidx.preference.SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="notifications_enabled"
+            android:summary="@string/settings_notifications_summary"
+            android:title="@string/settings_notifications" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_data">
+        <Preference
+            android:key="clear_cache"
+            android:summary="@string/settings_clear_cache_summary"
+            android:title="@string/settings_clear_cache" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_account">
+        <Preference
+            android:key="logout"
+            android:title="@string/settings_logout" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_about_category">
+        <Preference
+            android:key="about"
+            android:summary="@string/settings_about_summary"
+            android:title="@string/settings_about" />
+    </PreferenceCategory>
+</PreferenceScreen>

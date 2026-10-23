@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Landscape home: filters live in a left rail, the feed uses the remaining width. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/homeRoot"
     android:layout_width="match_parent"
@@ -54,7 +55,7 @@
                         android:contentDescription="@string/notifications"
                         android:padding="9dp"
                         android:src="@drawable/ic_bell"
-                        android:tint="@color/text_body" />
+                        app:tint="@color/text_body" />
 
                     <TextView
                         android:id="@+id/tvNotificationBadge"

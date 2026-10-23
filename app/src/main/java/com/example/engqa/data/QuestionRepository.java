@@ -152,6 +152,9 @@ public class QuestionRepository {
         data.put("type", question.getType());
         data.put("imageUrls", question.getImageUrls());
         data.put("audioUrl", question.getAudioUrl());
+        data.put("thumbBase64", question.getThumbBase64());
+        data.put("imageCount", question.getImageCount());
+        data.put("hasAudio", question.isHasAudio());
         data.put("passageText", question.getPassageText());
         data.put("searchKeywords", question.getSearchKeywords());
         data.put("answerCount", 0);

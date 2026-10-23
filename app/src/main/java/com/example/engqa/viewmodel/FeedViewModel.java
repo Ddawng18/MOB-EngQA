@@ -14,12 +14,14 @@ import com.example.engqa.data.PromoRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
 import com.example.engqa.data.UserRepository;
+import com.example.engqa.data.WordRepository;
 import com.example.engqa.model.Category;
 import com.example.engqa.model.FeedItem;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
+import com.example.engqa.model.WordEntry;
 import com.example.engqa.util.FeedMixer;
 import com.example.engqa.util.PrefsHelper;
 import com.example.engqa.util.TextUtils2;
@@ -48,6 +50,7 @@ public class FeedViewModel extends AndroidViewModel {
     private final CategoryRepository categoryRepository = new CategoryRepository();
     private final PromoRepository promoRepository = new PromoRepository();
     private final UserRepository userRepository = new UserRepository();
+    private final WordRepository wordRepository = new WordRepository();
 
     private final MutableLiveData<UiState<List<Question>>> questionState = new MutableLiveData<>();
     private final MutableLiveData<List<Promo>> promoState = new MutableLiveData<>(new ArrayList<>());
@@ -55,6 +58,7 @@ public class FeedViewModel extends AndroidViewModel {
     private final MutableLiveData<Boolean> loadingMore = new MutableLiveData<>(false);
     private final MediatorLiveData<UiState<List<FeedItem>>> feed = new MediatorLiveData<>();
     private final MutableLiveData<User> currentUser = new MutableLiveData<>();
+    private final MutableLiveData<WordEntry> wordOfDay = new MutableLiveData<>();
 
     private ListenerRegistration questionRegistration;
     private ListenerRegistration categoriesRegistration;
@@ -67,6 +71,7 @@ public class FeedViewModel extends AndroidViewModel {
     private DocumentSnapshot lastDocument;
     private boolean fromCache;
     private boolean promosLoaded;
+    private boolean wordRequested;
 
     public FeedViewModel(@NonNull Application application) {
         super(application);
@@ -76,6 +81,7 @@ public class FeedViewModel extends AndroidViewModel {
             promosLoaded = true;
             rebuild();
         });
+        feed.addSource(wordOfDay, word -> rebuild());
     }
 
     // ------------------------------------------------------------------ state
@@ -95,6 +101,10 @@ public class FeedViewModel extends AndroidViewModel {
     /** Signed-in profile (role, centre) used by the home profile menu. */
     public LiveData<User> getCurrentUser() {
         return currentUser;
+    }
+
+    public LiveData<WordEntry> getWordOfDay() {
+        return wordOfDay;
     }
 
     public String getCategoryId() {
@@ -147,6 +157,26 @@ public class FeedViewModel extends AndroidViewModel {
             rebuild();
         }
         refreshCurrentUser();
+        loadWordOfDay();
+    }
+
+    /** Loads the daily word once per ViewModel; the repository serves the cache when fresh. */
+    private void loadWordOfDay() {
+        if (wordRequested) {
+            return;
+        }
+        wordRequested = true;
+        wordRepository.loadToday(getApplication(), false, new Callback<WordEntry>() {
+            @Override
+            public void onSuccess(WordEntry result) {
+                wordOfDay.setValue(result);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                wordOfDay.setValue(null);
+            }
+        });
     }
 
     /** Loads the signed-in profile (one read) so the profile menu knows the role. */
@@ -181,6 +211,7 @@ public class FeedViewModel extends AndroidViewModel {
     @Override
     protected void onCleared() {
         stop();
+        wordRepository.shutdown();
         super.onCleared();
     }
 
@@ -308,7 +339,15 @@ public class FeedViewModel extends AndroidViewModel {
         List<Question> questions = questionsState != null && questionsState.getData() != null
                 ? questionsState.getData() : new ArrayList<>();
         List<Promo> promos = FeedMixer.filterByKeyword(promoState.getValue(), keyword);
-        List<FeedItem> items = FeedMixer.mix(questions, promos, categoryId, CADENCE);
+
+        List<FeedItem> items = new ArrayList<>();
+        if (categoryId == null && keyword.isEmpty()) {
+            WordEntry word = wordOfDay.getValue();
+            if (word != null) {
+                items.add(FeedItem.of(word));
+            }
+        }
+        items.addAll(FeedMixer.mix(questions, promos, categoryId, CADENCE));
 
         if (FeedMixer.FILTER_CENTER.equals(categoryId)) {
             if (!promosLoaded && items.isEmpty()) {

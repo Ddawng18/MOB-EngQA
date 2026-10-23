@@ -12,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat;
 
 import com.example.engqa.QuestionDetailActivity;
 import com.example.engqa.R;
+import com.example.engqa.util.PrefsHelper;
 
 /** Creates the notification channel and posts in-app interaction notifications. */
 public final class NotificationHelper {
@@ -39,6 +40,9 @@ public final class NotificationHelper {
     }
 
     public static void show(Context context, int id, String title, String body, String questionId) {
+        if (!PrefsHelper.areNotificationsEnabled(context)) {
+            return;
+        }
         Intent intent = new Intent(context, QuestionDetailActivity.class);
         intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, questionId);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

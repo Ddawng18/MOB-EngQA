@@ -1,7 +1,12 @@
 package com.example.engqa;
 
+import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,6 +20,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -31,12 +37,16 @@ import com.example.engqa.model.Promo;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
+import com.example.engqa.model.WordEntry;
 import com.example.engqa.ui.CategoryChipAdapter;
 import com.example.engqa.ui.FeedAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.FeedMixer;
+import com.example.engqa.util.PermissionHelper;
+import com.example.engqa.util.PrefsHelper;
 import com.example.engqa.viewmodel.FeedViewModel;
 import com.example.engqa.viewmodel.NotificationViewModel;
+import com.example.engqa.worker.PendingQuestionWorker;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,6 +72,18 @@ public class HomeActivity extends BaseNavActivity {
     private NotificationViewModel notificationViewModel;
 
     private User currentUser;
+    private boolean pendingReceiverRegistered;
+
+    /** Dynamic receiver: refreshes the feed after a queued post finishes uploading. */
+    private final BroadcastReceiver pendingPostedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Toast.makeText(HomeActivity.this, R.string.pending_posted_body,
+                    Toast.LENGTH_SHORT).show();
+            viewModel.stop();
+            viewModel.start();
+        }
+    };
 
     private static final String[][] SORTS = {
             {QuestionRepository.SORT_NEWEST, "Mới nhất"},
@@ -75,6 +97,12 @@ public class HomeActivity extends BaseNavActivity {
                     Toast.makeText(this, R.string.promo_submitted, Toast.LENGTH_SHORT).show();
                 }
             });
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        // The Settings screen offers a retry if the user changes their mind.
+                    });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,6 +150,22 @@ public class HomeActivity extends BaseNavActivity {
         bindBottomNav();
         viewModel.getCurrentUser().observe(this, this::bindCurrentUser);
         notificationViewModel.getNotifications().observe(this, this::bindNotificationBadge);
+        maybeRequestNotificationPermission();
+    }
+
+    /** Ask for POST_NOTIFICATIONS once on Android 13+; Settings can re-request later. */
+    private void maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (PrefsHelper.hasAskedNotifications(this)) {
+            return;
+        }
+        if (PermissionHelper.hasNotifications(this)) {
+            return;
+        }
+        PrefsHelper.setAskedNotifications(this, true);
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
     }
 
     @Override
@@ -137,11 +181,21 @@ public class HomeActivity extends BaseNavActivity {
         if (uid != null) {
             notificationViewModel.start(uid);
         }
+        if (!pendingReceiverRegistered) {
+            ContextCompat.registerReceiver(this, pendingPostedReceiver,
+                    new IntentFilter(PendingQuestionWorker.ACTION_PENDING_POSTED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED);
+            pendingReceiverRegistered = true;
+        }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        if (pendingReceiverRegistered) {
+            unregisterReceiver(pendingPostedReceiver);
+            pendingReceiverRegistered = false;
+        }
         viewModel.stop();
         notificationViewModel.stop();
     }
@@ -190,6 +244,14 @@ public class HomeActivity extends BaseNavActivity {
             @Override
             public void onPromoClick(Promo promo) {
                 openPromo(promo);
+            }
+
+            @Override
+            public void onWordClick(WordEntry word) {
+                Intent intent = new Intent(HomeActivity.this, WordDetailActivity.class);
+                intent.putExtra(WordDetailActivity.EXTRA_WORD,
+                        word != null ? word.getWord() : "");
+                startActivity(intent);
             }
         });
 
@@ -332,6 +394,7 @@ public class HomeActivity extends BaseNavActivity {
         popup.getMenu().findItem(R.id.action_login).setVisible(!loggedIn);
         popup.getMenu().findItem(R.id.action_create_promo).setVisible(loggedIn && isCenter);
         popup.getMenu().findItem(R.id.action_saved_promos).setVisible(true);
+        popup.getMenu().findItem(R.id.action_settings).setVisible(true);
         popup.getMenu().findItem(R.id.action_logout).setVisible(loggedIn);
 
         popup.setOnMenuItemClickListener(this::onProfileMenuClick);
@@ -350,6 +413,10 @@ public class HomeActivity extends BaseNavActivity {
         }
         if (id == R.id.action_saved_promos) {
             startActivity(new Intent(this, SavedPromosActivity.class));
+            return true;
+        }
+        if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
         if (id == R.id.action_logout) {

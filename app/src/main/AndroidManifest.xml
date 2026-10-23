@@ -121,6 +121,17 @@
             android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".WordDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".HomeActivity"
+            android:screenOrientation="fullSensor" />
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".MenuScreenActivity"
+            android:screenOrientation="fullSensor"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".CreatePromoActivity"
             android:exported="false"
             android:parentActivityName=".HomeActivity"

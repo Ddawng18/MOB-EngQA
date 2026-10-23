@@ -8,36 +8,37 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.example.engqa.NetworkUtils;
 import com.example.engqa.data.Callback;
-import com.example.engqa.data.LinkStorageRepository;
-import com.example.engqa.data.QuestionRepository;
+import com.example.engqa.data.QuestionPublisher;
 import com.example.engqa.data.RepoErrors;
 import com.example.engqa.data.UserRepository;
-import com.example.engqa.model.Question;
+import com.example.engqa.model.Categories;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
-import com.example.engqa.util.TextUtils2;
 import com.example.engqa.util.Validators;
+import com.example.engqa.worker.PendingDraftStore;
+import com.example.engqa.worker.PendingQuestionDraft;
+import com.example.engqa.worker.WorkScheduler;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Holds everything typed on the "Đặt câu hỏi" screen so a rotation does not lose the draft, and
- * orchestrates media upload followed by the question write.
+ * Holds the "Đặt câu hỏi" draft and publishes it.
+ *
+ * <p>Online: compress + write Firestore media immediately (with progress). Offline: copy the
+ * attachments into internal storage, queue a WorkManager job and report "saved".
  */
 public class CreateQuestionViewModel extends AndroidViewModel {
 
-    private final QuestionRepository questionRepository = new QuestionRepository();
     private final UserRepository userRepository = new UserRepository();
-    // Cloud Storage needs the Blaze plan, so media is uploaded to a free HTTPS host and only the
-    // resulting URL is stored in Firestore. Swap back to StorageRepository once Blaze is enabled.
-    private final LinkStorageRepository storageRepository;
-
-    public CreateQuestionViewModel(@NonNull Application application) {
-        super(application);
-        storageRepository = new LinkStorageRepository(application);
-    }
+    private final QuestionPublisher publisher = new QuestionPublisher();
+    private final ExecutorService pendingExecutor = Executors.newSingleThreadExecutor();
 
     private final MutableLiveData<UiState<String>> submitState = new MutableLiveData<>();
     private final MutableLiveData<Integer> uploadProgress = new MutableLiveData<>(0);
@@ -45,11 +46,17 @@ public class CreateQuestionViewModel extends AndroidViewModel {
     private String title = "";
     private String body = "";
     private String passageText = "";
-    private String categoryId = com.example.engqa.model.Categories.SLUGS[0];
-    private String categoryName = com.example.engqa.model.Categories.NAMES[0];
+    private String categoryId = Categories.SLUGS[0];
+    private String categoryName = Categories.NAMES[0];
     private String level = "Beginner";
     private final List<Uri> imageUris = new ArrayList<>();
     private Uri audioUri;
+
+    public CreateQuestionViewModel(@NonNull Application application) {
+        super(application);
+    }
+
+    // ------------------------------------------------------------------ state
 
     public LiveData<UiState<String>> getSubmitState() {
         return submitState;
@@ -58,6 +65,8 @@ public class CreateQuestionViewModel extends AndroidViewModel {
     public LiveData<Integer> getUploadProgress() {
         return uploadProgress;
     }
+
+    // ------------------------------------------------------------------ draft
 
     public String getTitle() {
         return title;
@@ -126,14 +135,13 @@ public class CreateQuestionViewModel extends AndroidViewModel {
 
     @Override
     protected void onCleared() {
-        storageRepository.shutdown();
+        publisher.shutdown();
+        pendingExecutor.shutdown();
         super.onCleared();
     }
 
-    /**
-     * Validates, resolves the signed-in author, uploads media and writes the question. Progress is
-     * reported as a percentage across all attachments.
-     */
+    // ------------------------------------------------------------------ submit
+
     public void submit() {
         if (!Validators.isValidTitle(title)) {
             submitState.setValue(UiState.error("Tiêu đề cần ít nhất 10 ký tự"));
@@ -156,106 +164,86 @@ public class CreateQuestionViewModel extends AndroidViewModel {
             public void onSuccess(User user) {
                 String name = user != null && user.getUsername() != null
                         ? user.getUsername() : "user";
-                startUpload(uid, name);
+                continueSubmit(uid, name);
             }
 
             @Override
             public void onError(Exception e) {
-                startUpload(uid, "user");
+                continueSubmit(uid, "user");
             }
         });
     }
 
-    private void startUpload(String uid, String authorName) {
-        final String questionId = questionRepository.newQuestionId();
-        final List<String> uploadedImageUrls = new ArrayList<>();
-        final int totalAttachments = imageUris.size() + (audioUri != null ? 1 : 0);
-
-        uploadImagesSequentially(uid, questionId, uploadedImageUrls, 0, totalAttachments,
-                () -> uploadAudioThenCreate(uid, authorName, questionId, uploadedImageUrls,
-                        totalAttachments));
-    }
-
-    private void uploadImagesSequentially(String uid, String questionId, List<String> urls,
-                                          int index, int total, Runnable onDone) {
-        if (index >= imageUris.size()) {
-            onDone.run();
-            return;
+    private void continueSubmit(String uid, String authorName) {
+        if (!NetworkUtils.isOnline(getApplication())) {
+            savePending(uid, authorName);
+        } else {
+            publish(uid, authorName);
         }
-        Uri uri = imageUris.get(index);
-        String fileName = "img_" + index + "_" + System.currentTimeMillis() + ".jpg";
-        storageRepository.uploadImage(uri, uid, questionId, fileName, percent -> {
-            if (total > 0) {
-                uploadProgress.setValue((int) ((index + percent / 100f) * 100 / total));
-            }
-        }, new Callback<String>() {
-            @Override
-            public void onSuccess(String url) {
-                urls.add(url);
-                uploadImagesSequentially(uid, questionId, urls, index + 1, total, onDone);
-            }
+    }
 
-            @Override
-            public void onError(Exception e) {
-                submitState.setValue(UiState.error(RepoErrors.message(e)));
+    private void publish(String uid, String authorName) {
+        QuestionPublisher.Draft draft = buildDraft(uid, authorName);
+        submitState.setValue(UiState.loading());
+        uploadProgress.setValue(0);
+        publisher.publish(getApplication(), draft,
+                percent -> uploadProgress.postValue(percent),
+                new Callback<String>() {
+                    @Override
+                    public void onSuccess(String questionId) {
+                        submitState.setValue(UiState.success(questionId));
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        submitState.setValue(UiState.error(RepoErrors.message(e)));
+                    }
+                });
+    }
+
+    private void savePending(String uid, String authorName) {
+        PendingQuestionDraft draft = new PendingQuestionDraft();
+        draft.uid = uid;
+        draft.authorName = authorName;
+        draft.title = title.trim();
+        draft.body = body.trim();
+        draft.passageText = passageText.trim();
+        draft.categoryId = categoryId;
+        draft.categoryName = categoryName;
+        draft.level = level;
+        draft.type = categoryId;
+        draft.tags = new ArrayList<>(Collections.singletonList(categoryName));
+        draft.createdAt = System.currentTimeMillis();
+
+        final List<Uri> images = new ArrayList<>(imageUris);
+        final Uri pendingAudio = audioUri;
+        pendingExecutor.execute(() -> {
+            try {
+                File folder = PendingDraftStore.save(
+                        getApplication(), draft, images, pendingAudio);
+                WorkScheduler.enqueuePendingQuestion(
+                        getApplication(), folder.getAbsolutePath());
+                submitState.postValue(UiState.success("pending_saved"));
+            } catch (Exception e) {
+                submitState.postValue(UiState.error(RepoErrors.message(e)));
             }
         });
     }
 
-    private void uploadAudioThenCreate(String uid, String authorName, String questionId,
-                                       List<String> imageUrls, int total) {
-        if (audioUri == null) {
-            createQuestion(uid, authorName, questionId, imageUrls, null);
-            return;
-        }
-        String fileName = "audio_" + System.currentTimeMillis() + ".m4a";
-        storageRepository.uploadAudio(audioUri, uid, questionId, fileName, percent -> {
-            if (total > 0) {
-                uploadProgress.setValue((int) ((imageUrls.size() + percent / 100f) * 100 / total));
-            }
-        }, new Callback<String>() {
-            @Override
-            public void onSuccess(String url) {
-                createQuestion(uid, authorName, questionId, imageUrls, url);
-            }
-
-            @Override
-            public void onError(Exception e) {
-                submitState.setValue(UiState.error(RepoErrors.message(e)));
-            }
-        });
-    }
-
-    private void createQuestion(String uid, String authorName, String questionId,
-                                List<String> imageUrls, String audioUrl) {
-        Question question = new Question();
-        question.setAuthorId(uid);
-        question.setAuthorName(authorName);
-        question.setTitle(title.trim());
-        question.setBody(body.trim());
-        question.setCategoryId(categoryId);
-        question.setCategoryName(categoryName);
-        question.setLevel(level);
-        question.setType(categoryId);
-        question.setPassageText(passageText.trim());
-        question.setImageUrls(imageUrls);
-        question.setAudioUrl(audioUrl);
-
-        List<String> tags = new ArrayList<>();
-        tags.add(categoryName);
-        question.setTags(tags);
-        question.setSearchKeywords(TextUtils2.buildSearchKeywords(title, body, tags));
-
-        questionRepository.createQuestion(questionId, question, new Callback<String>() {
-            @Override
-            public void onSuccess(String id) {
-                submitState.setValue(UiState.success(id));
-            }
-
-            @Override
-            public void onError(Exception e) {
-                submitState.setValue(UiState.error(RepoErrors.message(e)));
-            }
-        });
+    private QuestionPublisher.Draft buildDraft(String uid, String authorName) {
+        QuestionPublisher.Draft draft = new QuestionPublisher.Draft();
+        draft.authorId = uid;
+        draft.authorName = authorName;
+        draft.title = title.trim();
+        draft.body = body.trim();
+        draft.passageText = passageText.trim();
+        draft.categoryId = categoryId;
+        draft.categoryName = categoryName;
+        draft.level = level;
+        draft.type = categoryId;
+        draft.tags = new ArrayList<>(Collections.singletonList(categoryName));
+        draft.images = new ArrayList<>(imageUris);
+        draft.audio = audioUri;
+        return draft;
     }
 }

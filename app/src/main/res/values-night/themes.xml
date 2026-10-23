@@ -5,5 +5,7 @@
         <item name="android:statusBarColor">@color/bg_topbar</item>
         <item name="android:navigationBarColor">@color/bg_bottom_bar</item>
         <item name="colorPrimary">@color/accent_orange</item>
+        <!-- Required by PreferenceFragmentCompat (Settings screen). -->
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
     </style>
 </resources>

@@ -692,3 +692,32 @@ thật. GitHub sẽ tự thêm reviewer theo file.
 - [ ] `node tools/seed/verify.js` ra 4 promos (3 APPROVED), role CENTER đúng.
 - [ ] Bản release ký keystore cố định; SHA-1 release đã đăng ký; cài trên máy sạch chạy đủ tính năng.
 - [ ] Mỗi người có ≥ 1 PR gắn tên mình (dùng cho báo cáo cá nhân).
+
+---
+
+## 10. Bổ sung: Settings · Word of the Day · Offline · Tests
+
+| Người | File mới cần commit |
+|---|---|
+| **P1** | `SettingsActivity.java`, `SettingsFragment.java`, `res/layout/activity_settings.xml`, `res/xml/preferences.xml` (và các key trong `PrefsHelper`) |
+| **P2** | `model/WordEntry.java`, `data/WordApiModels.java`, `data/WordRepository.java`, `viewmodel/WordOfDayViewModel.java`, `WordDetailActivity.java`, `res/layout/activity_word_detail.xml`, `res/layout/item_word_meaning.xml`, `ui/WordMeaningAdapter.java` |
+| **P3** | `res/layout/item_word_of_day.xml`; sửa `FeedItem`, `FeedAdapter`, `FeedViewModel`, `HomeActivity` để chèn thẻ Word và mở chi tiết |
+| **P4** | `worker/PendingQuestionDraft.java`, `PendingDraftStore.java`, `PendingQuestionWorker.java`, `CacheCleanupWorker.java`, `WorkScheduler.java`; `test/.../PendingQuestionDraftTest.java`; `androidTest/.../SettingsPreferenceTest.java`, `WordOfDayCachedTest.java`; receiver broadcast trong `HomeActivity`; các fix lint P0 |
+
+> Các file dùng chung (`strings.xml`, `colors.xml`, `dimens.xml`, `AndroidManifest.xml`,
+> `libs.versions.toml`, `app/build.gradle.kts`) vẫn do **P4** commit theo quy trình ở mục 6.
+
+---
+
+## 11. Bổ sung: Media Firestore-only (nén + Base64)
+
+| Người | File mới / phạm vi |
+|---|---|
+| **P2** | `media/MediaBudget.java`, `media/MediaCompressor.java`, `media/ThumbnailLoader.java`, `model/StoredMedia.java`, `data/FirestoreMediaRepository.java`, `ui/MediaImageAdapter.java`; sửa `CreateQuestionViewModel`, `QuestionDetailViewModel/Activity`, `ImageViewerActivity`, `MainActivity`, `AudioRecorder`, `Question`/`QuestionRepository`; test `MediaBudgetTest` |
+| **P3** | Sửa `QuestionAdapter`, `FeedAdapter` để hiển thị `thumbBase64` + badge `+N` |
+| **P4** | `data/QuestionPublisher.java` (dùng chung online/offline), cập nhật `worker/PendingQuestionWorker.java`, `firestore.rules` (subcollection media) |
+
+> Media ghi trực tiếp vào `questions/{qid}/media/*` (Base64 ≤ 600k ký tự); `thumbBase64` nằm trong
+> document câu hỏi. Ngân sách và giới hạn: `docs/MEDIA_STORAGE.md`.
+
+

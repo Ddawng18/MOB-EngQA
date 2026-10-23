@@ -24,7 +24,9 @@
     <string name="label_images">Hình ảnh (không bắt buộc)</string>
     <string name="btn_attach_image">+  Đính kèm ảnh</string>
     <string name="btn_take_photo">Chụp ảnh</string>
-    <string name="image_note">JPG/PNG, tối đa 5MB mỗi ảnh</string>
+    <string name="image_note">JPG/PNG; ảnh được nén tự động, tối đa 5 ảnh</string>
+    <string name="image_limit">Tối đa 5 ảnh</string>
+    <string name="audio_too_large">Âm thanh quá lớn (tối đa ~450KB / 120 giây). Hãy ghi âm trực tiếp.</string>
     <string name="label_tag">Tag / Chủ đề *</string>
     <string name="hint_tag">Chọn tag (Ngữ pháp, Từ vựng...)</string>
     <string name="label_type">Loại bài *</string>
@@ -36,7 +38,7 @@
     <string name="btn_record_audio">Ghi âm</string>
     <string name="btn_stop_record">Dừng ghi âm</string>
     <string name="btn_remove">Gỡ</string>
-    <string name="audio_note">MP3/M4A/AAC/WAV, tối đa 10MB</string>
+    <string name="audio_note">MP3/M4A/AAC/WAV, tối đa ~120 giây (≈450KB)</string>
     <string name="btn_post_question">Đăng câu hỏi</string>
     <string name="post_success">Đã đăng câu hỏi</string>
     <string name="uploading">Đang tải lên… %1$d%%</string>
@@ -259,10 +261,41 @@
     <string name="menu_logout">Đăng xuất</string>
 
     <!-- Saved promos (Room) -->
-    <string name="saved_promos_title">Bài đã lưu</string>
-    <string name="saved_empty">Chưa lưu bài nào</string>
+    <string name="saved_promos_title">Bài đã lưu</string>    <string name="saved_empty">Chưa lưu bài nào</string>
     <string name="save_promo">Lưu bài</string>
     <string name="unsave_promo">Bỏ lưu</string>
     <string name="promo_saved">Đã lưu bài</string>
     <string name="saved_removed">Đã bỏ lưu</string>
+
+    <!-- Word of the Day -->
+    <string name="word_of_day">Word of the Day</string>
+    <string name="word_more">Xem thêm ›</string>
+    <string name="word_detail_title">Word of the Day</string>
+    <string name="word_audio">Phát âm</string>
+    <string name="word_source">Nguồn: dictionaryapi.dev (từ điển mở, miễn phí)</string>
+    <string name="word_example">VD: %1$s</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Cài đặt</string>
+    <string name="settings_general">Chung</string>
+    <string name="settings_notifications">Thông báo</string>
+    <string name="settings_notifications_summary">Nhận thông báo khi có người trả lời, bình chọn hoặc chấp nhận câu trả lời</string>
+    <string name="settings_notifications_denied">Bạn chưa cấp quyền thông báo cho EngQA</string>
+    <string name="settings_data">Dữ liệu</string>
+    <string name="settings_clear_cache">Xoá bộ nhớ tạm</string>
+    <string name="settings_clear_cache_summary">Xoá ảnh và âm thanh đã tải tạm</string>
+    <string name="settings_cache_cleared">Đã xoá bộ nhớ tạm</string>
+    <string name="settings_account">Tài khoản</string>
+    <string name="settings_logout">Đăng xuất</string>
+    <string name="settings_logout_confirm_title">Đăng xuất?</string>
+    <string name="settings_logout_confirm_message">Bạn có chắc muốn đăng xuất khỏi EngQA?</string>
+    <string name="settings_about_category">Thông tin</string>
+    <string name="settings_about">Về EngQA</string>
+    <string name="settings_about_summary">Phiên bản và nguồn dữ liệu</string>
+    <string name="settings_about_message">EngQA\nPhiên bản %1$s\n\nDữ liệu từ vựng: dictionaryapi.dev\nDữ liệu câu hỏi: Firebase Cloud Firestore</string>
+
+    <!-- Offline posting (WorkManager) -->
+    <string name="pending_saved">Đã lưu, sẽ đăng khi có mạng</string>
+    <string name="pending_posted_title">Bài viết đã đăng</string>
+    <string name="pending_posted_body">Câu hỏi của bạn đã được đăng</string>
 </resources>

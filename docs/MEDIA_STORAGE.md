@@ -1,76 +1,104 @@
-# Lưu ảnh / âm thanh bằng liên kết (không cần Blaze)
+# Media storage: Firestore-only (no Blaze billing)
 
-## Vì sao
+## Why
 
-Cloud Storage for Firebase **bắt buộc gói Blaze**. Project đang ở Spark nên không tạo được bucket;
-mọi upload trả về `StorageException: Object does not exist at location`.
+Cloud Storage for Firebase requires the **Blaze** plan. This project keeps everything on the free
+Spark plan, so images and audio are compressed and stored **directly in Firestore** as Base64
+documents. The app, the security rules and the offline worker all use this path.
 
-Firestore đã lưu media dưới dạng **URL** (`questions.imageUrls`, `questions.audioUrl`) và giao diện
-tải ảnh bằng Glide / phát audio bằng MediaPlayer. Vì vậy chỉ cần **upload tệp lên một host HTTPS
-bất kỳ** và lưu URL trả về — **không đổi schema, không đổi màn hình**.
-
-## Cách đang dùng
+## Data layout
 
 ```
-MainActivity (chọn/chụp ảnh, ghi âm)
+questions/{qid}
+  title, body, ...            ← feed document stays light
+  thumbBase64                 ← ≤ ~40 KB thumbnail (first image) for the feed card
+  imageCount                  ← number of images (badge "+N")
+  hasAudio                    ← shows the audio icon without an extra read
+  imageUrls / audioUrl        ← legacy fields for pre-migration posts
+
+questions/{qid}/media/{mid}
+  type: "image" | "audio"
+  mime: "image/jpeg" | "audio/m4a" | ...
+  order: 0..N
+  data: Base64 payload
+  sizeBytes
+  createdAt
+```
+
+The full media is **not** in the feed document: the feed reads only `thumbBase64`, while the
+detail screen loads the `media` documents on demand.
+
+## Size budget (hard limits)
+
+| Limit | Value | Reason |
+|---|---|---|
+| Firestore document | 1 MiB | Firestore hard limit |
+| Base64 overhead | +33% | Encoding cost |
+| `MAX_BASE64_CHARS` | **600 000** chars | safety margin under 1 MiB |
+| `MAX_BINARY_BYTES` | **450 000** bytes | maps to 600 000 Base64 chars |
+| Images | **max 5** per question | media docs / reads |
+| Image size | 1024 px longest side, JPEG 65 | auto-retried at 1024/55, 800/60, 800/50, 640/55 until it fits |
+| Thumbnail | 320 px, JPEG 60 | ~15–40 KB |
+| Audio | AAC mono **24 kbps**, 22.05 kHz, **120 s** | ~360 KB, under the budget |
+
+Selected audio files larger than 450 KB are rejected with a clear message; recording uses the
+low-bitrate encoder and stops automatically after 120 seconds.
+
+## Flow
+
+```
+MainActivity (pick/capture image, record/pick audio)
   └─ CreateQuestionViewModel
-       └─ LinkStorageRepository          (data/LinkStorageRepository.java)
-            └─ POST https://x0.at       multipart field "file"
-                 └─ trả về https://x0.at/xxxx.png | .m4a
-       └─ QuestionRepository.createQuestion(...)
-            └─ Firestore: imageUrls=[...], audioUrl="https://x0.at/..."
-  └─ QuestionAdapter / FeedAdapter / PromoDetail
-       └─ Glide.load(url)  → ảnh hiển thị bình thường
-       └─ AudioPlayerView  → MediaPlayer.setDataSource(url)
+       ├─ online  → QuestionPublisher
+       │             1. MediaCompressor: compress images + thumbnail, read audio
+       │             2. create questions/{qid} (with thumbBase64/imageCount/hasAudio)
+       │             3. batch-write questions/{qid}/media/*
+       │             4. rollback the question if the media batch fails
+       └─ offline → PendingDraftStore (copy files + draft.json) → WorkManager
+                     └─ PendingQuestionWorker uses the same QuestionPublisher
 ```
 
-- Chạy trên `ExecutorService` (không block main thread), callback được post về main thread.
-- Có progress 0–100% (đọc theo buffer 64 KB).
-- Giới hạn phía app: ảnh ≤ 5 MB (JPG/PNG), audio ≤ 10 MB.
-- Không cần đăng nhập, không cần API key, không cần `storage.rules`.
+Reading:
 
-## Đổi lại sang Firebase Storage (khi có Blaze)
+- Feed: `ThumbnailLoader` (LruCache) decodes `thumbBase64`.
+- Detail: `FirestoreMediaRepository.observeMedia(qid)` → `MediaImageAdapter` (Bitmap from Base64)
+  and `MediaCompressor.writeToCache` for audio (MediaPlayer plays the cache file).
+- Full-screen image: `ImageViewerActivity` loads the media document by id.
 
-1. Console → **Storage → Get Started** (tạo bucket).
-2. `firebase deploy --only storage --project accountdata-dd29b`
-3. Trong `CreateQuestionViewModel`, đổi:
-   ```java
-   private final LinkStorageRepository storageRepository = new LinkStorageRepository();
-   ```
-   thành:
-   ```java
-   private final StorageRepository storageRepository = new StorageRepository();
-   ```
-4. Build lại. `StorageRepository` (Firebase) vẫn giữ nguyên trong repo.
+## Security rules
 
-## Đổi sang Cloudinary (khuyến nghị nếu cần link lâu dài)
+`questions/{qid}/media/{mid}` in `firestore.rules`:
 
-1. Tạo tài khoản Cloudinary (free).
-2. Settings → Upload → **Add upload preset** → Signing mode: **Unsigned**; đặt folder `engqa`,
-   giới hạn định dạng/kích thước.
-3. Viết một `CloudinaryStorageRepository` cùng interface, gọi:
-   `POST https://api.cloudinary.com/v1_1/<cloud_name>/auto/upload`
-   với `upload_preset=<preset>` + `file`, rồi lấy `secure_url`.
-4. Đổi một dòng trong `CreateQuestionViewModel`.
+- read: any signed-in user;
+- create/update: only the question author (or an admin), `data` is a string with
+  `size() <= 600000`, `mime` in the allow-list;
+- delete: author/admin.
 
-## Hạn chế cần biết
+Verified against the live project: **author create 200**, **non-author 403**, **600 001-char
+payload 403**.
 
-- **x0.at giữ tệp có thời hạn** (giống 0x0.st), không phải vĩnh viễn. Bài đăng cũ có thể mất ảnh.
-  Với đồ án/demo thì đủ; sản phẩm thật nên dùng Firebase Storage (Blaze) hoặc Cloudinary.
-- Host công cộng, không kiểm soát uptime/rate limit.
-- Link công khai: ai có URL đều xem được (giống mọi URL ảnh).
-- Nếu host đổi chính sách (như 0x0.st đã tắt upload), chỉ cần thay lớp upload — schema và UI không đổi.
+## Trade-offs (document these in the report)
 
-## Kiểm thử
+- Firestore Spark gives **1 GiB** storage; compressed images are small, but many audio clips will
+  fill it. Audio is limited to ~2 minutes.
+- No encryption is applied: Base64/encryption would inflate the payload without adding real
+  protection (Firebase already encrypts at rest and in transit). If privacy is required, encrypt
+  **after** compression and manage keys on a server (KMS/Cloud Function), which needs Blaze.
+- Media reads are charged per document; the feed never downloads full media.
+- EXIF orientation is not corrected; very tall/rotated photos may appear sideways.
 
-```powershell
-# 1. Build + cài
-.\gradlew.bat installDebug
+## Switching to Firebase Storage later
 
-# 2. Trong app: Đặt câu hỏi → đính kèm ảnh → Đăng câu hỏi
-# 3. Kiểm tra Firestore: questions/{id}.imageUrls[0] là https://x0.at/...
-# 4. Mở lại câu hỏi: ảnh hiển thị; audio phát được
-```
+1. Enable Blaze and Firebase Storage.
+2. In `CreateQuestionViewModel`, replace `QuestionPublisher` with the Firebase `StorageRepository`
+   (already kept in the repo) and deploy `storage.rules`.
+3. Keep `thumbBase64` for feed thumbnails or upload a resized image and store its URL.
 
-Đã kiểm chứng endpoint bằng script: upload PNG → `https://x0.at/...png` (200, `image/png`);
-upload WAV → `https://x0.at/...wav` (200, `audio/wav`).
+## Manual test checklist
+
+- [ ] Post an image (≤5 MB input) → feed shows the thumbnail, detail shows the full image.
+- [ ] Add 2 images → feed shows `+1`, detail shows both.
+- [ ] Record 10–30 s audio → detail plays it after reopening.
+- [ ] Select an audio file > 450 KB → rejected with the budget message.
+- [ ] Airplane mode → post queues; reconnect → the worker publishes, notification + feed refresh.
+- [ ] Another account cannot write `questions/{qid}/media/*` (rules 403).

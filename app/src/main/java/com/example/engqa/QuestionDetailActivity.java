@@ -1,6 +1,7 @@
 package com.example.engqa;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -19,17 +20,24 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.engqa.media.MediaCompressor;
 import com.example.engqa.model.Answer;
 import com.example.engqa.model.Question;
+import com.example.engqa.model.StoredMedia;
 import com.example.engqa.model.UiState;
 import com.example.engqa.ui.AnswerAdapter;
 import com.example.engqa.ui.AudioPlayerView;
 import com.example.engqa.ui.ImageAdapter;
+import com.example.engqa.ui.MediaImageAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.TimeUtils;
 import com.example.engqa.viewmodel.QuestionDetailViewModel;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Question detail: realtime question + answers, up/down vote, accept, media and reporting. */
 public class QuestionDetailActivity extends BaseNavActivity {
@@ -39,6 +47,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private QuestionDetailViewModel viewModel;
     private AnswerAdapter answerAdapter;
     private ImageAdapter imageAdapter;
+    private MediaImageAdapter mediaImageAdapter;
     private StateView stateView;
     private AudioPlayerView audioPlayer;
     private TextView tvAnswersHeader;
@@ -47,6 +56,9 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private String questionId;
     private String uid;
     private Question currentQuestion;
+    private List<StoredMedia> currentMedia = new ArrayList<>();
+    private StoredMedia currentAudio;
+    private final ExecutorService mediaExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +120,12 @@ public class QuestionDetailActivity extends BaseNavActivity {
         viewModel.stop();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mediaExecutor.shutdownNow();
+    }
+
     private void setupAnswers() {
         answerAdapter = new AnswerAdapter(new AnswerAdapter.OnAnswerActionListener() {
             @Override
@@ -134,6 +152,12 @@ public class QuestionDetailActivity extends BaseNavActivity {
             intent.putExtra(ImageViewerActivity.EXTRA_IMAGE_URL, url);
             startActivity(intent);
         });
+        mediaImageAdapter = new MediaImageAdapter(media -> {
+            Intent intent = new Intent(this, ImageViewerActivity.class);
+            intent.putExtra(ImageViewerActivity.EXTRA_QUESTION_ID, questionId);
+            intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_ID, media.getId());
+            startActivity(intent);
+        });
         RecyclerView recycler = findViewById(R.id.recyclerImages);
         recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
         recycler.setAdapter(imageAdapter);
@@ -142,6 +166,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private void observe() {
         viewModel.getQuestion().observe(this, this::renderQuestion);
         viewModel.getAnswers().observe(this, this::renderAnswers);
+        viewModel.getMedia().observe(this, this::renderMedia);
         viewModel.getMyVotes().observe(this, votes -> {
             answerAdapter.setMyVotes(votes);
             answerAdapter.notifyDataSetChanged();
@@ -220,11 +245,65 @@ public class QuestionDetailActivity extends BaseNavActivity {
             passage.setVisibility(View.GONE);
         }
 
-        imageAdapter.submit(question.getImageUrls());
-        audioPlayer.setUrl(question.getAudioUrl());
+        renderImages();
+        renderAudio();
 
         answerAdapter.setContext(question.getAuthorId(), uid);
         answerAdapter.setVotingEnabled(uid != null);
+    }
+
+    private void renderMedia(List<StoredMedia> media) {
+        currentMedia = media != null ? media : new ArrayList<>();
+        currentAudio = null;
+        for (StoredMedia item : currentMedia) {
+            if (item.isAudio()) {
+                currentAudio = item;
+                break;
+            }
+        }
+        renderImages();
+        renderAudio();
+    }
+
+    private void renderImages() {
+        List<StoredMedia> images = new ArrayList<>();
+        for (StoredMedia item : currentMedia) {
+            if (item.isImage()) {
+                images.add(item);
+            }
+        }
+        RecyclerView recycler = findViewById(R.id.recyclerImages);
+        if (!images.isEmpty()) {
+            if (recycler.getAdapter() != mediaImageAdapter) {
+                recycler.setAdapter(mediaImageAdapter);
+            }
+            mediaImageAdapter.submit(images);
+        } else {
+            if (recycler.getAdapter() != imageAdapter) {
+                recycler.setAdapter(imageAdapter);
+            }
+            imageAdapter.submit(currentQuestion != null
+                    ? currentQuestion.getImageUrls() : null);
+        }
+    }
+
+    private void renderAudio() {
+        if (currentAudio != null) {
+            final StoredMedia audio = currentAudio;
+            mediaExecutor.execute(() -> {
+                try {
+                    String name = "remote_" + audio.getId() + ".m4a";
+                    File file = MediaCompressor.writeToCache(this, audio.getData(), name);
+                    runOnUiThread(() -> audioPlayer.setUrl(Uri.fromFile(file).toString()));
+                } catch (Exception e) {
+                    runOnUiThread(() -> audioPlayer.setUrl(null));
+                }
+            });
+        } else if (currentQuestion != null && currentQuestion.getAudioUrl() != null) {
+            audioPlayer.setUrl(currentQuestion.getAudioUrl());
+        } else {
+            audioPlayer.setUrl(null);
+        }
     }
 
     private void renderAnswers(UiState<List<Answer>> state) {

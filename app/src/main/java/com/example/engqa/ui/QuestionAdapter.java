@@ -1,5 +1,6 @@
 package com.example.engqa.ui;
 
+import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.engqa.R;
+import com.example.engqa.media.ThumbnailLoader;
 import com.example.engqa.model.Question;
 import com.example.engqa.util.TimeUtils;
 
@@ -113,24 +115,37 @@ public class QuestionAdapter extends ListAdapter<Question, QuestionAdapter.Quest
                     ? View.VISIBLE : View.GONE);
 
             List<String> images = question.getImageUrls();
+            Bitmap thumbBitmap = ThumbnailLoader.load(question.getThumbBase64());
             String cover = images != null && !images.isEmpty() ? images.get(0) : null;
-            boolean hasCover = cover != null && !cover.trim().isEmpty();
-            if (hasCover) {
+            boolean hasUrlCover = cover != null && !cover.trim().isEmpty();
+            boolean hasCover = thumbBitmap != null || hasUrlCover;
+
+            if (thumbBitmap != null) {
+                imageWrap.setVisibility(View.VISIBLE);
+                Glide.with(thumbnail).clear(thumbnail);
+                thumbnail.setImageBitmap(thumbBitmap);
+            } else if (hasUrlCover) {
                 imageWrap.setVisibility(View.VISIBLE);
                 Glide.with(thumbnail).load(cover).centerCrop().into(thumbnail);
-                if (images != null && images.size() > 1) {
-                    imageCount.setText(itemView.getContext()
-                            .getString(R.string.more_images, images.size() - 1));
-                    imageCount.setVisibility(View.VISIBLE);
-                } else {
-                    imageCount.setVisibility(View.GONE);
-                }
             } else {
                 imageWrap.setVisibility(View.GONE);
-                imageCount.setVisibility(View.GONE);
                 Glide.with(thumbnail).clear(thumbnail);
+                thumbnail.setImageBitmap(null);
             }
-            imageIcon.setVisibility(!hasCover && images != null && !images.isEmpty()
+
+            long totalImages = question.getImageCount() > 0
+                    ? question.getImageCount()
+                    : (images != null ? images.size() : 0);
+            if (hasCover && totalImages > 1) {
+                imageCount.setText(itemView.getContext().getString(
+                        R.string.more_images, (int) (totalImages - 1)));
+                imageCount.setVisibility(View.VISIBLE);
+            } else {
+                imageCount.setVisibility(View.GONE);
+            }
+            imageIcon.setVisibility(!hasCover && totalImages > 0
+                    ? View.VISIBLE : View.GONE);
+            audioIcon.setVisibility(question.isHasAudio() || question.getAudioUrl() != null
                     ? View.VISIBLE : View.GONE);
 
             itemView.setOnClickListener(v -> {

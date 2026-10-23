@@ -171,6 +171,32 @@ service cloud.firestore {
           allow delete: if isSelf(voterId);
         }
       }
+
+      // Firestore-only media: one document per image/audio, Base64 capped below the 1 MiB limit.
+      match /media/{mediaId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+            && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
+                == request.auth.uid
+            && request.resource.data.data is string
+            && request.resource.data.data.size() <= 600000
+            && request.resource.data.mime in
+                ['image/jpeg', 'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac',
+                 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/3gpp'];
+        allow update: if (isAdmin()
+            || (isSignedIn()
+                && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
+                    == request.auth.uid))
+            && request.resource.data.data is string
+            && request.resource.data.data.size() <= 600000
+            && request.resource.data.mime in
+                ['image/jpeg', 'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac',
+                 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/3gpp'];
+        allow delete: if isAdmin()
+            || (isSignedIn()
+                && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
+                    == request.auth.uid);
+      }
     }
 
     // -------------------------------------------------------- notifications
