@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.example.engqa.SessionManager;
 import com.example.engqa.data.Callback;
 import com.example.engqa.data.PromoRepository;
 import com.example.engqa.data.RepoErrors;
@@ -139,11 +140,12 @@ public class PromoViewModel extends AndroidViewModel {
 
     /** Re-reads the Room flag after returning to the screen. */
     public void refreshSaved() {
-        if (promoId == null) {
+        String uid = currentUid();
+        if (promoId == null || uid == null) {
             saved.setValue(false);
             return;
         }
-        savedRepository.isSaved(promoId, new Callback<Boolean>() {
+        savedRepository.isSaved(uid, promoId, new Callback<Boolean>() {
             @Override
             public void onSuccess(Boolean result) {
                 saved.setValue(Boolean.TRUE.equals(result));
@@ -161,9 +163,14 @@ public class PromoViewModel extends AndroidViewModel {
         if (saving || promoId == null || currentPromo == null) {
             return;
         }
+        final String uid = currentUid();
+        if (uid == null) {
+            saveEvent.setValue("Bạn cần đăng nhập để lưu bài");
+            return;
+        }
         saving = true;
         if (Boolean.TRUE.equals(saved.getValue())) {
-            savedRepository.remove(promoId, new Callback<Void>() {
+            savedRepository.remove(uid, promoId, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                     saving = false;
@@ -178,7 +185,7 @@ public class PromoViewModel extends AndroidViewModel {
                 }
             });
         } else {
-            SavedPromo entity = new SavedPromo(promoId, currentPromo.getCenterName(),
+            SavedPromo entity = new SavedPromo(uid, promoId, currentPromo.getCenterName(),
                     currentPromo.getTitle(), currentPromo.getImageUrl(),
                     System.currentTimeMillis());
             savedRepository.save(entity, new Callback<Void>() {
@@ -216,6 +223,10 @@ public class PromoViewModel extends AndroidViewModel {
                 promo.setValue(UiState.<Promo>error(RepoErrors.message(e)));
             }
         });
+    }
+
+    private String currentUid() {
+        return new SessionManager(getApplication()).getUserId();
     }
 
     private Callback<Void> noopCallback() {

@@ -41,6 +41,10 @@ public class MenuScreenActivity extends BaseNavActivity {
     private String uid;
     private String questionsError;
     private String answersError;
+    private User boundUser;
+    private int liveQuestionCount = -1;
+    private int liveAnswerCount = -1;
+    private int liveAcceptedCount = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,8 +94,26 @@ public class MenuScreenActivity extends BaseNavActivity {
     }
 
     @Override
+    protected boolean isTabActivity() {
+        return true;
+    }
+
+    @Override
     protected void onStart() {
         super.onStart();
+        String sessionUid = new SessionManager(this).getUserId();
+        if (sessionUid == null) {
+            // The session ended while this tab was in the back stack: never show the old profile.
+            viewModel.stop();
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
+        if (!sessionUid.equals(uid)) {
+            uid = sessionUid;
+        }
         viewModel.start(uid);
     }
 
@@ -145,6 +167,11 @@ public class MenuScreenActivity extends BaseNavActivity {
             questionAdapter.submitList(data != null ? data : Collections.emptyList());
             questionsError = state != null && state.getStatus() == UiState.Status.ERROR
                     ? state.getMessage() : null;
+            if (state != null && (state.getStatus() == UiState.Status.SUCCESS
+                    || state.getStatus() == UiState.Status.EMPTY)) {
+                liveQuestionCount = data != null ? data.size() : 0;
+                renderStats();
+            }
             updateEmpty();
         });
         viewModel.getMyAnswers().observe(this, state -> {
@@ -152,6 +179,20 @@ public class MenuScreenActivity extends BaseNavActivity {
             answerAdapter.submitList(data != null ? data : Collections.emptyList());
             answersError = state != null && state.getStatus() == UiState.Status.ERROR
                     ? state.getMessage() : null;
+            if (state != null && (state.getStatus() == UiState.Status.SUCCESS
+                    || state.getStatus() == UiState.Status.EMPTY)) {
+                int accepted = 0;
+                if (data != null) {
+                    for (Answer answer : data) {
+                        if (answer.isAccepted()) {
+                            accepted++;
+                        }
+                    }
+                }
+                liveAnswerCount = data != null ? data.size() : 0;
+                liveAcceptedCount = accepted;
+                renderStats();
+            }
             updateEmpty();
         });
         viewModel.getActionState().observe(this, state -> {
@@ -166,6 +207,12 @@ public class MenuScreenActivity extends BaseNavActivity {
         if (user == null) {
             return;
         }
+        if (boundUser == null || !user.getUid().equals(boundUser.getUid())) {
+            liveQuestionCount = -1;
+            liveAnswerCount = -1;
+            liveAcceptedCount = -1;
+        }
+        boundUser = user;
         String name = user.getUsername() != null ? user.getUsername() : "user";
         ((TextView) findViewById(R.id.tvUsername)).setText(name);
         ((TextView) findViewById(R.id.tvEmail)).setText(user.getEmail());
@@ -178,12 +225,27 @@ public class MenuScreenActivity extends BaseNavActivity {
         } else {
             level.setVisibility(View.GONE);
         }
+        renderStats();
+    }
+
+    /**
+     * Prefers the live list sizes; falls back to the stored profile counters while those lists are
+     * still loading or if their query fails offline.
+     */
+    private void renderStats() {
+        if (boundUser == null) {
+            return;
+        }
+        int questions = liveQuestionCount >= 0
+                ? liveQuestionCount : (int) boundUser.getQuestionCount();
+        int answers = liveAnswerCount >= 0
+                ? liveAnswerCount : (int) boundUser.getAnswerCount();
+        int accepted = liveAcceptedCount >= 0
+                ? liveAcceptedCount : (int) boundUser.getAcceptedCount();
         ((TextView) findViewById(R.id.tvQuestionsAskedCount))
-                .setText(String.valueOf(user.getQuestionCount()));
-        ((TextView) findViewById(R.id.tvAnswersCount))
-                .setText(String.valueOf(user.getAnswerCount()));
-        ((TextView) findViewById(R.id.tvAcceptedCount))
-                .setText(String.valueOf(user.getAcceptedCount()));
+                .setText(String.valueOf(questions));
+        ((TextView) findViewById(R.id.tvAnswersCount)).setText(String.valueOf(answers));
+        ((TextView) findViewById(R.id.tvAcceptedCount)).setText(String.valueOf(accepted));
     }
 
     private void showTab(boolean questions) {

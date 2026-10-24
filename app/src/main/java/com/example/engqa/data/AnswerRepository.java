@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.Transaction;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
@@ -108,29 +109,51 @@ public class AnswerRepository {
     }
 
     /**
-     * Accepts one answer: marks the answer accepted, marks the question solved and rewards the
-     * answer author's {@code acceptedCount} — all in a single batch.
+     * Accepts one answer, exclusively. In a transaction it clears the previously accepted answer,
+     * marks the new one accepted and points the question at it. Repeating the same acceptance is a
+     * no-op, so the "Được chấp nhận" statistic (derived from the answer list) cannot be inflated.
      */
     public void accept(String questionId, String answerId, String answerAuthorId,
                        Callback<Void> callback) {
         DocumentReference questionRef = db.collection(FirestoreRefs.QUESTIONS).document(questionId);
-        DocumentReference acceptedRef = questionRef.collection(FirestoreRefs.ANSWERS).document(answerId);
+        DocumentReference acceptedRef =
+                questionRef.collection(FirestoreRefs.ANSWERS).document(answerId);
 
-        WriteBatch batch = db.batch();
-        batch.update(acceptedRef, "isAccepted", true);
-        Map<String, Object> questionUpdates = new HashMap<>();
-        questionUpdates.put("isSolved", true);
-        questionUpdates.put("acceptedAnswerId", answerId);
-        questionUpdates.put("updatedAt", FieldValue.serverTimestamp());
-        batch.update(questionRef, questionUpdates);
-        if (answerAuthorId != null) {
-            // Allowed by the rules only when acceptedCount grows by exactly one.
-            batch.update(db.collection(FirestoreRefs.USERS).document(answerAuthorId),
-                    "acceptedCount", FieldValue.increment(1));
-        }
-        batch.commit()
-                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onError);
+        db.runTransaction((Transaction.Function<Void>) transaction -> {
+            DocumentSnapshot questionSnapshot = transaction.get(questionRef);
+            DocumentSnapshot answerSnapshot = transaction.get(acceptedRef);
+            if (!questionSnapshot.exists()) {
+                throw new IllegalStateException("Không tìm thấy câu hỏi");
+            }
+            if (!answerSnapshot.exists()) {
+                throw new IllegalStateException("Không tìm thấy câu trả lời");
+            }
+
+            String currentAccepted = questionSnapshot.getString("acceptedAnswerId");
+            boolean alreadyAccepted = Boolean.TRUE.equals(answerSnapshot.getBoolean("isAccepted"));
+            if (answerId.equals(currentAccepted) && alreadyAccepted) {
+                return null;
+            }
+
+            if (currentAccepted != null && !currentAccepted.equals(answerId)) {
+                DocumentReference previousRef =
+                        questionRef.collection(FirestoreRefs.ANSWERS).document(currentAccepted);
+                DocumentSnapshot previous = transaction.get(previousRef);
+                if (previous.exists()
+                        && Boolean.TRUE.equals(previous.getBoolean("isAccepted"))) {
+                    transaction.update(previousRef, "isAccepted", false);
+                }
+            }
+
+            transaction.update(acceptedRef, "isAccepted", true);
+            Map<String, Object> questionUpdates = new HashMap<>();
+            questionUpdates.put("isSolved", true);
+            questionUpdates.put("acceptedAnswerId", answerId);
+            questionUpdates.put("updatedAt", FieldValue.serverTimestamp());
+            transaction.update(questionRef, questionUpdates);
+            return null;
+        }).addOnSuccessListener(aVoid -> callback.onSuccess(null))
+          .addOnFailureListener(callback::onError);
     }
 
     public void delete(String questionId, String answerId, String answerAuthorId,

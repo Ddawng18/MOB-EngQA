@@ -24,8 +24,11 @@ import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Backs the question-detail screen: the question, its answers, and the current user's votes. */
 public class QuestionDetailViewModel extends ViewModel {
@@ -47,6 +50,8 @@ public class QuestionDetailViewModel extends ViewModel {
     private ListenerRegistration questionRegistration;
     private ListenerRegistration answersRegistration;
     private ListenerRegistration mediaRegistration;
+    /** One listener per answer for the signed-in user's vote on that answer. */
+    private final Map<String, ListenerRegistration> voteRegistrations = new HashMap<>();
 
     private String questionId;
     private String uid;
@@ -99,6 +104,7 @@ public class QuestionDetailViewModel extends ViewModel {
             mediaRegistration.remove();
             mediaRegistration = null;
         }
+        clearVoteRegistrations();
     }
 
     @Override
@@ -185,8 +191,8 @@ public class QuestionDetailViewModel extends ViewModel {
                 myVotes.setValue(updated);
 
                 if (result.value == Vote.UP) {
-                    notifyAnswerAuthor(answerId, "Có lượt bình chọn",
-                            "Câu trả lời của bạn vừa được upvote");
+                    notifyAnswerAuthor(answerId, AppNotification.TYPE_VOTE,
+                            "Có lượt bình chọn", "Câu trả lời của bạn vừa được upvote");
                 }
             }
 
@@ -202,7 +208,8 @@ public class QuestionDetailViewModel extends ViewModel {
             @Override
             public void onSuccess(Void result) {
                 actionState.setValue(UiState.success(answerId));
-                notifyAnswerAuthor(answerId, "Câu trả lời được chấp nhận",
+                notifyAnswerAuthor(answerId, AppNotification.TYPE_ACCEPTED,
+                        "Câu trả lời được chấp nhận",
                         "Câu trả lời của bạn đã được chấp nhận");
             }
 
@@ -243,6 +250,72 @@ public class QuestionDetailViewModel extends ViewModel {
         });
     }
 
+    /**
+     * Observes {@code votes/{uid}} for every loaded answer, so reopening the screen restores the
+     * highlighted arrow and a single tap can remove an existing vote.
+     */
+    private void syncVoteRegistrations(List<Answer> answers) {
+        if (uid == null) {
+            clearVoteRegistrations();
+            myVotes.setValue(new HashMap<>());
+            return;
+        }
+        Set<String> currentIds = new HashSet<>();
+        for (Answer answer : answers) {
+            if (answer.getId() != null) {
+                currentIds.add(answer.getId());
+            }
+        }
+        Iterator<Map.Entry<String, ListenerRegistration>> iterator =
+                voteRegistrations.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, ListenerRegistration> entry = iterator.next();
+            if (!currentIds.contains(entry.getKey())) {
+                entry.getValue().remove();
+                iterator.remove();
+            }
+        }
+        for (final String answerId : currentIds) {
+            if (voteRegistrations.containsKey(answerId)) {
+                continue;
+            }
+            ListenerRegistration registration = voteRepository.observeMyVote(
+                    questionId, answerId, uid, new Callback<Integer>() {
+                        @Override
+                        public void onSuccess(Integer value) {
+                            mergeVote(answerId, value != null ? value : 0);
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            // A failed vote read leaves the arrow unhighlighted; voting still works.
+                        }
+                    });
+            if (registration != null) {
+                voteRegistrations.put(answerId, registration);
+            }
+        }
+    }
+
+    private void mergeVote(String answerId, int value) {
+        Map<String, Integer> current = myVotes.getValue();
+        Map<String, Integer> updated = current != null
+                ? new HashMap<>(current) : new HashMap<>();
+        if (value == 0) {
+            updated.remove(answerId);
+        } else {
+            updated.put(answerId, value);
+        }
+        myVotes.setValue(updated);
+    }
+
+    private void clearVoteRegistrations() {
+        for (ListenerRegistration registration : voteRegistrations.values()) {
+            registration.remove();
+        }
+        voteRegistrations.clear();
+    }
+
     /** Looks up the author of an answer currently loaded in the list. */
     private String authorIdOf(String answerId) {
         UiState<List<Answer>> state = answers.getValue();
@@ -278,6 +351,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 new Callback<List<Answer>>() {
                     @Override
                     public void onSuccess(List<Answer> result) {
+                        syncVoteRegistrations(result);
                         if (result.isEmpty()) {
                             answers.setValue(UiState.<List<Answer>>empty());
                         } else {
@@ -319,7 +393,7 @@ public class QuestionDetailViewModel extends ViewModel {
         notificationRepository.create(notification, null);
     }
 
-    private void notifyAnswerAuthor(String answerId, String title, String body) {
+    private void notifyAnswerAuthor(String answerId, String type, String title, String body) {
         UiState<List<Answer>> state = answers.getValue();
         if (state == null || state.getData() == null) {
             return;
@@ -330,7 +404,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 notification.setRecipientId(answer.getAuthorId());
                 notification.setActorId(uid);
                 notification.setActorName(null);
-                notification.setType(AppNotification.TYPE_ACCEPTED);
+                notification.setType(type);
                 notification.setQuestionId(questionId);
                 notification.setAnswerId(answerId);
                 notification.setTitle(title);

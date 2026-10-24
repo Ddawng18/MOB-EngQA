@@ -243,16 +243,19 @@
                     android:text="@string/promo_pick_date" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvFormError"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:textColor="#FF6B6B"
-                android:textSize="12sp"
-                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
+
+    <TextView
+        android:id="@+id/tvFormError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:textColor="#FF6B6B"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <FrameLayout
         android:layout_width="match_parent"

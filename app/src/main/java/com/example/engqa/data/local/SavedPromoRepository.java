@@ -5,9 +5,11 @@ import android.os.Handler;
 import android.os.Looper;
 
 import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
 import com.example.engqa.data.Callback;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,8 +28,11 @@ public class SavedPromoRepository {
         this.dao = AppDatabase.get(context).savedPromoDao();
     }
 
-    public LiveData<List<SavedPromo>> observeAll() {
-        return dao.getAll();
+    public LiveData<List<SavedPromo>> observeAll(String ownerUid) {
+        if (ownerUid == null) {
+            return new MutableLiveData<>(Collections.emptyList());
+        }
+        return dao.getAll(ownerUid);
     }
 
     public void save(final SavedPromo promo, final Callback<Void> callback) {
@@ -41,10 +46,15 @@ public class SavedPromoRepository {
         });
     }
 
-    public void remove(final String promoId, final Callback<Void> callback) {
+    public void remove(final String ownerUid, final String promoId,
+                       final Callback<Void> callback) {
+        if (ownerUid == null) {
+            postSuccess(callback);
+            return;
+        }
         executor.execute(() -> {
             try {
-                dao.delete(promoId);
+                dao.delete(ownerUid, promoId);
                 postSuccess(callback);
             } catch (Exception e) {
                 postError(callback, e);
@@ -52,10 +62,15 @@ public class SavedPromoRepository {
         });
     }
 
-    public void isSaved(final String promoId, final Callback<Boolean> callback) {
+    public void isSaved(final String ownerUid, final String promoId,
+                        final Callback<Boolean> callback) {
+        if (ownerUid == null) {
+            mainHandler.post(() -> callback.onSuccess(false));
+            return;
+        }
         executor.execute(() -> {
             try {
-                boolean saved = dao.findId(promoId) != null;
+                boolean saved = dao.findId(ownerUid, promoId) != null;
                 mainHandler.post(() -> callback.onSuccess(saved));
             } catch (Exception e) {
                 postError(callback, e);

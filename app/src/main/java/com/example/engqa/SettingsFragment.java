@@ -11,7 +11,9 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.SwitchPreferenceCompat;
 
+import com.bumptech.glide.Glide;
 import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.util.PermissionHelper;
 import com.example.engqa.util.PrefsHelper;
@@ -25,13 +27,25 @@ import java.io.File;
 public class SettingsFragment extends PreferenceFragmentCompat {
 
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private SwitchPreferenceCompat notificationsPreference;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         notificationPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(), granted -> {
-                    if (!granted) {
+                    // Persist the outcome so the switch never claims notifications that the OS blocks.
+                    PrefsHelper.setNotificationsEnabled(requireContext(), granted);
+                    if (notificationsPreference != null) {
+                        notificationsPreference.setChecked(granted);
+                    }
+                    if (granted) {
+                        String uid = new SessionManager(requireContext()).getUserId();
+                        if (uid != null) {
+                            NotificationWatcher.start(uid);
+                        }
+                    } else {
+                        NotificationWatcher.stop();
                         Toast.makeText(requireContext(),
                                 R.string.settings_notifications_denied, Toast.LENGTH_SHORT).show();
                     }
@@ -39,36 +53,55 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        syncNotificationPreference();
+    }
+
+    @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.preferences, rootKey);
 
-        Preference notifications = findPreference("notifications_enabled");
-        if (notifications != null) {
-            notifications.setOnPreferenceChangeListener((preference, newValue) -> {
+        notificationsPreference = findPreference("notifications_enabled");
+        if (notificationsPreference != null) {
+            notificationsPreference.setOnPreferenceChangeListener((preference, newValue) -> {
                 boolean enabled = Boolean.TRUE.equals(newValue);
-                PrefsHelper.setNotificationsEnabled(requireContext(), enabled);
-                String uid = new SessionManager(requireContext()).getUserId();
-                if (enabled) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                            && !PermissionHelper.hasNotifications(requireContext())) {
-                        notificationPermissionLauncher.launch(
-                                Manifest.permission.POST_NOTIFICATIONS);
-                    }
-                    if (uid != null) {
-                        NotificationWatcher.start(uid);
-                    }
-                } else {
+                if (!enabled) {
+                    PrefsHelper.setNotificationsEnabled(requireContext(), false);
                     NotificationWatcher.stop();
+                    return true;
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        && !PermissionHelper.hasNotifications(requireContext())) {
+                    // Keep the switch off until the system grants the permission; the result
+                    // callback persists the decision.
+                    notificationPermissionLauncher.launch(
+                            Manifest.permission.POST_NOTIFICATIONS);
+                    return false;
+                }
+                PrefsHelper.setNotificationsEnabled(requireContext(), true);
+                String uid = new SessionManager(requireContext()).getUserId();
+                if (uid != null) {
+                    NotificationWatcher.start(uid);
                 }
                 return true;
             });
+            syncNotificationPreference();
         }
 
         Preference clearCache = findPreference("clear_cache");
         if (clearCache != null) {
             clearCache.setOnPreferenceClickListener(preference -> {
-                deleteRecursively(new File(requireContext().getCacheDir(), "images"));
-                deleteRecursively(new File(requireContext().getCacheDir(), "audio"));
+                File cache = requireContext().getCacheDir();
+                deleteRecursively(new File(cache, "images"));
+                deleteRecursively(new File(cache, "audio"));
+                // Firestore audio is decoded here; this directory was previously missed.
+                deleteRecursively(new File(cache, "media"));
+                // Glide keeps its own memory and disk caches outside the app directories above.
+                final android.content.Context appContext =
+                        requireContext().getApplicationContext();
+                Glide.get(requireContext()).clearMemory();
+                new Thread(() -> Glide.get(appContext).clearDiskCache()).start();
                 Toast.makeText(requireContext(), R.string.settings_cache_cleared,
                         Toast.LENGTH_SHORT).show();
                 return true;
@@ -90,6 +123,23 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+    }
+
+    /** Reconciles the stored switch with the OS permission (which the user can revoke outside). */
+    private void syncNotificationPreference() {
+        if (notificationsPreference == null) {
+            return;
+        }
+        boolean enabled = PrefsHelper.areNotificationsEnabled(requireContext());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && !PermissionHelper.hasNotifications(requireContext())) {
+            if (enabled) {
+                PrefsHelper.setNotificationsEnabled(requireContext(), false);
+                NotificationWatcher.stop();
+            }
+            enabled = false;
+        }
+        notificationsPreference.setChecked(enabled);
     }
 
     private void showAbout() {

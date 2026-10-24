@@ -1,6 +1,9 @@
 package com.example.engqa.data;
 
 import com.example.engqa.model.Question;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -28,6 +31,9 @@ public class QuestionRepository {
     public static final String SORT_POPULAR = "popular";
     public static final String SORT_UNANSWERED = "unanswered";
     public static final String ALL_CATEGORIES = null;
+
+    /** Firestore batches allow 500 writes; keep room for the question and counter updates. */
+    private static final int BATCH_CHILD_LIMIT = 400;
 
     /** A page of the feed plus the cursor needed by {@link #loadMore}. */
     public static final class Page {
@@ -166,11 +172,95 @@ public class QuestionRepository {
         return data;
     }
 
-    /** Deletes the question and decrements the author's {@code questionCount}. */
+    /**
+     * Deletes the question together with its answers, their votes and its media documents. The
+     * question document is deleted last, so a partial failure can be retried safely. Notifications
+     * and reports that reference the question are left to the moderation backend, and the answer
+     * authors' denormalised counters are not changed (the profile uses the live answer list).
+     */
     public void deleteQuestion(String questionId, String authorId, Callback<Void> callback) {
         DocumentReference questionRef =
                 db.collection(FirestoreRefs.QUESTIONS).document(questionId);
+        CollectionReference answersRef = questionRef.collection(FirestoreRefs.ANSWERS);
+        CollectionReference mediaRef = questionRef.collection(FirestoreRefs.MEDIA);
+
+        answersRef.get()
+                .addOnSuccessListener(answerSnapshots ->
+                        collectVotesAndMedia(questionRef, mediaRef,
+                                answerSnapshots, authorId, callback))
+                .addOnFailureListener(callback::onError);
+    }
+
+    private void collectVotesAndMedia(DocumentReference questionRef,
+                                      CollectionReference mediaRef, QuerySnapshot answerSnapshots,
+                                      String authorId, Callback<Void> callback) {
+        List<Task<QuerySnapshot>> voteTasks = new ArrayList<>();
+        for (DocumentSnapshot answer : answerSnapshots.getDocuments()) {
+            voteTasks.add(answer.getReference().collection(FirestoreRefs.VOTES).get());
+        }
+        mediaRef.get()
+                .addOnSuccessListener(mediaSnapshots -> Tasks.whenAll(voteTasks)
+                        .addOnSuccessListener(unused -> {
+                            List<DocumentReference> children = new ArrayList<>();
+                            // Votes first: if a later chunk fails, the answers are still present, so
+                            // a retry can discover their vote documents again.
+                            for (Task<QuerySnapshot> task : voteTasks) {
+                                QuerySnapshot votes = task.getResult();
+                                if (votes != null) {
+                                    for (DocumentSnapshot vote : votes.getDocuments()) {
+                                        children.add(vote.getReference());
+                                    }
+                                }
+                            }
+                            for (DocumentSnapshot answer : answerSnapshots.getDocuments()) {
+                                children.add(answer.getReference());
+                            }
+                            for (DocumentSnapshot media : mediaSnapshots.getDocuments()) {
+                                children.add(media.getReference());
+                            }
+                            deleteChildrenThenQuestion(questionRef, authorId, children, callback);
+                        })
+                        .addOnFailureListener(callback::onError))
+                .addOnFailureListener(callback::onError);
+    }
+
+    private void deleteChildrenThenQuestion(DocumentReference questionRef, String authorId,
+                                            List<DocumentReference> children,
+                                            Callback<Void> callback) {
+        if (children.size() <= BATCH_CHILD_LIMIT) {
+            commitDeleteBatch(questionRef, authorId, children, callback);
+            return;
+        }
+        deleteChildChunk(questionRef, authorId, children, 0, callback);
+    }
+
+    private void deleteChildChunk(DocumentReference questionRef, String authorId,
+                                  List<DocumentReference> children, int start,
+                                  Callback<Void> callback) {
+        int end = Math.min(start + BATCH_CHILD_LIMIT, children.size());
         WriteBatch batch = db.batch();
+        for (int i = start; i < end; i++) {
+            batch.delete(children.get(i));
+        }
+        final int next = end;
+        batch.commit()
+                .addOnSuccessListener(aVoid -> {
+                    if (next < children.size()) {
+                        deleteChildChunk(questionRef, authorId, children, next, callback);
+                    } else {
+                        commitDeleteBatch(questionRef, authorId,
+                                Collections.emptyList(), callback);
+                    }
+                })
+                .addOnFailureListener(callback::onError);
+    }
+
+    private void commitDeleteBatch(DocumentReference questionRef, String authorId,
+                                   List<DocumentReference> children, Callback<Void> callback) {
+        WriteBatch batch = db.batch();
+        for (DocumentReference child : children) {
+            batch.delete(child);
+        }
         batch.delete(questionRef);
         if (authorId != null) {
             batch.update(db.collection(FirestoreRefs.USERS).document(authorId),
@@ -194,13 +284,12 @@ public class QuestionRepository {
 
     /**
      * Firestore cannot do full-text search, so a keyword match is done with {@code array-contains}
-     * on the pre-computed {@code searchKeywords} list.
+     * on the pre-computed {@code searchKeywords} list. The category and sort filters are composed
+     * with the same query, and {@link #searchMore} pages it with the same cursor.
      */
-    public ListenerRegistration search(String keyword, int limit, Callback<Page> callback) {
-        Query query = db.collection(FirestoreRefs.QUESTIONS)
-                .whereArrayContains(FirestoreRefs.FIELD_SEARCH_KEYWORDS, keyword)
-                .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
-                .limit(limit);
+    public ListenerRegistration search(String keyword, String categoryId, String sort, int limit,
+                                       Callback<Page> callback) {
+        Query query = buildSearchQuery(keyword, categoryId, sort, limit);
         return query.addSnapshotListener((snapshots, error) -> {
             if (error != null) {
                 callback.onError(error);
@@ -208,6 +297,41 @@ public class QuestionRepository {
             }
             callback.onSuccess(toPage(snapshots));
         });
+    }
+
+    /** One-shot next page for a search query; the cursor must come from the same query shape. */
+    public void searchMore(String keyword, String categoryId, String sort, int limit,
+                           DocumentSnapshot after, Callback<Page> callback) {
+        Query query = buildSearchQuery(keyword, categoryId, sort, limit);
+        if (after != null) {
+            query = query.startAfter(after);
+        }
+        query.get()
+                .addOnSuccessListener(snapshots -> callback.onSuccess(toPage(snapshots)))
+                .addOnFailureListener(callback::onError);
+    }
+
+    private Query buildSearchQuery(String keyword, String categoryId, String sort, int limit) {
+        Query query = db.collection(FirestoreRefs.QUESTIONS)
+                .whereArrayContains(FirestoreRefs.FIELD_SEARCH_KEYWORDS, keyword);
+        if (categoryId != null && !categoryId.isEmpty()) {
+            query = query.whereEqualTo(FirestoreRefs.FIELD_CATEGORY_ID, categoryId);
+        }
+        switch (sort == null ? SORT_NEWEST : sort) {
+            case SORT_POPULAR:
+                query = query.orderBy(FirestoreRefs.FIELD_SCORE, Query.Direction.DESCENDING)
+                        .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING);
+                break;
+            case SORT_UNANSWERED:
+                query = query.whereEqualTo(FirestoreRefs.FIELD_ANSWER_COUNT, 0)
+                        .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING);
+                break;
+            case SORT_NEWEST:
+            default:
+                query = query.orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING);
+                break;
+        }
+        return query.limit(limit);
     }
 
     private Query buildQuery(String categoryId, String sort, int limit) {

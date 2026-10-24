@@ -64,6 +64,9 @@
     <string name="downvote">Downvote</string>
     <string name="report">Báo cáo nội dung</string>
     <string name="answer_deleted">Đã xoá</string>
+    <string name="delete_question_title">Xoá câu hỏi?</string>
+    <string name="delete_question_message">Câu hỏi \"%1$s\" cùng toàn bộ câu trả lời, bình chọn và tệp đính kèm sẽ bị xoá vĩnh viễn. Bạn có chắc không?</string>
+    <string name="delete_question_message_generic">Câu hỏi cùng toàn bộ câu trả lời, bình chọn và tệp đính kèm sẽ bị xoá vĩnh viễn. Bạn có chắc không?</string>
 
     <!-- Screen 3: Can't connect to the server -->
     <string name="server_error_title">Uh oh! Can’t connect to the server</string>
@@ -161,7 +164,7 @@
     <string name="hint_username">Tên hiển thị *</string>
     <string name="username_rules">3–24 ký tự, chỉ dùng chữ, số và . _ -</string>
     <string name="username_taken">Tên hiển thị này đã được sử dụng</string>
-    <string name="username_available">Tên hiển thị có thể dùng được</string>
+    <string name="username_available">Định dạng tên hợp lệ (kiểm tra trùng khi gửi)</string>
     <string name="checking_username">Đang kiểm tra…</string>
     <string name="toggle_password">Hiện/ẩn mật khẩu</string>
     <string name="signing_in">Đang đăng nhập…</string>
@@ -214,6 +217,8 @@
     <string name="promo_detail_title">Chi tiết ưu đãi</string>
     <string name="promo_open_website">Mở website</string>
     <string name="promo_call_now">Gọi ngay</string>
+    <string name="promo_no_browser">Không tìm thấy trình duyệt để mở liên kết</string>
+    <string name="promo_no_dialer">Không tìm thấy ứng dụng gọi điện</string>
     <string name="promo_register_lead">Đăng ký tư vấn</string>
     <string name="promo_disclaimer">Bài đăng do trung tâm cung cấp. EngQA không chịu trách nhiệm về nội dung và chất lượng dịch vụ.</string>
     <string name="promo_expired">Ưu đãi đã hết hạn</string>

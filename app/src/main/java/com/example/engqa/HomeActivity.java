@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.engqa.NetworkUtils;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Category;
@@ -38,6 +39,7 @@ import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
 import com.example.engqa.model.WordEntry;
+import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.ui.CategoryChipAdapter;
 import com.example.engqa.ui.FeedAdapter;
 import com.example.engqa.ui.StateView;
@@ -73,6 +75,7 @@ public class HomeActivity extends BaseNavActivity {
 
     private User currentUser;
     private boolean pendingReceiverRegistered;
+    private boolean showingServerError;
 
     /** Dynamic receiver: refreshes the feed after a queued post finishes uploading. */
     private final BroadcastReceiver pendingPostedReceiver = new BroadcastReceiver() {
@@ -101,7 +104,11 @@ public class HomeActivity extends BaseNavActivity {
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(),
                     granted -> {
-                        // The Settings screen offers a retry if the user changes their mind.
+                        if (!granted) {
+                            // Keep the stored preference in step with the OS; Settings can retry.
+                            PrefsHelper.setNotificationsEnabled(this, false);
+                            NotificationWatcher.stop();
+                        }
                     });
 
     @Override
@@ -174,13 +181,21 @@ public class HomeActivity extends BaseNavActivity {
     }
 
     @Override
+    protected boolean isTabActivity() {
+        return true;
+    }
+
+    @Override
     protected void onStart() {
         super.onStart();
-        viewModel.start();
         String uid = new SessionManager(this).getUserId();
-        if (uid != null) {
-            notificationViewModel.start(uid);
+        if (uid == null) {
+            // The feed requires authentication; never leave a signed-out user on stale content.
+            goToLogin();
+            return;
         }
+        viewModel.start();
+        notificationViewModel.start(uid);
         if (!pendingReceiverRegistered) {
             ContextCompat.registerReceiver(this, pendingPostedReceiver,
                     new IntentFilter(PendingQuestionWorker.ACTION_PENDING_POSTED),
@@ -300,6 +315,18 @@ public class HomeActivity extends BaseNavActivity {
                 break;
             case ERROR:
             default:
+                if (!NetworkUtils.isOnline(this)) {
+                    // The dedicated offline/error screen retries automatically when the network
+                    // returns; the inline error state remains for non-network failures.
+                    if (!showingServerError) {
+                        showingServerError = true;
+                        Intent intent = new Intent(this, ServerErrorActivity.class);
+                        intent.putExtra(ServerErrorActivity.EXTRA_AUTO_RETRY, true);
+                        startActivity(intent);
+                        finish();
+                    }
+                    return;
+                }
                 stateView.showError(state.getMessage());
                 recyclerView.setVisibility(View.GONE);
                 break;
@@ -393,6 +420,7 @@ public class HomeActivity extends BaseNavActivity {
 
         popup.getMenu().findItem(R.id.action_login).setVisible(!loggedIn);
         popup.getMenu().findItem(R.id.action_create_promo).setVisible(loggedIn && isCenter);
+        popup.getMenu().findItem(R.id.action_centers).setVisible(true);
         popup.getMenu().findItem(R.id.action_saved_promos).setVisible(true);
         popup.getMenu().findItem(R.id.action_settings).setVisible(true);
         popup.getMenu().findItem(R.id.action_logout).setVisible(loggedIn);
@@ -411,6 +439,10 @@ public class HomeActivity extends BaseNavActivity {
             createPromoLauncher.launch(new Intent(this, CreatePromoActivity.class));
             return true;
         }
+        if (id == R.id.action_centers) {
+            startActivity(new Intent(this, CenterListActivity.class));
+            return true;
+        }
         if (id == R.id.action_saved_promos) {
             startActivity(new Intent(this, SavedPromosActivity.class));
             return true;
@@ -422,10 +454,18 @@ public class HomeActivity extends BaseNavActivity {
         if (id == R.id.action_logout) {
             new SessionManager(this).logout();
             Toast.makeText(this, R.string.logged_out, Toast.LENGTH_SHORT).show();
-            recreate();
+            goToLogin();
             return true;
         }
         return false;
+    }
+
+    /** Clears the whole task so no signed-in screen or cached profile can be reached with Back. */
+    private void goToLogin() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private abstract static class SimpleTextWatcher implements android.text.TextWatcher {

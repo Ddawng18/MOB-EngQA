@@ -244,30 +244,35 @@ public class CreatePromoActivity extends AppCompatActivity
         String titleError = PromoValidator.titleError(title);
         if (titleError != null) {
             etTitle.setError(titleError);
+            etTitle.requestFocus();
             showError(titleError);
             return;
         }
         String bodyError = PromoValidator.bodyError(body);
         if (bodyError != null) {
             etBody.setError(bodyError);
+            etBody.requestFocus();
             showError(bodyError);
             return;
         }
         String phoneError = PromoValidator.phoneError(phone);
         if (phoneError != null) {
             etPhone.setError(phoneError);
+            etPhone.requestFocus();
             showError(phoneError);
             return;
         }
         String linkError = PromoValidator.urlError(link);
         if (linkError != null) {
             etLink.setError(linkError);
+            etLink.requestFocus();
             showError(linkError);
             return;
         }
         String imageError = PromoValidator.imageUrlError(image);
         if (imageError != null) {
             etImage.setError(imageError);
+            etImage.requestFocus();
             showError(imageError);
             return;
         }

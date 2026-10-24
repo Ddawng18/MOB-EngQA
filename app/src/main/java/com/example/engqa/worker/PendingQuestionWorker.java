@@ -13,6 +13,9 @@ import com.example.engqa.R;
 import com.example.engqa.data.Callback;
 import com.example.engqa.data.QuestionPublisher;
 import com.example.engqa.notification.NotificationHelper;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 
 import java.io.File;
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +30,9 @@ public class PendingQuestionWorker extends Worker {
 
     public static final String KEY_FOLDER = "folder";
     public static final String ACTION_PENDING_POSTED = "com.example.engqa.action.PENDING_POSTED";
+
+    /** Stop retrying after this many runs; a permanent failure stops immediately. */
+    private static final int MAX_ATTEMPTS = 5;
 
     public PendingQuestionWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -43,6 +49,14 @@ public class PendingQuestionWorker extends Worker {
         File folder = new File(folderPath);
         PendingQuestionDraft draft = PendingDraftStore.read(folder);
         if (draft == null || draft.uid == null) {
+            PendingDraftStore.delete(folder);
+            return Result.failure();
+        }
+        // A queued draft belongs to the account that created it. Never publish it under a
+        // different Firebase session (for example after an account switch on the same device).
+        FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
+        if (current == null || !draft.uid.equals(current.getUid())) {
+            PendingDraftStore.delete(folder);
             return Result.failure();
         }
         if (!NetworkUtils.isOnline(context)) {
@@ -86,9 +100,11 @@ public class PendingQuestionWorker extends Worker {
                 }
             });
 
-            if (!latch.await(180, TimeUnit.SECONDS)
-                    || failure.get() != null || questionId.get() == null) {
-                return Result.retry();
+            if (!latch.await(180, TimeUnit.SECONDS)) {
+                return retryOrFail(folder, new java.util.concurrent.TimeoutException("timeout"));
+            }
+            if (failure.get() != null || questionId.get() == null) {
+                return retryOrFail(folder, failure.get());
             }
 
             PendingDraftStore.delete(folder);
@@ -102,9 +118,38 @@ public class PendingQuestionWorker extends Worker {
             context.sendBroadcast(intent);
             return Result.success();
         } catch (Exception e) {
-            return Result.retry();
+            return retryOrFail(folder, e);
         } finally {
             publisher.shutdown();
         }
+    }
+
+    /**
+     * Permanent failures (rules/auth/validation or exhausted retries) drop the draft instead of
+     * retrying forever; transient network failures keep it for the next attempt.
+     */
+    private Result retryOrFail(File folder, Exception error) {
+        if (isPermanent(error) || getRunAttemptCount() >= MAX_ATTEMPTS - 1) {
+            PendingDraftStore.delete(folder);
+            return Result.failure();
+        }
+        return Result.retry();
+    }
+
+    private static boolean isPermanent(Exception error) {
+        if (error == null) {
+            return false;
+        }
+        if (error instanceof FirebaseFirestoreException) {
+            FirebaseFirestoreException.Code code = ((FirebaseFirestoreException) error).getCode();
+            return code != FirebaseFirestoreException.Code.UNAVAILABLE
+                    && code != FirebaseFirestoreException.Code.DEADLINE_EXCEEDED
+                    && code != FirebaseFirestoreException.Code.ABORTED
+                    && code != FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED;
+        }
+        if (error instanceof IllegalArgumentException || error instanceof SecurityException) {
+            return true;
+        }
+        return !(error instanceof java.io.IOException);
     }
 }

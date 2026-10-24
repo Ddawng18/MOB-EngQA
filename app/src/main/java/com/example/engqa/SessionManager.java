@@ -2,6 +2,8 @@ package com.example.engqa;
 
 import android.content.Context;
 
+import androidx.work.WorkManager;
+
 import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.util.PrefsHelper;
 import com.google.firebase.auth.FirebaseAuth;
@@ -36,6 +38,9 @@ public class SessionManager {
 
     public void logout() {
         NotificationWatcher.stop();
+        // Queued posts are scoped to the account that created them; do not let them run (or be
+        // published) after a different account signs in on the same device.
+        WorkManager.getInstance(appContext).cancelAllWorkByTag("pending-question");
         auth.signOut();
     }
 }

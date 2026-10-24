@@ -103,6 +103,8 @@ public class LoginActivity extends AppCompatActivity {
         progressAuth = findViewById(R.id.progressAuth);
         tvAuthError = findViewById(R.id.tvAuthError);
         verifyBox = findViewById(R.id.verifyBox);
+        // Only signed-in, unverified accounts see this box.
+        verifyBox.setVisibility(View.GONE);
         btnTogglePassword = findViewById(R.id.btnTogglePassword);
 
         TextView tvTerms = findViewById(R.id.tvTerms);
@@ -176,8 +178,9 @@ public class LoginActivity extends AppCompatActivity {
         });
 
         viewModel.getEmailVerified().observe(this, verified -> {
+            boolean signedIn = new SessionManager(this).isLoggedIn();
             boolean ok = Boolean.TRUE.equals(verified);
-            verifyBox.setVisibility(ok ? View.GONE : View.VISIBLE);
+            verifyBox.setVisibility(signedIn && !ok ? View.VISIBLE : View.GONE);
         });
 
         viewModel.getAuthState().observe(this, state -> {

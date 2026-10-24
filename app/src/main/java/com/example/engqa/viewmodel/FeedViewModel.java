@@ -266,30 +266,41 @@ public class FeedViewModel extends AndroidViewModel {
             return;
         }
         loadingMore.setValue(true);
-        questionRepository.loadMore(categoryId, sort, PAGE_SIZE, lastDocument,
-                new Callback<QuestionRepository.Page>() {
-                    @Override
-                    public void onSuccess(QuestionRepository.Page page) {
-                        loadingMore.setValue(false);
-                        if (page.questions.isEmpty()) {
-                            lastDocument = null;
-                            return;
-                        }
-                        List<Question> merged = new ArrayList<>();
-                        UiState<List<Question>> current = questionState.getValue();
-                        if (current != null && current.getData() != null) {
-                            merged.addAll(current.getData());
-                        }
-                        merged.addAll(page.questions);
-                        lastDocument = page.lastDocument;
-                        questionState.setValue(UiState.success(merged, fromCache));
-                    }
+        String token = TextUtils2.searchToken(keyword);
+        if (!token.isEmpty()) {
+            // Search keeps paging with the same keyword/category/sort query and cursor.
+            questionRepository.searchMore(token, categoryId, sort, PAGE_SIZE, lastDocument,
+                    appendCallback());
+        } else {
+            questionRepository.loadMore(categoryId, sort, PAGE_SIZE, lastDocument,
+                    appendCallback());
+        }
+    }
 
-                    @Override
-                    public void onError(Exception e) {
-                        loadingMore.setValue(false);
-                    }
-                });
+    private Callback<QuestionRepository.Page> appendCallback() {
+        return new Callback<QuestionRepository.Page>() {
+            @Override
+            public void onSuccess(QuestionRepository.Page page) {
+                loadingMore.setValue(false);
+                if (page.questions.isEmpty()) {
+                    lastDocument = null;
+                    return;
+                }
+                List<Question> merged = new ArrayList<>();
+                UiState<List<Question>> current = questionState.getValue();
+                if (current != null && current.getData() != null) {
+                    merged.addAll(current.getData());
+                }
+                merged.addAll(page.questions);
+                lastDocument = page.lastDocument;
+                questionState.setValue(UiState.success(merged, fromCache));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                loadingMore.setValue(false);
+            }
+        };
     }
 
     // ------------------------------------------------------------------ internals
@@ -305,7 +316,8 @@ public class FeedViewModel extends AndroidViewModel {
         questionState.setValue(UiState.<List<Question>>loading());
         String token = TextUtils2.searchToken(keyword);
         if (!token.isEmpty()) {
-            questionRegistration = questionRepository.search(token, PAGE_SIZE, pageCallback());
+            questionRegistration = questionRepository.search(
+                    token, categoryId, sort, PAGE_SIZE, pageCallback());
         } else {
             questionRegistration = questionRepository.observeLatest(
                     categoryId, sort, PAGE_SIZE, pageCallback());

@@ -59,9 +59,15 @@ public class ProfileViewModel extends ViewModel {
     }
 
     public void start(String uid) {
+        if (uid == null) {
+            stop();
+            this.uid = null;
+            return;
+        }
         if (this.uid != null && this.uid.equals(uid) && userRegistration != null) {
             return;
         }
+        stop();
         this.uid = uid;
         attach();
     }

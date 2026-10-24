@@ -149,6 +149,11 @@ public class MainActivity extends BaseNavActivity {
     }
 
     @Override
+    protected boolean isTabActivity() {
+        return true;
+    }
+
+    @Override
     protected void onSaveInstanceState(Bundle outState) {
         // Draft text is kept in the ViewModel; this covers process death for the text fields too.
         super.onSaveInstanceState(outState);

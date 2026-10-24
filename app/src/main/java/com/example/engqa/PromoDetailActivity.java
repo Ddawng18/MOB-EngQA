@@ -29,8 +29,7 @@ import java.util.Locale;
 
 /**
  * Promo detail: reads the promo by id from Firestore, counts one view per opening, opens the
- * website/phone through implicit intents (checked with {@code resolveActivity}), saves locally and
- * opens the consultation dialog.
+ * website/phone through implicit intents, saves locally and opens the consultation dialog.
  */
 public class PromoDetailActivity extends AppCompatActivity {
 
@@ -194,15 +193,11 @@ public class PromoDetailActivity extends AppCompatActivity {
         }
         viewModel.onContactClick();
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW,
-                    Uri.parse(currentPromo.getLinkUrl()));
-            if (intent.resolveActivity(getPackageManager()) != null) {
-                startActivity(intent);
-            } else {
-                Toast.makeText(this, R.string.promo_open_website, Toast.LENGTH_SHORT).show();
-            }
+            // Start directly: resolveActivity() can return null under Android 11+ package
+            // visibility even when a browser is installed.
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(currentPromo.getLinkUrl())));
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.promo_open_website, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.promo_no_browser, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -213,15 +208,10 @@ public class PromoDetailActivity extends AppCompatActivity {
         viewModel.onContactClick();
         try {
             // ACTION_DIAL only opens the dialer, so no CALL_PHONE permission is needed.
-            Intent intent = new Intent(Intent.ACTION_DIAL,
-                    Uri.parse("tel:" + currentPromo.getContactPhone()));
-            if (intent.resolveActivity(getPackageManager()) != null) {
-                startActivity(intent);
-            } else {
-                Toast.makeText(this, R.string.promo_call_now, Toast.LENGTH_SHORT).show();
-            }
+            startActivity(new Intent(Intent.ACTION_DIAL,
+                    Uri.parse("tel:" + currentPromo.getContactPhone())));
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.promo_call_now, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.promo_no_dialer, Toast.LENGTH_LONG).show();
         }
     }
 

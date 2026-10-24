@@ -86,8 +86,10 @@ public class WordRepository {
                 writeCache(appContext, entry);
                 mainHandler.post(() -> callback.onSuccess(entry));
             } catch (Exception e) {
+                // Only reuse the cache when it is today's word; otherwise showing it would present
+                // an unrelated word as today's content.
                 WordEntry cached = readCache(appContext);
-                if (cached != null) {
+                if (isUsable(cached, today, target)) {
                     mainHandler.post(() -> callback.onSuccess(cached));
                 } else {
                     mainHandler.post(() -> callback.onError(e));

@@ -100,10 +100,11 @@ public final class FeedMixer {
             }
         }
 
-        // No questions at all: still show the promos so the feed is never blank.
-        if (mixPromos && questionList.isEmpty()) {
-            for (Promo promo : active) {
-                items.add(FeedItem.of(promo));
+        // Do not silently drop approved promos when the question list ends before their slot;
+        // append the remainder (this also handles an empty question list).
+        if (mixPromos) {
+            for (int i = promoIndex; i < active.size(); i++) {
+                items.add(FeedItem.of(active.get(i)));
             }
         }
         return items;

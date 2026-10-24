@@ -258,24 +258,41 @@ public class UserRepository {
                               Callback<Void> callback) {
         String name = username != null ? username.trim() : null;
         if (name != null && !name.isEmpty()) {
-            isUsernameTaken(name, new Callback<Boolean>() {
-                @Override
-                public void onSuccess(Boolean taken) {
-                    if (Boolean.TRUE.equals(taken)) {
-                        callback.onError(new UsernameTakenException());
-                        return;
-                    }
-                    applyProfileUpdate(uid, name, avatarUrl, level, callback);
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    callback.onError(e);
-                }
-            });
+            // The uniqueness query would also return the caller's own document, so compare with the
+            // stored name first and skip the query when the name is unchanged.
+            db.collection(FirestoreRefs.USERS).document(uid).get()
+                    .addOnSuccessListener(document -> {
+                        String current = document != null && document.exists()
+                                ? document.getString("username") : null;
+                        if (name.equals(current)) {
+                            applyProfileUpdate(uid, name, avatarUrl, level, callback);
+                            return;
+                        }
+                        checkNameAvailable(uid, name, avatarUrl, level, callback);
+                    })
+                    .addOnFailureListener(callback::onError);
             return;
         }
         applyProfileUpdate(uid, null, avatarUrl, level, callback);
+    }
+
+    private void checkNameAvailable(String uid, String name, String avatarUrl, String level,
+                                    Callback<Void> callback) {
+        isUsernameTaken(name, new Callback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean taken) {
+                if (Boolean.TRUE.equals(taken)) {
+                    callback.onError(new UsernameTakenException());
+                    return;
+                }
+                applyProfileUpdate(uid, name, avatarUrl, level, callback);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                callback.onError(e);
+            }
+        });
     }
 
     private void applyProfileUpdate(String uid, String username, String avatarUrl, String level,

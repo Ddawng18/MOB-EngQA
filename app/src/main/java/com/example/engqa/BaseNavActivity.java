@@ -2,8 +2,10 @@ package com.example.engqa;
 
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.os.Bundle;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
@@ -23,6 +25,32 @@ public abstract class BaseNavActivity extends AppCompatActivity {
 
     /** The bottom-nav tab that this screen belongs to. */
     protected abstract int selectedNavItem();
+
+    /** {@code true} only for the three root tab screens (not detail screens using the same bar). */
+    protected boolean isTabActivity() {
+        return false;
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (!isTabActivity()) {
+            return;
+        }
+        // Predictive-back compatible: only the root tabs intercept Back.
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (selectedNavItem() != NAV_HOME) {
+                    // Back from Ask/Profile returns to the start destination, not the last tab.
+                    navigateTo(NAV_HOME);
+                    return;
+                }
+                // At the root, leave the app instead of surfacing a previously visited tab.
+                moveTaskToBack(true);
+            }
+        });
+    }
 
     /** Wire the three nav items. Call from {@code onCreate} after {@code setContentView}. */
     protected void bindBottomNav() {

@@ -344,12 +344,25 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 return true;
             }
             if (item.getItemId() == 2) {
-                viewModel.deleteQuestion();
+                confirmDeleteQuestion();
                 return true;
             }
             return false;
         });
         popup.show();
+    }
+
+    /** Destructive actions always ask first; the answers and media are removed as well. */
+    private void confirmDeleteQuestion() {
+        String message = currentQuestion != null && currentQuestion.getTitle() != null
+                ? getString(R.string.delete_question_message, currentQuestion.getTitle())
+                : getString(R.string.delete_question_message_generic);
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.delete_question_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.delete, (dialog, which) -> viewModel.deleteQuestion())
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void showReportDialog() {

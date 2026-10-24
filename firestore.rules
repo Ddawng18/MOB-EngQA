@@ -33,11 +33,6 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
-    function onlyBumpsAcceptedCount() {
-      return changedKeys().hasOnly(['acceptedCount'])
-          && request.resource.data.acceptedCount == resource.data.acceptedCount + 1;
-    }
-
     function onlyUpdatesAnswerCount() {
       return changedKeys().hasOnly(['answerCount'])
           && (request.resource.data.answerCount == resource.data.answerCount + 1
@@ -96,7 +91,8 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------- users
     match /users/{uid} {
-      allow read: if isSignedIn();
+      // Profiles contain private data (email, counters); only the owner or an admin may read them.
+      allow read: if isSelf(uid) || isAdmin();
 
       // A new profile may never start with privileges.
       allow create: if isSelf(uid)
@@ -110,11 +106,11 @@ service cloud.firestore {
           && (!('acceptedCount' in request.resource.data)
               || request.resource.data.acceptedCount == 0);
 
-      // Owners may edit their profile but not their role/centre; admins may do anything.
+      // Owners may edit their profile and their own question/answer counters, but not privileges.
+      // The accepted-answer statistic is derived from the author's answers, so it is read-only.
       allow update: if isAdmin()
-          || (isSelf(uid)
-              && !changedKeys().hasAny(['role', 'centerId', 'isAdmin']))
-          || onlyBumpsAcceptedCount();
+          || (isSelf(uid) && changedKeys().hasOnly(
+              ['username', 'avatarUrl', 'level', 'questionCount', 'answerCount']));
 
       allow delete: if isSelf(uid) || isAdmin();
     }
@@ -154,21 +150,27 @@ service cloud.firestore {
             && request.resource.data.upCount == 0
             && request.resource.data.downCount == 0
             && request.resource.data.isAccepted == false;
+        // The answer author may edit content but never the counters or acceptance flag; the question
+        // owner may only change isAccepted (used by the accept/change-accepted transaction).
         allow update: if isSignedIn()
-            && ((resource.data.authorId == request.auth.uid
-                    && !changedKeys().hasAny(['upCount', 'downCount']))
-                || questionAuthor(questionId) == request.auth.uid
+            && (isAdmin()
+                || (resource.data.authorId == request.auth.uid
+                    && changedKeys().hasOnly(['body', 'questionTitle']))
                 || onlyUpdatesVoteCounters()
-                || isAdmin());
+                || (questionAuthor(questionId) == request.auth.uid
+                    && changedKeys().hasOnly(['isAccepted'])));
         allow delete: if isSignedIn()
-            && (resource.data.authorId == request.auth.uid || isAdmin());
+            && (resource.data.authorId == request.auth.uid
+                || questionAuthor(questionId) == request.auth.uid
+                || isAdmin());
 
         match /votes/{voterId} {
           allow read: if isSignedIn();
           allow create, update: if isSignedIn()
               && voterId == request.auth.uid
               && (request.resource.data.value == 1 || request.resource.data.value == -1);
-          allow delete: if isSelf(voterId);
+          // The question owner may clean up votes together with a deleted answer.
+          allow delete: if isSelf(voterId) || questionAuthor(questionId) == request.auth.uid;
         }
       }
 
