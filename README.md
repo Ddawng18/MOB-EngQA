@@ -91,8 +91,12 @@ vote) and the question owner can accept one answer. Denormalised counters (`answ
 `upCount`, `downCount`) are updated inside transactions/batches so lists never need to join.
 
 Regarding **search**: Firestore has no full-text search, so each question stores a
-`searchKeywords` array (lower-case, accent-free, ≥ 2 character tokens) that is queried with
-`array-contains`. The same tokenizer is used by the app (`TextUtils2`) and the seed script.
+`searchKeywords` array (lower-case, accent-free, full tokens plus bounded prefixes of ≥ 2
+characters). A query uses one bounded `array-contains-any` candidate lookup (up to 10 tokens,
+including a few typo variants), then `SearchRanker` ranks the candidates locally: exact title and
+phrase first, then title prefix/all-term, then body/tag/partial/fuzzy matches. The user's selected
+sort is a tie-breaker, not a replacement for relevance. The same tokenizer is used by the app
+(`TextUtils2`), the seed script, and `tools/seed/reindex-search.js`.
 
 ### ERD
 
@@ -305,11 +309,12 @@ ViewModel and mirrored into `onSaveInstanceState` so it also survives process de
 ./gradlew connectedDebugAndroidTest # run Espresso (requires an emulator)
 ```
 
-Unit tests cover the pure-Java helpers: `TextUtils2` (accent-free tokenizer and search keywords),
+Unit tests cover the pure-Java helpers: `TextUtils2` (accent/whitespace normalisation, prefixes,
+query tokens, typo variants), `SearchRanker` (relevance, tie-breakers, filtering, promo ranking),
 `Validators` (email/password/title and media limits), `TimeUtils` (relative-time labels),
 `FeedMixer` (feed interleaving, expiry and promo search), `PromoValidator` (promo form rules),
 `AnswerRanking` (Reddit-style ordering) and `PendingQuestionDraft` (Gson round-trip) —
-**37 tests in total**. Instrumented tests cover login/register validation, the Settings
+**69 tests in total**. Instrumented tests cover login/register validation, the Settings
 preferences and the cached Word detail.
 
 ## Release and distribution
@@ -356,7 +361,12 @@ applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA
 - **Vote integrity** is enforced by rules only at a coarse level (document id + allowed values).
   A production build would move the counter updates into a Cloud Function or add `getAfter()`
   delta checks.
-- **Search** matches a single normalised keyword (`array-contains`), not arbitrary substrings.
+- **Search** retrieves at most 60 candidates with one `array-contains-any` query and ranks them
+  locally. It supports accent/case/whitespace-insensitive multi-word queries, title/body/tag
+  prefixes, and common one-character typos (extra/missing/transposed/substituted characters) via
+  deletion/transposition variants plus a short-prefix fallback. It is not a full-text engine:
+  results beyond the bounded candidate set and typos in the first characters of short tokens are
+  not covered; a dedicated search service would be required at much larger scale.
 - **Media storage** is Firestore-only because Cloud Storage requires Blaze: each item is a Base64
   document capped at 600 000 chars (≤450 KB binary), audio is limited to ~120 s and 5 images per
   question. This keeps the free Spark plan but consumes Firestore's 1 GiB storage — see

@@ -30,6 +30,13 @@ public class QuestionRepository {
     public static final String SORT_NEWEST = "newest";
     public static final String SORT_POPULAR = "popular";
     public static final String SORT_UNANSWERED = "unanswered";
+
+    /**
+     * Search fetches one bounded candidate set, ranks it locally, and pages through the ranked
+     * list without additional Firestore reads. 60 is large enough for this app's feed while
+     * keeping each search to a single cheap query.
+     */
+    public static final int SEARCH_CANDIDATE_LIMIT = 60;
     public static final String ALL_CATEGORIES = null;
 
     /** Firestore batches allow 500 writes; keep room for the question and counter updates. */
@@ -283,13 +290,16 @@ public class QuestionRepository {
     }
 
     /**
-     * Firestore cannot do full-text search, so a keyword match is done with {@code array-contains}
-     * on the pre-computed {@code searchKeywords} list. The category and sort filters are composed
-     * with the same query, and {@link #searchMore} pages it with the same cursor.
+     * Retrieves a bounded candidate set for a search. Firestore cannot do full-text search, so
+     * {@code array-contains-any} matches any of the normalised query/typo tokens; the ViewModel
+     * then ranks the candidates with {@link com.example.engqa.util.SearchRanker}. Category and
+     * unanswered filters are part of the Firestore query, so unrelated documents never enter the
+     * ranking set. The selected sort is used only to choose which candidates are fetched and as a
+     * tie-breaker; relevance is applied locally.
      */
-    public ListenerRegistration search(String keyword, String categoryId, String sort, int limit,
-                                       Callback<Page> callback) {
-        Query query = buildSearchQuery(keyword, categoryId, sort, limit);
+    public ListenerRegistration search(List<String> tokens, String categoryId, String sort,
+                                       int limit, Callback<Page> callback) {
+        Query query = buildSearchQuery(tokens, categoryId, sort, limit);
         return query.addSnapshotListener((snapshots, error) -> {
             if (error != null) {
                 callback.onError(error);
@@ -299,43 +309,17 @@ public class QuestionRepository {
         });
     }
 
-    /** One-shot next page for a search query; the cursor must come from the same query shape. */
-    public void searchMore(String keyword, String categoryId, String sort, int limit,
-                           DocumentSnapshot after, Callback<Page> callback) {
-        Query query = buildSearchQuery(keyword, categoryId, sort, limit);
-        if (after != null) {
-            query = query.startAfter(after);
-        }
-        query.get()
-                .addOnSuccessListener(snapshots -> callback.onSuccess(toPage(snapshots)))
-                .addOnFailureListener(callback::onError);
-    }
-
-    private Query buildSearchQuery(String keyword, String categoryId, String sort, int limit) {
+    private Query buildSearchQuery(List<String> tokens, String categoryId, String sort, int limit) {
         Query query = db.collection(FirestoreRefs.QUESTIONS)
-                .whereArrayContains(FirestoreRefs.FIELD_SEARCH_KEYWORDS, keyword);
-        if (categoryId != null && !categoryId.isEmpty()) {
-            query = query.whereEqualTo(FirestoreRefs.FIELD_CATEGORY_ID, categoryId);
-        }
-        switch (sort == null ? SORT_NEWEST : sort) {
-            case SORT_POPULAR:
-                query = query.orderBy(FirestoreRefs.FIELD_SCORE, Query.Direction.DESCENDING)
-                        .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING);
-                break;
-            case SORT_UNANSWERED:
-                query = query.whereEqualTo(FirestoreRefs.FIELD_ANSWER_COUNT, 0)
-                        .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING);
-                break;
-            case SORT_NEWEST:
-            default:
-                query = query.orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING);
-                break;
-        }
-        return query.limit(limit);
+                .whereArrayContainsAny(FirestoreRefs.FIELD_SEARCH_KEYWORDS, tokens);
+        return applyFiltersAndSort(query, categoryId, sort, limit);
     }
 
     private Query buildQuery(String categoryId, String sort, int limit) {
-        Query query = db.collection(FirestoreRefs.QUESTIONS);
+        return applyFiltersAndSort(db.collection(FirestoreRefs.QUESTIONS), categoryId, sort, limit);
+    }
+
+    private Query applyFiltersAndSort(Query query, String categoryId, String sort, int limit) {
         if (categoryId != null && !categoryId.isEmpty()) {
             query = query.whereEqualTo(FirestoreRefs.FIELD_CATEGORY_ID, categoryId);
         }

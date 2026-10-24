@@ -53,9 +53,14 @@ public class StateView extends LinearLayout {
     }
 
     public void showEmpty() {
+        showEmpty(R.string.state_empty);
+    }
+
+    /** Empty state with search-specific guidance while keeping the same layout. */
+    public void showEmpty(int messageResId) {
         setVisibility(VISIBLE);
         progress.setVisibility(GONE);
-        message.setText(R.string.state_empty);
+        message.setText(messageResId);
         message.setVisibility(VISIBLE);
         retry.setVisibility(GONE);
     }

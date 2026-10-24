@@ -310,7 +310,13 @@ public class HomeActivity extends BaseNavActivity {
                 cacheHint.setVisibility(state.isFromCache() ? View.VISIBLE : View.GONE);
                 break;
             case EMPTY:
-                stateView.showEmpty();
+                if (viewModel.isUnsearchableQuery()) {
+                    stateView.showEmpty(R.string.search_too_short);
+                } else if (viewModel.hasSearchQuery()) {
+                    stateView.showEmpty(R.string.search_no_results);
+                } else {
+                    stateView.showEmpty();
+                }
                 recyclerView.setVisibility(View.GONE);
                 break;
             case ERROR:

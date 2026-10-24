@@ -11,7 +11,8 @@
  * again with `npm run seed:clear`.
  *
  * The searchKeywords are produced by the *same* normalisation the app uses (util/TextUtils2):
- * lower-case, Vietnamese diacritics stripped, tokens of at least 2 characters.
+ * lower-case, Vietnamese diacritics stripped, full tokens plus bounded prefixes of at least
+ * 2 characters.
  *
  * Usage:
  *   cd tools/seed
@@ -102,14 +103,41 @@ function tokenize(text) {
   return [...seen];
 }
 
-function searchKeywords(title, body, tags) {
-  const keywords = new Set([...tokenize(title), ...tokenize(body)]);
-  for (const tag of tags) {
-    for (const token of tokenize(tag)) {
-      keywords.add(token);
+const MAX_SEARCH_KEYWORDS = 900;
+
+function addFullTokens(keywords, tokens) {
+  for (const token of tokens) {
+    if (keywords.size >= MAX_SEARCH_KEYWORDS) return;
+    keywords.add(token);
+  }
+}
+
+function addPrefixes(keywords, tokens) {
+  for (const token of tokens) {
+    for (let length = 2; length < token.length; length++) {
+      if (keywords.size >= MAX_SEARCH_KEYWORDS) return;
+      keywords.add(token.slice(0, length));
     }
   }
-  return [...keywords];
+}
+
+// Must stay in sync with Android util/TextUtils2: full tokens + bounded prefixes for
+// title/body/tags, so partial words such as "pha" can find "pháp".
+function searchKeywords(title, body, tags) {
+  const titleTokens = tokenize(title);
+  const bodyTokens = tokenize(body);
+  const tagTokens = [];
+  for (const tag of tags || []) {
+    tagTokens.push(...tokenize(tag));
+  }
+  const keywords = new Set();
+  addFullTokens(keywords, titleTokens);
+  addFullTokens(keywords, bodyTokens);
+  addFullTokens(keywords, tagTokens);
+  addPrefixes(keywords, titleTokens);
+  addPrefixes(keywords, tagTokens);
+  addPrefixes(keywords, bodyTokens);
+  return [...keywords].slice(0, MAX_SEARCH_KEYWORDS);
 }
 
 function timestampFromOffsetHours(hours) {
@@ -479,7 +507,7 @@ async function main() {
   }
 }
 
-module.exports = { buildPlan };
+module.exports = { buildPlan, searchKeywords, tokenize, stripDiacritics };
 
 if (require.main === module) {
   main().catch((error) => {

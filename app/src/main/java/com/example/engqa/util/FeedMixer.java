@@ -7,7 +7,6 @@ import com.example.engqa.model.Question;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Pure functions that build the home feed (no Android imports, so they are unit-testable).
@@ -41,31 +40,12 @@ public final class FeedMixer {
         return active;
     }
 
-    /** Case- and accent-insensitive search over centre name, title and level. */
+    /**
+     * Relevance-ranked, case/accent/partial-word-aware search over centre name, title, body and
+     * promo metadata. Uses the same tokenizer and ranking policy as question search.
+     */
     public static List<Promo> filterByKeyword(List<Promo> promos, String keyword) {
-        List<Promo> out = new ArrayList<>();
-        if (promos == null) {
-            return out;
-        }
-        String needle = TextUtils2.stripDiacritics(keyword == null ? "" : keyword)
-                .toLowerCase(Locale.ROOT).trim();
-        if (needle.isEmpty()) {
-            out.addAll(promos);
-            return out;
-        }
-        for (Promo promo : promos) {
-            if (promo == null) {
-                continue;
-            }
-            String haystack = TextUtils2.stripDiacritics(
-                    safe(promo.getCenterName()) + " " + safe(promo.getTitle()) + " "
-                            + safe(promo.getLevel()))
-                    .toLowerCase(Locale.ROOT);
-            if (haystack.contains(needle)) {
-                out.add(promo);
-            }
-        }
-        return out;
+        return SearchRanker.rankPromos(promos, keyword);
     }
 
     /** Interleaves the two streams; see the class comment for the filter behaviour. */
@@ -110,7 +90,4 @@ public final class FeedMixer {
         return items;
     }
 
-    private static String safe(String value) {
-        return value != null ? value : "";
-    }
 }

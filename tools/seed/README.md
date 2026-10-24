@@ -17,8 +17,14 @@ Every seeded document and the counters on `users/{uid}` (`questionCount`, `answe
 `acceptedCount`) are **derived from the JSON**, so the numbers always match the actual data.
 
 `searchKeywords` are generated with the same normalisation the Android app uses
-(`util/TextUtils2`: lower-case, Vietnamese diacritics stripped, tokens of ≥ 2 characters), so
-seeded questions are immediately searchable from the feed.
+(`util/TextUtils2`: lower-case, Vietnamese diacritics stripped, full tokens and bounded prefixes
+of ≥ 2 characters), so seeded questions are immediately searchable from the feed, including
+partial words. Existing questions can be reindexed without touching their content:
+
+```bash
+node reindex-search.js --dry-run   # report how many documents would change
+node reindex-search.js --apply     # update only the searchKeywords field
+```
 
 ## Commands
 

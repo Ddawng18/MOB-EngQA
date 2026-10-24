@@ -139,6 +139,14 @@ public class FeedMixerTest {
     }
 
     @Test
+    public void filterByKeyword_unsearchableQuery_returnsEmpty() {
+        List<Promo> all = Arrays.asList(promo("a", null), promo("b", null));
+        assertTrue(FeedMixer.filterByKeyword(all, "a").isEmpty());
+        assertTrue(FeedMixer.filterByKeyword(all, "!!").isEmpty());
+        assertEquals(2, FeedMixer.filterByKeyword(all, "   ").size());
+    }
+
+    @Test
     public void mix_appendsPromosLeftAfterTheLastQuestion() {
         List<FeedItem> items = FeedMixer.mix(
                 questions(3),

@@ -11,6 +11,8 @@
     <string name="retry">Thử lại</string>
     <string name="loading">Đang tải…</string>
     <string name="state_empty">Chưa có nội dung</string>
+    <string name="search_no_results">Không tìm thấy câu hỏi phù hợp</string>
+    <string name="search_too_short">Nhập ít nhất 2 ký tự để tìm kiếm</string>
     <string name="state_error">Đã xảy ra lỗi. Vui lòng thử lại.</string>
     <string name="state_cached">Đang xem dữ liệu đã lưu ngoại tuyến</string>
     <string name="notifications">Thông báo</string>

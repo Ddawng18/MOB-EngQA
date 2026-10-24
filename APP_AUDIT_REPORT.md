@@ -4,7 +4,7 @@
 
 **Original audit status (pre-remediation):** Completed with confirmed functional defects. The application builds, installs, and launches, and the main read-only workflows work, but several high-impact defects affect profile editing, logout/session handling, answer acceptance, question deletion, centre screens, and backend authorization. The application was **not** ready for release.
 
-**Post-remediation status (2026-10-24):** **29 findings processed — 11 fixed and verified, 15 fixed with deployment/runtime verification blocked, 2 partially fixed, 1 unresolved.** The debug build, 42 unit tests, 7 instrumented tests, lint (0 errors) and the release build pass. The remaining blockers are deployment and environment limits (Firestore rules/indexes and destructive end-to-end flows) plus one product decision (avatar editing); see the per-issue remediation blocks in §5 and the consolidated status in §11.
+**Post-remediation status (2026-10-24, including the search-optimisation pass):** **29 findings processed — 14 fixed and verified, 12 fixed with deployment/runtime verification blocked, 2 partially fixed, 1 unresolved.** The debug build, **69 unit tests**, 7 instrumented tests, lint (0 errors) and the release build pass. Firestore indexes are deployed and READY; the remaining blockers are the undeployed rules and destructive end-to-end flows plus one product decision (avatar editing); see the per-issue remediation blocks in §5 and the consolidated status in §11.
 
 **Project:** EngQA — an Android English Q&A / centre-promotion app with Firebase Auth and Firestore.
 
@@ -52,8 +52,8 @@ Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 
 | Remediation status | Count | Issues |
 |---|---:|---|
-| FIXED AND VERIFIED | 11 | BUG-001, 002, 004, 006, 015, 016, 017, 019, 022, 024, 027 |
-| FIXED — VERIFICATION BLOCKED | 15 | BUG-003, 007, 009, 010, 011, 012, 013, 014, 018, 020, 021, 023, 025, 028, 029 |
+| FIXED AND VERIFIED | 14 | BUG-001, 002, 004, 006, 009, 010, 014, 015, 016, 017, 019, 022, 024, 027 |
+| FIXED — VERIFICATION BLOCKED | 12 | BUG-003, 007, 011, 012, 013, 018, 020, 021, 023, 025, 028, 029 |
 | PARTIALLY FIXED | 2 | BUG-005, 008 |
 | UNRESOLVED | 1 | BUG-026 |
 | BLOCKED | 0 | — |
@@ -72,8 +72,9 @@ Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 **Remediation outcome — what changed**
 
 - Profile save, Home logout/session clearing, delete confirmation, centre navigation, Back handling, the pre-login verification box, username hint, cache clearing, unused media permissions, leftover-promo mixing and the create-promo error banner were fixed and verified at runtime on the API 29 emulator.
-- Acceptance, vote restoration, search paging/filter composition, promo contact intents, offline-job lifecycle, backup exclusions, notification backlog/type, saved-promo isolation, word-cache fallback and the offline error screen were implemented and pass build/unit/lint; their end-to-end verification is blocked by data-safety, API-level, or deployment constraints (documented per issue).
-- Question deletion and Firestore authorization were improved but remain partially fixed: a complete atomic cascade/counter reconciliation requires Cloud Functions, and the remaining bounded counter rules cannot be perfectly attributed to vote/answer documents on the client. The rules and indexes in this repository still need to be deployed to the Firebase project.
+- Search was substantially reworked and verified: accent/whitespace normalisation, full tokens + bounded prefixes, multi-word `array-contains-any` candidate retrieval (≤ 60), local relevance ranking with deterministic tie-breakers, bounded typo variants, 300 ms debounce, stale-response guards, local ranked pagination, promo relevance, and search-specific empty/too-short states. Firestore indexes are deployed (19/19 READY) and live category/sort/partial/typo searches were exercised on the API 29 emulator; 69 unit tests pass.
+- Acceptance, vote restoration, promo contact intents, offline-job lifecycle, backup exclusions, notification backlog/type, saved-promo isolation, word-cache fallback and the offline error screen were implemented and pass build/unit/lint; their end-to-end verification is blocked by data-safety, API-level, or deployment constraints (documented per issue).
+- Question deletion and Firestore authorization were improved but remain partially fixed: a complete atomic cascade/counter reconciliation requires Cloud Functions, and the remaining bounded counter rules cannot be perfectly attributed to vote/answer documents on the client. The updated rules still need to be deployed to the Firebase project; the indexes are already deployed.
 - Avatar editing remains unresolved by design: it needs a product decision (implement picker/upload/storage or remove the unused field), and implementing it would add a new feature outside the repair scope.
 
 **Major limitations affecting audit completeness**
@@ -82,7 +83,7 @@ Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 - Only an Android 10 / API 29 emulator (`Pixel_4`) was available. Android 11+ package visibility, Android 13+ notification permission behaviour, and Android 14 selected-photo behaviour could not be exercised.
 - No Google account, no inbox for verification/reset emails, and no second user were available for end-to-end Google sign-in, email verification, password reset, or notification delivery tests.
 - The dictionary API was reachable from the host but the live Word-of-the-Day card did not load during the original audit; during the remediation re-check it loaded successfully ("feasible" with definition) after a fresh login.
-- **Post-remediation deployment constraint:** the updated `firestore.rules` and `firestore.indexes.json` were not deployed to the shared Firebase project, and no Firebase CLI/rules emulator was available. Rules changes are therefore statically reviewed but not executed by the server. Composite search/filter queries require those indexes before they work live.
+- **Post-remediation deployment status:** `firestore.indexes.json` was deployed to project `accountdata-dd29b` on 2026-10-24; all 19 indexes are READY and the composite search/filter queries were exercised live. `firestore.rules` was **not** deployed; rules changes remain statically reviewed because no rules-emulator test was available. The app's search work therefore runs against the currently deployed rules.
 - No performance, accessibility, localization, rotation/process-death, or penetration testing was performed.
 
 ---
@@ -136,7 +137,7 @@ adb logcat -d -v brief
 | Install/launch | Installed and launched on API 29 |
 | App crashes | None observed in the tested flows |
 
-> These are the original-audit results. The post-remediation run is recorded in §4.1 (42 unit tests, 7 instrumented tests, 0 lint errors / 268 warnings, debug and release builds successful).
+> These are the original-audit results. The post-remediation run is recorded in §4.1 (69 unit tests, 7 instrumented tests, 0 lint errors / 268 warnings, debug and release builds successful).
 
 **Environment constraints**
 
@@ -251,7 +252,7 @@ The table above records the **original** audit run and is preserved for traceabi
 | Check | Command | Result |
 |---|---|---|
 | Debug build | `.\gradlew.bat assembleDebug testDebugUnitTest` | `BUILD SUCCESSFUL` |
-| Unit tests | same | **42/42 pass** (41 original + new `FeedMixerTest.mix_appendsPromosLeftAfterTheLastQuestion`) |
+| Unit tests | same | **69/69 pass** (existing helpers plus expanded `TextUtils2`, `SearchRanker` and `FeedMixer` coverage) |
 | Instrumented tests | `.\gradlew.bat connectedDebugAndroidTest` | **7/7 pass**, 0 skipped, 0 failed |
 | Android lint | `.\gradlew.bat lintDebug` | `BUILD SUCCESSFUL`; **0 errors, 268 warnings** (was 271; the `GestureBackNavigation` error introduced by the first Back-handler attempt was replaced with `OnBackPressedCallback`) |
 | Release build | `.\gradlew.bat assembleRelease` | `BUILD SUCCESSFUL`; unsigned `app-release-unsigned.apk` |
@@ -274,8 +275,13 @@ The table above records the **original** audit run and is preserved for traceabi
 | Create promo as centre manager, empty submit | Error text `Tiêu đề phải từ 5 đến 120 ký tự` visible above the submit bar; title focused (BUG-027) |
 | Settings → "Xoá bộ nhớ tạm" | Action completed without crash (BUG-019) |
 | Live Word-of-the-Day card | Loaded ("feasible") after login; previously failed in the original audit |
+| Search normalization | `ngu phap` / `has been` / `hien tai` found accent-free, multi-word matches |
+| Search partial/fuzzy | `pha` found partial-word matches; typo variants are covered by unit tests and live candidates |
+| Search + filters/sorts | `Từ vựng` + `anh`, `Ngữ pháp` + `hien tai`, `Phổ biến` + `phap`, `Chưa trả lời` + `phap` returned only matching/filtered results |
+| Search states | No-results, too-short (`Nhập ít nhất 2 ký tự`), clear-to-feed, and rapid-query stale-result checks passed |
+| Search indexes | 19/19 READY; direct Firestore REST `array-contains-any` + category query succeeded |
 
-**Not re-executed (documented per issue):** accept/change-accept, vote/reopen/unvote, delete-confirm, question cascade, offline worker/account switch, notification backlog/type, rules/index deployment, Android 11+ intents, Android 13+ notification permission, and the v1→v2 Room upgrade.
+**Not re-executed (documented per issue):** accept/change-accept, vote/reopen/unvote, delete-confirm, question cascade, offline worker/account switch, notification backlog/type, **Firestore rules deployment**, Android 11+ intents, Android 13+ notification permission, and the v1→v2 Room upgrade.
 
 ---
 
@@ -308,7 +314,7 @@ The table above records the **original** audit run and is preserved for traceabi
 - Files modified: `app/src/main/java/com/example/engqa/data/UserRepository.java`.
 - Fix: `updateProfile` reads the caller's document first and skips the uniqueness query when the submitted name equals the stored name; `checkNameAvailable` retains the original collision check for real renames.
 - Root cause: the uniqueness query included the caller's own document.
-- Verification: `assembleDebug` and `testDebugUnitTest` passed (42/42); runtime on the API 29 emulator signed in as the seeded learner, opened "Cá nhân" → "Sửa", tapped "Lưu" without editing, and returned to `MenuScreenActivity` with the profile intact and no collision toast.
+- Verification: `assembleDebug` and `testDebugUnitTest` passed (69/69); runtime on the API 29 emulator signed in as the seeded learner, opened "Cá nhân" → "Sửa", tapped "Lưu" without editing, and returned to `MenuScreenActivity` with the profile intact and no collision toast.
 - Remaining limitation: changing to a genuinely duplicate name was not executed because it would require writing another account's reserved name; the collision query itself is unchanged.
 
 ### BUG-002 — Logout from the Home menu leaves stale screens and a broken feed
@@ -517,7 +523,7 @@ The table above records the **original** audit run and is preserved for traceabi
 - **Feature:** Home search and paging.
 - **Severity:** Medium.
 - **Confidence:** Confirmed.
-- **Status:** FIXED — VERIFICATION BLOCKED.
+- **Status:** FIXED AND VERIFIED.
 - **File:** `app/src/main/java/com/example/engqa/viewmodel/FeedViewModel.java`
 - **Line(s):** 261–293 (`loadMore`), 304–313 (`attachQuestions`).
 - **Class/Function:** `FeedViewModel.loadMore`.
@@ -534,19 +540,19 @@ The table above records the **original** audit run and is preserved for traceabi
 - **Suggested Remediation:** Return early from `loadMore` when `keyword` is non-empty, or implement a paged search query with a search-specific cursor. Clear `lastDocument` whenever the keyword changes.
 - **Verification Needed:** Search with 1, 5, 10, and >10 matches; scroll to the bottom; assert every visible item matches.
 
-**Remediation (2026-10-24)** — **FIXED — VERIFICATION BLOCKED**
-- Files modified: `QuestionRepository.java`, `FeedViewModel.java`.
-- Fix: added `searchMore(...)` with the same query shape and cursor; `loadMore` now pages the search query when a keyword is active instead of appending the unfiltered feed.
-- Root cause: pagination always fell back to `loadMore(categoryId, sort, ...)`.
-- Verification: build, unit tests and source review.
-- Remaining limitation: the new composite search indexes must be deployed; paged live search was not exercised against Firebase.
+**Remediation (2026-10-24, revised during the search-optimisation pass)** — **FIXED AND VERIFIED**
+- Files modified: `QuestionRepository.java`, `FeedViewModel.java`, `TextUtils2.java`, `SearchRanker.java` (new), `HomeActivity.java`, `StateView.java`, `FeedMixer.java`, `res/values/strings.xml`, tests and seed/reindex tooling.
+- Fix: search now retrieves **one bounded candidate set** (≤ 60 documents) using `array-contains-any` over normalised tokens and typo variants, ranks candidates locally with `SearchRanker`, and pages through that ranked list locally. `lastDocument` is never reused across query shapes. Query changes cancel the previous listener, bump a generation counter, and ignore stale one-shot/snapshot callbacks. Typing is debounced by 300 ms; duplicate normalised queries do not restart the listener.
+- Root cause: pagination always fell back to `loadMore(categoryId, sort, ...)` and one cursor field was shared by two query shapes.
+- Verification: 69/69 unit tests pass; live API 29 emulator searches for `has been`, `hien tai`, `pha` (partial), `phapp` (extra character), `phop` (substitution), `nguu`, category+search, popular+search and unanswered+search returned matching results or the correct empty state; scrolling loaded additional ranked results without unrelated feed pages; no-results, too-short, clear-query and rapid-query (no stale result) states were exercised.
+- Remaining limitation: ranking is over at most 60 candidates per query. This is deliberate and bounded; it is not a full-text engine. Search answers are not included (not part of the existing product). See README "Known limitations".
 
 ### BUG-010 — Category and sort filters are silently ignored during search
 
 - **Feature:** Home filtering.
 - **Severity:** Medium.
 - **Confidence:** Confirmed.
-- **Status:** FIXED — VERIFICATION BLOCKED.
+- **Status:** FIXED AND VERIFIED.
 - **File:** `app/src/main/java/com/example/engqa/viewmodel/FeedViewModel.java`
 - **Line(s):** 220–245 (`setCategory`, `setSort`), 304–313 (`attachQuestions`).
 - **Class/Function:** `FeedViewModel.attachQuestions`.
@@ -564,12 +570,12 @@ The table above records the **original** audit run and is preserved for traceabi
 - **Suggested Remediation:** Compose the search predicate with category/sort in one query and add the needed composite indexes; or clear the keyword when a filter is selected and show that behavior explicitly.
 - **Verification Needed:** Search + each category + each sort; verify the result set and the visible selected chips.
 
-**Remediation (2026-10-24)** — **FIXED — VERIFICATION BLOCKED**
-- Files modified: `QuestionRepository.java`, `FeedViewModel.java`, `firestore.indexes.json`.
-- Fix: the search query now composes `array-contains` with the selected category and sort (`newest`, `popular`, `unanswered`); added the six search/filter composite indexes plus the missing all-category popular index.
+**Remediation (2026-10-24, revised during the search-optimisation pass)** — **FIXED AND VERIFIED**
+- Files modified: `QuestionRepository.java`, `FeedViewModel.java`, `SearchRanker.java`, `firestore.indexes.json`.
+- Fix: the Firestore candidate query composes `array-contains-any` with the selected category and `newest`/`popular`/`unanswered` filter. The selected sort is retained as the deterministic tie-breaker after relevance, so relevance takes precedence without losing the user's sort choice. The required search/filter composite indexes are in the file; all 19 indexes are now **READY** in project `accountdata-dd29b`.
 - Root cause: the search query ignored `categoryId` and `sort`.
-- Verification: `firestore.indexes.json` parses as valid JSON; build and unit tests pass.
-- Remaining limitation: indexes are not deployed, so live search + filters could not be tested; deployment must complete before release.
+- Verification: deployed indexes (19 READY); a direct Firestore REST `array-contains-any` + category query succeeded; live emulator tests verified `Từ vựng` + `anh`, `Ngữ pháp` + `hien tai`, `Phổ biến` + `phap`, and `Chưa trả lời` + `phap` returned only matching/filtered results. 69/69 unit tests pass.
+- Remaining limitation: because relevance is primary during search, the visible order is not purely newest/popular; the chips still select the filter/tie-break semantics described above. The candidate pool is capped at 60.
 
 ### BUG-011 — Existing votes are never loaded, so the vote UI is wrong after reopening
 
@@ -661,7 +667,7 @@ The table above records the **original** audit run and is preserved for traceabi
 - **Feature:** Feed sort / deployment configuration.
 - **Severity:** Medium.
 - **Confidence:** Probable.
-- **Status:** FIXED — VERIFICATION BLOCKED.
+- **Status:** FIXED AND VERIFIED.
 - **File:** `firestore.indexes.json`; `app/src/main/java/com/example/engqa/data/QuestionRepository.java`
 - **Line(s):** `firestore.indexes.json:1–112`; `QuestionRepository.java:219–221`.
 - **Class/Function:** `QuestionRepository.buildQuery` (`SORT_POPULAR`).
@@ -675,11 +681,11 @@ The table above records the **original** audit run and is preserved for traceabi
 - **Suggested Remediation:** Add a `questions` composite index `score DESC, createdAt DESC`; add `categoryId+searchKeywords+createdAt` for combined search/filter (BUG-010); deploy and verify.
 - **Verification Needed:** Deploy to a disposable Firebase project and run all sort/category combinations.
 
-**Remediation (2026-10-24)** — **FIXED — VERIFICATION BLOCKED**
+**Remediation (2026-10-24, revised during the search-optimisation pass)** — **FIXED AND VERIFIED**
 - Files modified: `firestore.indexes.json`.
 - Fix: added the all-category `score DESC, createdAt DESC` index and the search/filter composite indexes needed by BUG-009/010.
-- Verification: the JSON file parses; build unaffected.
-- Remaining limitation: deployment and a fresh-project index build were not possible here.
+- Verification: deployed to project `accountdata-dd29b` on 2026-10-24 with `firebase deploy --only firestore:indexes` (exit 0); the Firestore Admin API reports **19/19 indexes READY**; a live `Phổ biến` + search query succeeded.
+- Remaining limitation: none for this finding. A fresh-project deployment is still the recommended CI check for the committed index file.
 
 ### BUG-015 — Bottom-navigation Back returns to the previously visited tab
 
@@ -944,7 +950,7 @@ The table above records the **original** audit run and is preserved for traceabi
 - Files modified: `util/FeedMixer.java`, `util/FeedMixerTest.java`.
 - Fix: after the normal interleave, any approved promos not yet inserted are appended; the empty-question case is handled by the same loop.
 - Root cause: the loop stopped when questions ran out and no final append existed.
-- Verification: unit suite 42/42 passes, including the new `mix_appendsPromosLeftAfterTheLastQuestion` test.
+- Verification: unit suite 69/69 passes, including the new `mix_appendsPromosLeftAfterTheLastQuestion` test.
 - Remaining limitation: the visible ordering change (leftover promos at the end) is intentional and was not separately UI-tested.
 
 ### BUG-025 — `ServerErrorActivity` is dead code / unreachable
@@ -1078,7 +1084,7 @@ The table above records the **original** audit run and is preserved for traceabi
 - Files modified: `data/local/SavedPromo.java`, `SavedPromoDao.java`, `SavedPromoRepository.java`, `viewmodel/SavedViewModel.java`, `viewmodel/PromoViewModel.java`, `data/local/AppDatabase.java`.
 - Fix: added `owner_uid` to the Room key (composite primary key), scoped all saved queries/removals to the current UID, required login to save, and added a v1→v2 migration that preserves legacy rows with an empty owner (hidden from every account). Room version bumped to 2.
 - Root cause: the table had no owner column, so every account on the device shared the same rows.
-- Verification: fresh-install runtime as the centre-manager account saved a promo and saw it in "Bài đã lưu"; after logout and login as the learner, the same list was empty and did not show the centre manager's promo; build, 42 unit tests and lint pass. The migration SQL was compared with the generated Room v2 schema (`CREATE TABLE saved_promo (owner_uid, promo_id, ... PRIMARY KEY(owner_uid, promo_id))`).
+- Verification: fresh-install runtime as the centre-manager account saved a promo and saw it in "Bài đã lưu"; after logout and login as the learner, the same list was empty and did not show the centre manager's promo; build, 69 unit tests and lint pass. The migration SQL was compared with the generated Room v2 schema (`CREATE TABLE saved_promo (owner_uid, promo_id, ... PRIMARY KEY(owner_uid, promo_id))`).
 - Remaining limitation: the 1→2 upgrade path was not executed on an installed v1 database; legacy rows remain stored but invisible.
 
 ## 6. Findings by Module
@@ -1177,7 +1183,7 @@ The table above records the **original** audit run and is preserved for traceabi
 
 ## 8. Build, Runtime, and Test Failures
 
-> **Historical results.** The command outcomes below are from the original audit. The post-remediation run is in §4.1: 42/42 unit tests, 7/7 instrumented tests, lint 0 errors/268 warnings, and successful debug/release builds. The runtime failures listed below were re-tested after remediation where noted in each issue's remediation block.
+> **Historical results.** The command outcomes below are from the original audit. The post-remediation run is in §4.1: 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/268 warnings, and successful debug/release builds. The runtime failures listed below were re-tested after remediation where noted in each issue's remediation block.
 
 **Build commands and outcomes**
 
@@ -1326,23 +1332,24 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 
 | Status | Count | Issues |
 |---|---:|---|
-| FIXED AND VERIFIED | 11 | BUG-001, 002, 004, 006, 015, 016, 017, 019, 022, 024, 027 |
-| FIXED — VERIFICATION BLOCKED | 15 | BUG-003, 007, 009, 010, 011, 012, 013, 014, 018, 020, 021, 023, 025, 028, 029 |
+| FIXED AND VERIFIED | 14 | BUG-001, 002, 004, 006, 009, 010, 014, 015, 016, 017, 019, 022, 024, 027 |
+| FIXED — VERIFICATION BLOCKED | 12 | BUG-003, 007, 011, 012, 013, 018, 020, 021, 023, 025, 028, 029 |
 | PARTIALLY FIXED | 2 | BUG-005, 008 |
 | UNRESOLVED | 1 | BUG-026 |
 | BLOCKED | 0 | — |
 | NOT A BUG / ALREADY FIXED | 0 | — |
 
-- **Verified fixed at runtime:** profile save with an unchanged name (001), Home logout/back-stack privacy (002), delete confirmation dialog and cancel path (004), centre menu entry and list (006), bottom-nav Back (015), pre-login verify box (016), username hint resource (017), cache-clear action (019), unused media permissions in the merged manifest (022), leftover-promo unit test (024), create-promo error visibility and focus (027), and saved-promo account isolation on a fresh install (029).
-- **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), search paging (009) and search/filter composition (010), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), indexes (014), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, no Firebase CLI/rules emulator, and no rules/index deployment access.
+- **Verified fixed at runtime:** profile save with an unchanged name (001), Home logout/back-stack privacy (002), delete confirmation dialog and cancel path (004), centre menu entry and list (006), **accent/case/whitespace-insensitive multi-word search, partial words, bounded typo candidates, search+filters/sorts, local ranked paging, no-results/too-short/clear/rapid-query states (009), search/filter composition (010), deployed/READY index set (014)**, bottom-nav Back (015), pre-login verify box (016), username hint resource (017), cache-clear action (019), unused media permissions in the merged manifest (022), leftover-promo unit test (024), create-promo error visibility and focus (027), and saved-promo account isolation on a fresh install (029).
+- **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, and no Firebase rules emulator/deployment.
 - **Partially fixed:** question deletion (005) now removes answers, votes and media and derives profile counters from live data, but notifications/reports and other users' stored counters still require a trusted backend. Firestore authorization (008) no longer exposes profiles or allows arbitrary answer/acceptance edits, but bounded counter deltas cannot be fully attributed on the client without Cloud Functions.
 - **Unresolved:** avatar editing (026) requires a product decision; the unused `avatarUrl` field remains without a picker/upload/display contract.
 - **Remaining actions required before release:**
-  1. Deploy the updated `firestore.rules` and `firestore.indexes.json`, then run a rules-emulator suite covering every collection/actor/field.
+  1. Deploy the updated `firestore.rules` (indexes are already deployed and READY), then run a rules-emulator suite covering every collection/actor/field.
   2. Execute the destructive/write flows in a disposable Firebase project: post with media, vote → reopen → unvote, accept A → accept B → accept A, delete with answers/votes/media, worker account switch/permanent failure, notification backlog/type, and promo create → approve → lead.
   3. Run Android 11+ package-visibility and Android 13+ notification-permission tests.
   4. Test the Room v1→v2 migration on an installed v1 database (the SQL matches Room's generated v2 schema, but the upgrade was not executed).
   5. Decide whether avatar editing is in scope; if yes, add the picker/upload/storage integration and tests.
-- **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment. The application is suitable for **further QA and a deployment-verification pass**, not yet for production release, because the security rules/indexes are not deployed, destructive workflows have not been end-to-end verified, and BUG-005/008 remain partially fixed without a trusted backend.
+  6. Run `tools/seed/reindex-search.js --dry-run` after any bulk import/older-data restore; it should report zero changes. New questions are indexed automatically; the existing 17 questions were backfilled (0 remaining changes).
+- **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, and search is now verified with deployed indexes. The application is suitable for **further QA and a rules-deployment pass**, not yet for production release, because the security rules are not deployed, destructive workflows have not been end-to-end verified, and BUG-005/008 remain partially fixed without a trusted backend.
 
-**Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. No Firebase rules or indexes were deployed, and no destructive writes to the shared Firebase data were performed. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, and Back behaviour. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.
+**Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. `firestore.indexes.json` was deployed to `accountdata-dd29b` (19/19 READY); `firestore.rules` was **not** deployed. No destructive writes to shared Firebase content were performed. Search metadata on 17 existing questions was rebuilt additively via `tools/seed/reindex-search.js --apply`, which updates only the `searchKeywords` field and preserves title/body/tags/answers; a follow-up dry-run reported 0 changes. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, Back behaviour, and the search scenarios listed in §4.1. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.
