@@ -11,6 +11,8 @@
     "seed:rest": "node seed-rest.js",
     "seed:rest:dry": "node seed-rest.js --dry-run",
     "seed:rest:clear": "node seed-rest.js --clear",
+    "usernames:backfill": "node backfill-usernames.js --apply",
+    "usernames:backfill:dry": "node backfill-usernames.js --dry-run",
     "reindex:search": "node reindex-search.js --apply",
     "reindex:search:dry": "node reindex-search.js --dry-run",
     "verify": "node verify.js"

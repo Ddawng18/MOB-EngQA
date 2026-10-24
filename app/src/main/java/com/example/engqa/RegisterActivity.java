@@ -68,8 +68,8 @@ public class RegisterActivity extends AppCompatActivity {
                                 }
                                 @Override
                                 public void onError(String errorMessage) {
+                                    // Inline error only: do not duplicate it in a Toast.
                                     showError(errorMessage);
-                                    toast(errorMessage);
                                 }
                             });
                 });
@@ -129,7 +129,6 @@ public class RegisterActivity extends AppCompatActivity {
                             @Override
                             public void onError(String errorMessage) {
                                 showError(errorMessage);
-                                toast(errorMessage);
                             }
                         }));
         edtUsername.addTextChangedListener(new android.text.TextWatcher() {
@@ -178,7 +177,6 @@ public class RegisterActivity extends AppCompatActivity {
         viewModel.getErrorEvent().observe(this, message -> {
             if (message != null) {
                 showError(message);
-                toast(message);
             }
         });
 

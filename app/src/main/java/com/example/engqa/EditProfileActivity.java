@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
+import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.ProfileViewModel;
 
 /** Edits the display name and level of the signed-in user. */
@@ -164,6 +165,12 @@ public class EditProfileActivity extends AppCompatActivity {
         String username = etUsername.getText().toString().trim();
         if (username.isEmpty()) {
             etUsername.setError(getString(R.string.label_username));
+            return;
+        }
+        String usernameError = Validators.usernameError(username);
+        if (usernameError != null) {
+            etUsername.setError(usernameError);
+            etUsername.requestFocus();
             return;
         }
         String level = (String) spinnerLevel.getSelectedItem();

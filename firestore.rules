@@ -115,6 +115,27 @@ service cloud.firestore {
       allow delete: if isSelf(uid) || isAdmin();
     }
 
+    // --------------------------------------------------------------- usernames
+    // Document id = exact display name; value reserves it for one uid. The registration client
+    // performs a single-document get because a collection query over private `users` documents
+    // cannot be authorized by self-only read rules. Names are never deleted, so an old name cannot
+    // be re-used by someone else after a rename.
+    match /usernames/{usernameKey} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.username is string
+          && request.resource.data.username == usernameKey
+          && request.resource.data.username.size() >= 3
+          && request.resource.data.username.size() <= 24;
+      allow update: if isSignedIn()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.username is string
+          && request.resource.data.username == usernameKey;
+      allow delete: if false;
+    }
+
     // ----------------------------------------------------------- categories
     match /categories/{categoryId} {
       allow read: if true;

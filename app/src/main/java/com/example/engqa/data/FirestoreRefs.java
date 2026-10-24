@@ -7,6 +7,8 @@ public final class FirestoreRefs {
     }
 
     public static final String USERS = "users";
+    /** Document id = exact display name; value = { uid, username, createdAt }. */
+    public static final String USERNAMES = "usernames";
     public static final String CATEGORIES = "categories";
     public static final String QUESTIONS = "questions";
     public static final String ANSWERS = "answers";

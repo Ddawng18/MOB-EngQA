@@ -26,6 +26,17 @@ node reindex-search.js --dry-run   # report how many documents would change
 node reindex-search.js --apply     # update only the searchKeywords field
 ```
 
+Registration reserves display names in the `usernames/{username}` collection. Existing profiles
+created before that index need a one-time additive backfill; it never overwrites an existing
+reservation or changes `users` content:
+
+```bash
+node backfill-usernames.js --dry-run   # report missing/conflicting reservations
+node backfill-usernames.js --apply     # create missing reservations only
+```
+
+Both tools accept `FIREBASE_ACCESS_TOKEN` (or `--token`) and `--project`.
+
 ## Commands
 
 Two writers produce the same data. Pick whichever credential you have.

@@ -228,12 +228,19 @@ admins/{uid}
 Email/password sign-up and sign-in are fully implemented: unique display names, per-field
 validation, password visibility toggles, loading states, specific Vietnamese error messages,
 password reset, email verification (non-blocking, with resend), change-password and logout.
-Registration keeps the Auth account and the `users/{uid}` profile in sync — if the profile write
-fails the Auth account is rolled back, so no half-created login is left behind.
+Registration atomically reserves `usernames/{exactDisplayName}` and creates `users/{uid}` in one
+Firestore transaction. If the profile write fails transiently, the Auth account is kept so the next
+login can complete it; it is rolled back only when the chosen username was already taken. Existing
+profiles must be backfilled with `tools/seed/backfill-usernames.js` (13 reservations were created
+for the current data), and **devices still running the old APK must install the new release** because
+the old build uses a Firestore query that the current self-only profile rules correctly deny.
 
 See **[docs/AUTH.md](docs/AUTH.md)** for the flow diagrams, validation rules, error-code mapping
 and the manual test checklist. Auth depends on `firestore.rules`; see
-[docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) to deploy it.
+[docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) to deploy it. For Google Sign-In on a release build,
+register the release SHA-1/SHA-256 in Firebase/Google Cloud and regenerate `google-services.json`;
+the current file has no certificate hash and the release APK is unsigned until `keystore.properties`
+is provided.
 
 ## Centre advertising (promos)
 

@@ -4,7 +4,7 @@
 
 **Original audit status (pre-remediation):** Completed with confirmed functional defects. The application builds, installs, and launches, and the main read-only workflows work, but several high-impact defects affect profile editing, logout/session handling, answer acceptance, question deletion, centre screens, and backend authorization. The application was **not** ready for release.
 
-**Post-remediation status (2026-10-24, including the search-optimisation pass):** **29 findings processed — 14 fixed and verified, 12 fixed with deployment/runtime verification blocked, 2 partially fixed, 1 unresolved.** The debug build, **69 unit tests**, 7 instrumented tests, lint (0 errors) and the release build pass. Firestore indexes are deployed and READY; the remaining blockers are the undeployed rules and destructive end-to-end flows plus one product decision (avatar editing); see the per-issue remediation blocks in §5 and the consolidated status in §11.
+**Post-remediation status (2026-10-24, including the search-optimisation and registration-remediation passes):** **30 findings processed — 15 fixed and verified, 12 fixed with deployment/runtime verification blocked, 2 partially fixed, 1 unresolved.** The debug build, **69 unit tests**, 7 instrumented tests, lint (0 errors) and the release build pass. Firestore indexes and rules are deployed; the remaining blockers are destructive end-to-end flows, release signing/Google OAuth configuration, and one product decision (avatar editing); see the per-issue remediation blocks in §5 and the consolidated status in §11. BUG-030 was found after the original audit during production registration testing.
 
 **Project:** EngQA — an Android English Q&A / centre-promotion app with Firebase Auth and Firestore.
 
@@ -46,19 +46,23 @@
 | Low | 14 |
 | **Total** | **29** |
 
+> The table above preserves the original audit count. BUG-030 (registration denied on other devices)
+> was added during production testing: **Critical +1, total 30**. The remediation table below is the
+> current authoritative total.
+
 Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 
 **Remediation status counts (2026-10-24)**
 
 | Remediation status | Count | Issues |
 |---|---:|---|
-| FIXED AND VERIFIED | 14 | BUG-001, 002, 004, 006, 009, 010, 014, 015, 016, 017, 019, 022, 024, 027 |
+| FIXED AND VERIFIED | 15 | BUG-001, 002, 004, 006, 009, 010, 014, 015, 016, 017, 019, 022, 024, 027, 030 |
 | FIXED — VERIFICATION BLOCKED | 12 | BUG-003, 007, 011, 012, 013, 018, 020, 021, 023, 025, 028, 029 |
 | PARTIALLY FIXED | 2 | BUG-005, 008 |
 | UNRESOLVED | 1 | BUG-026 |
 | BLOCKED | 0 | — |
 | NOT A BUG / ALREADY FIXED | 0 | — |
-| **Total** | **29** | |
+| **Total** | **30** | |
 
 1. **Profile editing is effectively broken.** Saving the Edit Profile screen without changing the display name always fails, because the username-uniqueness query includes the current user's own document. This also blocks changing the learning level. (`UserRepository.updateProfile` / `isUsernameTaken`.)
 2. **Logging out from the Home avatar menu leaves the app in a broken, privacy-sensitive state.** The feed shows a permission error and pressing Back reveals the previous user's profile, including email, because the back stack is not cleared and `MenuScreenActivity` keeps the old UID.
@@ -74,16 +78,16 @@ Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 - Profile save, Home logout/session clearing, delete confirmation, centre navigation, Back handling, the pre-login verification box, username hint, cache clearing, unused media permissions, leftover-promo mixing and the create-promo error banner were fixed and verified at runtime on the API 29 emulator.
 - Search was substantially reworked and verified: accent/whitespace normalisation, full tokens + bounded prefixes, multi-word `array-contains-any` candidate retrieval (≤ 60), local relevance ranking with deterministic tie-breakers, bounded typo variants, 300 ms debounce, stale-response guards, local ranked pagination, promo relevance, and search-specific empty/too-short states. Firestore indexes are deployed (19/19 READY) and live category/sort/partial/typo searches were exercised on the API 29 emulator; 69 unit tests pass.
 - Acceptance, vote restoration, promo contact intents, offline-job lifecycle, backup exclusions, notification backlog/type, saved-promo isolation, word-cache fallback and the offline error screen were implemented and pass build/unit/lint; their end-to-end verification is blocked by data-safety, API-level, or deployment constraints (documented per issue).
-- Question deletion and Firestore authorization were improved but remain partially fixed: a complete atomic cascade/counter reconciliation requires Cloud Functions, and the remaining bounded counter rules cannot be perfectly attributed to vote/answer documents on the client. The updated rules still need to be deployed to the Firebase project; the indexes are already deployed.
+- Question deletion and Firestore authorization were improved but remain partially fixed: a complete atomic cascade/counter reconciliation requires Cloud Functions, and the remaining bounded counter rules cannot be perfectly attributed to vote/answer documents on the client. The updated rules and indexes are deployed to the Firebase project; the remaining concern is destructive/rules-emulator verification.
 - Avatar editing remains unresolved by design: it needs a product decision (implement picker/upload/storage or remove the unused field), and implementing it would add a new feature outside the repair scope.
 
 **Major limitations affecting audit completeness**
 
-- Runtime writes to the shared Firebase demo project were avoided (posting questions/answers, voting, accepting, deleting, reporting, promo creation, lead submission, registration). The defects in those flows are confirmed by source analysis; destructive flows were not executed.
+- Runtime writes to the shared Firebase demo project were avoided during the original audit (posting questions/answers, voting, accepting, deleting, reporting, promo creation, lead submission, registration). The defects in those flows are confirmed by source analysis; destructive flows were not executed. The registration-remediation pass later performed one disposable registration, verified it, and deleted the test profile/reservation/Auth user; see BUG-030.
 - Only an Android 10 / API 29 emulator (`Pixel_4`) was available. Android 11+ package visibility, Android 13+ notification permission behaviour, and Android 14 selected-photo behaviour could not be exercised.
 - No Google account, no inbox for verification/reset emails, and no second user were available for end-to-end Google sign-in, email verification, password reset, or notification delivery tests.
 - The dictionary API was reachable from the host but the live Word-of-the-Day card did not load during the original audit; during the remediation re-check it loaded successfully ("feasible" with definition) after a fresh login.
-- **Post-remediation deployment status:** `firestore.indexes.json` was deployed to project `accountdata-dd29b` on 2026-10-24; all 19 indexes are READY and the composite search/filter queries were exercised live. `firestore.rules` was **not** deployed; rules changes remain statically reviewed because no rules-emulator test was available. The app's search work therefore runs against the currently deployed rules.
+- **Post-remediation deployment status:** `firestore.indexes.json` was deployed to project `accountdata-dd29b` on 2026-10-24; all 19 indexes are READY and the composite search/filter queries were exercised live. `firestore.rules` was deployed on 2026-10-24 (compiled and released), including the new username-reservation rules; a rules-emulator suite was still not available, so server-side authorization tests remain manual.
 - No performance, accessibility, localization, process-death, or penetration testing was performed. Rotation/responsive UI was tested separately in §4.2 on a phone emulator; tablet/foldable sizes and process death remain untested.
 
 ---
@@ -258,7 +262,7 @@ The table above records the **original** audit run and is preserved for traceabi
 | Release build | `.\gradlew.bat assembleRelease` | `BUILD SUCCESSFUL`; unsigned `app-release-unsigned.apk` |
 | Merged manifest permissions | inspect `processDebugMainManifest` output | `POST_NOTIFICATIONS` present; `READ_MEDIA_IMAGES`/`READ_MEDIA_AUDIO` absent |
 | Index JSON validity | `ConvertFrom-Json firestore.indexes.json` | valid |
-| Rules | static review only | not deployed; no Firebase CLI/emulator available |
+| Rules | `firebase deploy --only firestore:rules` | deployed 2026-10-24 (compiled + released); rules-emulator suite not run |
 
 **Re-verified runtime flows (API 29 emulator)**
 
@@ -281,7 +285,7 @@ The table above records the **original** audit run and is preserved for traceabi
 | Search states | No-results, too-short (`Nhập ít nhất 2 ký tự`), clear-to-feed, and rapid-query stale-result checks passed |
 | Search indexes | 19/19 READY; direct Firestore REST `array-contains-any` + category query succeeded |
 
-**Not re-executed (documented per issue):** accept/change-accept, vote/reopen/unvote, delete-confirm, question cascade, offline worker/account switch, notification backlog/type, **Firestore rules deployment**, Android 11+ intents, Android 13+ notification permission, and the v1→v2 Room upgrade.
+**Not re-executed (documented per issue):** accept/change-accept, vote/reopen/unvote, delete-confirm, question cascade, offline worker/account switch, notification backlog/type, rules-emulator tests, Android 11+ intents, Android 13+ notification permission, and the v1→v2 Room upgrade.
 
 ### 4.2 Responsive UI pass (2026-10-24)
 
@@ -305,6 +309,13 @@ every activity and no `configChanges`; a commented policy was added to prevent f
 locks. On the API 29 emulator, automatic rotation was exercised with `adb emu rotate` through the
 cycle `0 → 3 → 2 → 1 → 0` (portrait → landscape → reverse portrait → reverse landscape → portrait).
 At each step Home recreated and used the correct portrait/landscape layout; no Activity was locked.
+The four-orientation matrix was extended to Ask, Profile, QuestionDetail, CenterDetail and
+EditProfile (all four display rotations applied, activity resumed, key view present); CenterList,
+CenterRequest, Settings and Login were rotated through `0/2/3/1/0` with the activity remaining
+resumed (uiautomator occasionally returned no root during a transition, so screenshots in
+portrait/landscape were used as the visual evidence). ChooseLevel and ServerError were checked in
+portrait/landscape with fully-visible Espresso assertions. Reverse orientations reuse the same
+default and `layout-land` resources.
 
 **Responsive verification performed:** API 29 Pixel_4 emulator, `wm set-user-rotation lock` between
 0 and 1 for the remaining screen matrix. Temporary `TempResponsiveLayoutTest` (fully-visible
@@ -355,10 +366,10 @@ scrollable or use the same responsive dimensions, but they were not executed end
 
 **Remediation (2026-10-24)** — **FIXED AND VERIFIED**
 - Files modified: `app/src/main/java/com/example/engqa/data/UserRepository.java`.
-- Fix: `updateProfile` reads the caller's document first and skips the uniqueness query when the submitted name equals the stored name; `checkNameAvailable` retains the original collision check for real renames.
+- Fix: `updateProfile` reads the caller's document first and skips the uniqueness check when the submitted name equals the stored name. The subsequent BUG-030 remediation replaced `checkNameAvailable` with the atomic `usernames/{name}` reservation for real renames.
 - Root cause: the uniqueness query included the caller's own document.
 - Verification: `assembleDebug` and `testDebugUnitTest` passed (69/69); runtime on the API 29 emulator signed in as the seeded learner, opened "Cá nhân" → "Sửa", tapped "Lưu" without editing, and returned to `MenuScreenActivity` with the profile intact and no collision toast.
-- Remaining limitation: changing to a genuinely duplicate name was not executed because it would require writing another account's reserved name; the collision query itself is unchanged.
+- Remaining limitation: changing to a genuinely duplicate name was not executed because it would require writing another account's reserved name; the collision check was later replaced by the transaction-based `usernames/{name}` reservation described in BUG-030. The unchanged-name path remains the same; the new rename transaction was code-reviewed but not separately runtime-tested.
 
 ### BUG-002 — Logout from the Home menu leaves stale screens and a broken feed
 
@@ -419,7 +430,7 @@ scrollable or use the same responsive dimensions, but they were not executed end
 - Fix: acceptance now runs in a transaction that reads the question, clears the previously accepted answer, marks the new answer accepted, and updates `acceptedAnswerId`/`isSolved`; repeating the same acceptance is a no-op. The denormalised `acceptedCount` is no longer incremented; the profile derives accepted counts from the live answer list.
 - Root cause: the old batch never read the previous accepted answer and incremented a cross-user counter.
 - Verification: source review, `assembleDebug`, unit tests and lint passed. Rules are statically reviewed.
-- Remaining limitation: accept/change-accept was not executed against the shared Firebase data, and the updated rules were not deployed or rules-emulator-tested.
+- Remaining limitation: accept/change-accept was not executed against the shared Firebase data; the updated rules are deployed but a rules-emulator suite was not run.
 
 ### BUG-004 — Question deletion has no confirmation
 
@@ -474,7 +485,7 @@ scrollable or use the same responsive dimensions, but they were not executed end
 - Fix: deletion now collects and removes answer, vote and media documents (chunked batches, question removed last) before deleting the question and decrementing the author's `questionCount`. Rules allow the question owner to delete answers/votes on their question. Profile counters are derived from the live questions/answers lists, so orphaned answers no longer inflate them.
 - Root cause: the old implementation treated Firestore as if parent deletion cascaded.
 - Verification: `assembleDebug`, unit tests and lint passed; the deletion algorithm was reviewed, including the >400-child chunk path and rollback-safe ordering.
-- Remaining limitations: notifications and reports that reference the question are not deleted because they are not readable by the question author and no Cloud Function is available; other answer authors' stored `answerCount`/`acceptedCount` fields are left untouched (the UI derives them); the new rules and cascade were not deployed or executed against disposable data. Full atomic cleanup still requires a trusted backend.
+- Remaining limitations: notifications and reports that reference the question are not deleted because they are not readable by the question author and no Cloud Function is available; other answer authors' stored `answerCount`/`acceptedCount` fields are left untouched (the UI derives them); the updated rules are deployed (2026-10-24) but the cascade was not executed against disposable data. Full atomic cleanup still requires a trusted backend.
 
 ### BUG-006 — Entire centre browsing/request/edit feature is unreachable
 
@@ -529,7 +540,7 @@ scrollable or use the same responsive dimensions, but they were not executed end
 - Fix: `users/{uid}` reads are limited to the owner or an admin; the client only reads the current user's profile.
 - Root cause: `allow read: if isSignedIn()` exposed every profile.
 - Verification: static review confirms all app reads target the current UID (`UserRepository.getUser/observeUser`, `isCenterOwner` uses a rule-side `get`).
-- Remaining limitation: rules were not deployed and no rules-emulator test could be run in this environment.
+- Remaining limitation: rules are deployed (2026-10-24), but no rules-emulator test was run in this environment.
 
 ### BUG-008 — Firestore update rules allow counter manipulation and arbitrary answer edits
 
@@ -559,7 +570,7 @@ scrollable or use the same responsive dimensions, but they were not executed end
 - Fix: removed the cross-user `acceptedCount` bump; self profile updates are limited to `username`, `avatarUrl`, `level`, `questionCount`, `answerCount`; answer authors may change only `body`/`questionTitle`; the question owner may change only `isAccepted`; the question owner may delete answers/votes for cascade cleanup.
 - Root cause: broad update branches and a counter branch that trusted any signed-in caller.
 - Verification: static rule review; the client's write paths were checked against the new allowed field sets.
-- Remaining limitations: question `answerCount`/`score` and answer `upCount`/`downCount` remain bounded shape-only updates because attributing them to a vote/answer document requires Cloud Functions; rules were not deployed or emulator-tested. Self counter fields can still be changed by the owner.
+- Remaining limitations: question `answerCount`/`score` and answer `upCount`/`downCount` remain bounded shape-only updates because attributing them to a vote/answer document requires Cloud Functions; rules are deployed, but not emulator-tested. Self counter fields can still be changed by the owner.
 
 ### BUG-009 — Scrolling search results appends unrelated questions
 
@@ -1130,6 +1141,58 @@ scrollable or use the same responsive dimensions, but they were not executed end
 - Verification: fresh-install runtime as the centre-manager account saved a promo and saw it in "Bài đã lưu"; after logout and login as the learner, the same list was empty and did not show the centre manager's promo; build, 69 unit tests and lint pass. The migration SQL was compared with the generated Room v2 schema (`CREATE TABLE saved_promo (owner_uid, promo_id, ... PRIMARY KEY(owner_uid, promo_id))`).
 - Remaining limitation: the 1→2 upgrade path was not executed on an installed v1 database; legacy rows remain stored but invisible.
 
+### BUG-030 — Registration denied on other devices with a permission error
+
+- **Feature:** Email/password registration and unique display names.
+- **Severity:** Critical (production blocker).
+- **Confidence:** Confirmed.
+- **Status:** FIXED AND VERIFIED.
+- **Files:** `app/src/main/java/com/example/engqa/data/UserRepository.java`, `FirestoreRefs.java`, `RepoErrors.java`, `RegisterActivity.java`, `firestore.rules`, `tools/seed/backfill-usernames.js`.
+- **Description:** A new registration created the Firebase Auth user, then ran
+  `users.whereEqualTo("username", name).limit(1)` to check uniqueness. After profiles were restricted
+  to owner/admin reads, Firestore correctly denied that collection query (rules are not filters).
+  The client rolled the Auth account back and displayed the generic
+  `Bạn không có quyền thực hiện thao tác này` in both the inline error and a Toast.
+- **Reproduction:** On a clean install/release device, submit a valid new email, username and matching
+  passwords. Firebase Auth creates the account; the Firestore username query is denied; the Auth
+  account is deleted; registration remains on the form with the permission message.
+- **Expected:** A legitimate user can register and sign in on any supported device without weakening
+  profile privacy.
+- **Actual:** The failure was in the username uniqueness check, not in Firebase Auth creation or the
+  profile-create rule. The developer's device appeared to work because it ran against older rules or
+  cached state; other devices used the current self-only profile read rule.
+- **Root Cause:** Cross-collection uniqueness was implemented as an unauthorized client query over
+  private profiles instead of an index document with an atomic reservation.
+- **Remediation (2026-10-24)** — **FIXED AND VERIFIED**
+  - Files modified: `UserRepository.java`, `FirestoreRefs.java`, `RepoErrors.java`,
+    `RegisterActivity.java`, `firestore.rules`, `tools/seed/backfill-usernames.js`,
+    `tools/seed/package.json`, `tools/seed/README.md`.
+  - Fix: added a `usernames/{exactDisplayName}` reservation document. Registration now checks a
+    single authorized document and atomically creates `users/{uid}` + `usernames/{name}` in one
+    Firestore transaction. The old name stays reserved after a rename. The Auth account is kept when
+    profile creation fails transiently (retry/login recovery) and only rolled back when the chosen
+    name is already taken. Email/password login repairs a missing profile; Google display names are
+    sanitized to valid unique names. The duplicate error Toast was removed; errors are inline only. Edit Profile now applies the same username-format validation before the rename transaction.
+  - Rules deployed: `firestore.rules` compiled and released successfully to `accountdata-dd29b`
+    (exit 0). Added signed-in read, self-only create/update, no-delete rules for `usernames`.
+  - Data migration: `backfill-usernames.js --apply` created **13** missing reservations for existing
+    profiles; 0 conflicts/duplicates; a follow-up dry-run reported 0 missing. Three existing
+    profiles had invalid display names and were skipped (they can still sign in with their existing
+    credentials but are not protected by the index).
+  - Verification: a fresh registration (`qa241024a` / `qa241024a@example.com`) completed to
+    `ChooseLevelActivity`; Firestore contained the matching `users/{uid}` and
+    `usernames/qa241024a`; a clean-data login with the same account completed the verification
+    dialog and reached `HomeActivity`. Duplicate email returned `Email này đã được đăng ký`;
+    duplicate username returned `Tên hiển thị này đã được sử dụng` and the duplicate Auth account
+    was rolled back (0 matching Auth users). The test profile, reservation and Auth account were
+    deleted after the test.
+  - Remaining limitations: the Google provider was not exercised with a real Google account; the
+    release keystore/SHA fingerprints are not configured in this checkout; the old installed APK
+    still uses the denied collection query and will continue to fail until the new release is
+    installed. The `usernames` client rule allows a signed-in user to create extra reservations
+    with their own UID (name squatting); strict one-name-per-profile enforcement needs a trusted
+    backend/`getAfter` rule. It cannot impersonate another UID or read private profiles.
+
 ## 6. Findings by Module
 
 > **Historical section.** These module notes describe the original pre-remediation state. The per-issue remediation blocks in §5 and the authoritative totals in §11 supersede any "broken/unreachable/incomplete" wording below.
@@ -1288,13 +1351,13 @@ scrollable or use the same responsive dimensions, but they were not executed end
 - Promo creation, admin approval, lead submission, duplicate lead, contact intents on API 30+.
 - Reports and moderation.
 - Centre request/edit and admin role assignment.
-- Registration completion, email verification delivery, password reset/change, unverified login dialog.
-- Google Sign-In completion, logged-out authentication, revoked/expired sessions.
+- Email verification delivery, password reset/change, unverified login dialog (registration and clean-data login are verified in BUG-030).
+- Google Sign-In completion, revoked/expired sessions (logged-out login is verified).
 - Notification delivery, click-through, mark-read/per-item behavior, Android 13 permission.
 - Camera capture, gallery picker, permission denial/permanent denial, image orientation.
 - Process death, low-memory behavior, background restrictions.
 - RTL, accessibility, localization, large font, dark theme, tablet/foldable widths and sizes beyond the API 29 phone used in §4.2.
-- Firestore rules emulator tests and fresh-project index deployment.
+- Firestore rules-emulator tests (rules and indexes are deployed); fresh-project index deployment and release signing.
 - Release signing and Play Store compliance.
 - Performance/leak testing.
 
@@ -1371,19 +1434,19 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 
 - **Does the application build?** Yes. `assembleDebug`, `assembleRelease`, `testDebugUnitTest` and `lintDebug` all succeed. The release APK is unsigned (`app-release-unsigned.apk`).
 - **Does the application launch?** Yes. It installs and launches on the available Android 10 / API 29 emulator; login, feed, profile, centre list, question detail, promo detail, saved promos and settings render without a crash in the tested paths.
-- **Authoritative remediation totals (29 findings):**
+- **Authoritative remediation totals (30 findings):**
 
 | Status | Count | Issues |
 |---|---:|---|
-| FIXED AND VERIFIED | 14 | BUG-001, 002, 004, 006, 009, 010, 014, 015, 016, 017, 019, 022, 024, 027 |
+| FIXED AND VERIFIED | 15 | BUG-001, 002, 004, 006, 009, 010, 014, 015, 016, 017, 019, 022, 024, 027, 030 |
 | FIXED — VERIFICATION BLOCKED | 12 | BUG-003, 007, 011, 012, 013, 018, 020, 021, 023, 025, 028, 029 |
 | PARTIALLY FIXED | 2 | BUG-005, 008 |
 | UNRESOLVED | 1 | BUG-026 |
 | BLOCKED | 0 | — |
 | NOT A BUG / ALREADY FIXED | 0 | — |
 
-- **Verified fixed at runtime:** profile save with an unchanged name (001), Home logout/back-stack privacy (002), delete confirmation dialog and cancel path (004), centre menu entry and list (006), **accent/case/whitespace-insensitive multi-word search, partial words, bounded typo candidates, search+filters/sorts, local ranked paging, no-results/too-short/clear/rapid-query states (009), search/filter composition (010), deployed/READY index set (014)**, bottom-nav Back (015), pre-login verify box (016), username hint resource (017), cache-clear action (019), unused media permissions in the merged manifest (022), leftover-promo unit test (024), create-promo error visibility and focus (027), and saved-promo account isolation on a fresh install (029).
-- **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, and no Firebase rules emulator/deployment.
+- **Verified fixed at runtime:** profile save with an unchanged name (001), Home logout/back-stack privacy (002), delete confirmation dialog and cancel path (004), centre menu entry and list (006), **accent/case/whitespace-insensitive multi-word search, partial words, bounded typo candidates, search+filters/sorts, local ranked paging, no-results/too-short/clear/rapid-query states (009), search/filter composition (010), deployed/READY index set (014)**, bottom-nav Back (015), pre-login verify box (016), username hint resource (017), cache-clear action (019), unused media permissions in the merged manifest (022), leftover-promo unit test (024), create-promo error visibility and focus (027), saved-promo account isolation on a fresh install (029), and **registration/login on a clean install with a real transaction-based username reservation, duplicate email/username messages, and Auth rollback (030)**.
+- **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, and no rules-emulator suite.
 - **Partially fixed:** question deletion (005) now removes answers, votes and media and derives profile counters from live data, but notifications/reports and other users' stored counters still require a trusted backend. Firestore authorization (008) no longer exposes profiles or allows arbitrary answer/acceptance edits, but bounded counter deltas cannot be fully attributed on the client without Cloud Functions.
 - **Unresolved:** avatar editing (026) requires a product decision; the unused `avatarUrl` field remains without a picker/upload/display contract.
 - **Responsive UI (additional pass, not a numbered finding):** automatic sensor rotation is enabled (`fullSensor`, no `configChanges`, no portrait locks) and was verified through `0 → 3 → 2 → 1 → 0` with the correct layout at each step. Portrait/landscape layouts were repaired for Home (clipped category grid), ChooseLevel (overflow + baseline clipping + selected-level state), ServerError (overflow), Login/Register (insets overwrote gutters), all form gutters, profile tab state, lead-dialog scrolling and detail scroll restoration. API 29 phone screenshot/dump checks covered Login, Register, Home, Ask, Profile, Edit Profile, QuestionDetail, CenterList, CenterDetail, Notification, Settings and SavedPromos; temporary fully-visible Espresso checks covered ChooseLevel and ServerError; existing instrumented tests pass 7/7 in both orientations. Tablet/foldable, PromoDetail, WordDetail, centre forms, image viewer and open-keyboard dialogs remain untested (see §4.2).
@@ -1393,8 +1456,9 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
   3. Run Android 11+ package-visibility and Android 13+ notification-permission tests.
   4. Test the Room v1→v2 migration on an installed v1 database (the SQL matches Room's generated v2 schema, but the upgrade was not executed).
   5. Decide whether avatar editing is in scope; if yes, add the picker/upload/storage integration and tests.
-  6. Run `tools/seed/reindex-search.js --dry-run` after any bulk import/older-data restore; it should report zero changes. New questions are indexed automatically; the existing 17 questions were backfilled (0 remaining changes).
+  6. Run `tools/seed/reindex-search.js --dry-run` after any bulk import/older-data restore; it should report zero changes. New questions are indexed automatically; the existing 17 questions were backfilled (0 remaining changes). After any bulk user import, run `tools/seed/backfill-usernames.js --dry-run` and expect 0 missing reservations (13 existing profiles were backfilled; 3 invalid names skipped).
   7. Run the responsive checks on a tablet/foldable and reverse-landscape, and with the keyboard open on the lead/report dialogs and centre forms.
-- **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, search is verified with deployed indexes, and the main screens now adapt correctly on an API 29 phone in both orientations. The application is suitable for **further QA and a rules-deployment pass**, not yet for production release, because the security rules are not deployed, destructive workflows have not been end-to-end verified, BUG-005/008 remain partially fixed without a trusted backend, and tablet/foldable responsive coverage is still limited.
+  8. Create the release keystore, register its SHA-1/SHA-256 in Firebase/Google Cloud, regenerate `google-services.json` (the current file has no certificate hash), verify the Google provider, and publish the new APK. **The old APK still uses the denied `users` username query and will keep failing registration until updated.**
+- **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, search is verified with deployed indexes, and the main screens now adapt correctly on an API 29 phone in both orientations. The application is suitable for **further QA and a release-signing/Google-OAuth pass**, not yet for production release, because destructive workflows have not been end-to-end verified, release signing/SHA fingerprints and the Google provider still require manual configuration, BUG-005/008 remain partially fixed without a trusted backend, and tablet/foldable responsive coverage is still limited.
 
 **Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. `firestore.indexes.json` was deployed to `accountdata-dd29b` (19/19 READY); `firestore.rules` was **not** deployed. No destructive writes to shared Firebase content were performed. Search metadata on 17 existing questions was rebuilt additively via `tools/seed/reindex-search.js --apply`, which updates only the `searchKeywords` field and preserves title/body/tags/answers; a follow-up dry-run reported 0 changes. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, Back behaviour, and the search scenarios listed in §4.1. The responsive pass additionally rotated the emulator between portrait and landscape for Login, Home/search, Ask draft, Profile tab, Edit Profile, QuestionDetail, CenterList/Detail, Notification, Settings and SavedPromos, and used a temporary `TempResponsiveLayoutTest` for fully-visible ChooseLevel/ServerError checks; that test was deleted after execution. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.

@@ -25,6 +25,10 @@ public final class RepoErrors {
         if (e == null) {
             return "Đã xảy ra lỗi không xác định";
         }
+        if (e instanceof UserRepository.UsernameTakenException
+                || e instanceof UserRepository.ProfileSetupException) {
+            return e.getMessage();
+        }
         if (e instanceof FirebaseAuthException) {
             return authMessage((FirebaseAuthException) e);
         }
@@ -93,6 +97,11 @@ public final class RepoErrors {
                     return "Bạn thao tác quá nhanh, vui lòng thử lại sau";
                 case "ERROR_EMAIL_ALREADY_IN_USE":
                     return "Email này đã được đăng ký";
+                case "ERROR_ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL":
+                    return "Email này đã được đăng ký bằng phương thức khác. "
+                            + "Hãy đăng nhập bằng email/mật khẩu.";
+                case "ERROR_CREDENTIAL_ALREADY_IN_USE":
+                    return "Tài khoản Google này đã được liên kết với người dùng khác.";
                 case "ERROR_WEAK_PASSWORD":
                     return "Mật khẩu quá yếu";
                 case "ERROR_OPERATION_NOT_ALLOWED":
