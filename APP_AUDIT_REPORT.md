@@ -300,8 +300,15 @@ root cause was layout, not rotation policy. The audit had not previously tested 
 | Detail screens | Scroll position was not restorable (no view IDs) | `scrollQuestion`, `scrollPromo`, `scrollCenter`, `scrollWord` and `scrollProfile` IDs added; answer/draft text fields already save state |
 | Lead dialog | Fixed-height stack could be clipped by the IME in landscape | Custom content is now wrapped in a `ScrollView`, preserving the same fields |
 
+**Automatic sensor rotation verified:** the manifest declares `screenOrientation="fullSensor"` on
+every activity and no `configChanges`; a commented policy was added to prevent future portrait
+locks. On the API 29 emulator, automatic rotation was exercised with `adb emu rotate` through the
+cycle `0 → 3 → 2 → 1 → 0` (portrait → landscape → reverse portrait → reverse landscape → portrait).
+At each step Home recreated and used the correct portrait/landscape layout; no Activity was locked.
+
 **Responsive verification performed:** API 29 Pixel_4 emulator, `wm set-user-rotation lock` between
-0 and 1. Temporary `TempResponsiveLayoutTest` (fully-visible ChooseLevel/ServerError checks and
+0 and 1 for the remaining screen matrix. Temporary `TempResponsiveLayoutTest` (fully-visible
+ChooseLevel/ServerError checks and
 ChooseLevel selection recreation in portrait and landscape) was executed and deleted; a temporary
 Register hold/screenshot verified the scrollable landscape form. The existing instrumented suite
 passes **7/7 in portrait and 7/7 in landscape** (after making `RegisterValidationTest` scroll the
@@ -1379,7 +1386,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 - **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, and no Firebase rules emulator/deployment.
 - **Partially fixed:** question deletion (005) now removes answers, votes and media and derives profile counters from live data, but notifications/reports and other users' stored counters still require a trusted backend. Firestore authorization (008) no longer exposes profiles or allows arbitrary answer/acceptance edits, but bounded counter deltas cannot be fully attributed on the client without Cloud Functions.
 - **Unresolved:** avatar editing (026) requires a product decision; the unused `avatarUrl` field remains without a picker/upload/display contract.
-- **Responsive UI (additional pass, not a numbered finding):** portrait/landscape layouts were repaired for Home (clipped category grid), ChooseLevel (overflow + baseline clipping + selected-level state), ServerError (overflow), Login/Register (insets overwrote gutters), all form gutters, profile tab state, lead-dialog scrolling and detail scroll restoration. API 29 phone screenshot/dump checks covered Login, Register, Home, Ask, Profile, Edit Profile, QuestionDetail, CenterList, CenterDetail, Notification, Settings and SavedPromos; temporary fully-visible Espresso checks covered ChooseLevel and ServerError; existing instrumented tests pass 7/7 in both orientations. Tablet/foldable, reverse-landscape, PromoDetail, WordDetail, centre forms, image viewer and open-keyboard dialogs remain untested (see §4.2).
+- **Responsive UI (additional pass, not a numbered finding):** automatic sensor rotation is enabled (`fullSensor`, no `configChanges`, no portrait locks) and was verified through `0 → 3 → 2 → 1 → 0` with the correct layout at each step. Portrait/landscape layouts were repaired for Home (clipped category grid), ChooseLevel (overflow + baseline clipping + selected-level state), ServerError (overflow), Login/Register (insets overwrote gutters), all form gutters, profile tab state, lead-dialog scrolling and detail scroll restoration. API 29 phone screenshot/dump checks covered Login, Register, Home, Ask, Profile, Edit Profile, QuestionDetail, CenterList, CenterDetail, Notification, Settings and SavedPromos; temporary fully-visible Espresso checks covered ChooseLevel and ServerError; existing instrumented tests pass 7/7 in both orientations. Tablet/foldable, PromoDetail, WordDetail, centre forms, image viewer and open-keyboard dialogs remain untested (see §4.2).
 - **Remaining actions required before release:**
   1. Deploy the updated `firestore.rules` (indexes are already deployed and READY), then run a rules-emulator suite covering every collection/actor/field.
   2. Execute the destructive/write flows in a disposable Firebase project: post with media, vote → reopen → unvote, accept A → accept B → accept A, delete with answers/votes/media, worker account switch/permanent failure, notification backlog/type, and promo create → approve → lead.

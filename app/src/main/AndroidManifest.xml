@@ -15,6 +15,9 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
+    <!-- Every activity follows the device sensor (fullSensor) and no activity declares
+         configChanges, so physical rotation recreates the screen and loads layout-land where
+         provided. Do not lock individual screens to portrait/landscape. -->
     <application
         android:name=".EngQAApp"
         android:allowBackup="true"
