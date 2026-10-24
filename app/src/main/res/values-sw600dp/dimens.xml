@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tablets/foldables in portrait: keep one readable form column instead of edge-to-edge fields. -->
+    <dimen name="form_horizontal_padding">72dp</dimen>
+    <dimen name="auth_horizontal_padding">96dp</dimen>
+    <dimen name="auth_title_top_margin">24dp</dimen>
+    <dimen name="auth_field_top_margin">28dp</dimen>
+    <dimen name="home_rail_width">320dp</dimen>
+</resources>

@@ -310,7 +310,11 @@ detail scroll views have IDs so their position is restored.
 All activities use `screenOrientation="fullSensor"`; no `configChanges` shortcut is used, and no
 activity is locked to portrait or landscape. Automatic sensor rotation was verified on the API 29
 emulator through portrait → landscape → reverse portrait → reverse landscape → portrait
-(`0 → 3 → 2 → 1 → 0`), with the correct layout loaded at each step. Home and
+(`0 → 3 → 2 → 1 → 0`), with the correct layout loaded at each step. Responsive dimension qualifiers
+cover phones, tablets and large tablets (`values-land`, `values-sw600dp`, `values-sw600dp-land`,
+`values-sw900dp`, `values-sw900dp-land`); the Home rail width adapts through
+`@dimen/home_rail_width` (280/300/320/340dp). Tested configurations were 393×829dp, 360×640dp,
+800×1280dp, 1280×800dp, plus a 1.3× font scale. Home and
 the Ask screen have dedicated `layout-land` variants, `ChooseLevelActivity` switches to a compact
 horizontal card row in landscape, and the offline error screen uses a side-by-side illustration
 instead of a 277dp vertical stack. Auth and form screens use `values-land/dimens.xml` to widen the

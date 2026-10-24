@@ -27,4 +27,5 @@
     <dimen name="promo_gap">10dp</dimen>
     <dimen name="promo_badge_padding">6dp</dimen>
     <dimen name="question_image_height">220dp</dimen>
+    <dimen name="home_rail_width">300dp</dimen>
 </resources>

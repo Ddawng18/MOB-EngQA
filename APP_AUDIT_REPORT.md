@@ -332,10 +332,53 @@ No crashes or `InflateException`s appeared in logcat.
 **Other checks:** `assembleDebug`, `assembleRelease`, `testDebugUnitTest` **69/69**, `lintDebug`
 **0 errors / 273 warnings** (one pre-existing lint quickfix warning remains on `server_error_code`).
 
-**Not verified in this pass:** tablet/sw600dp and foldable layouts, reverse-landscape, PromoDetail,
-WordDetail, CenterRequest/CenterEdit/CreatePromo in landscape, image viewer, lead/report dialogs
-with the keyboard open, and rotation during in-flight uploads/playback. These layouts are
-scrollable or use the same responsive dimensions, but they were not executed end-to-end.
+**Not verified in this pass:** foldable multi-window, display cutouts on a physical device,
+lead/report dialogs with the keyboard open, and rotation during in-flight uploads/playback.
+
+### 4.3 Multi-device responsive pass (2026-10-24)
+
+Added tablet/large-screen qualifiers and a responsive Home rail:
+
+- `values-sw600dp/dimens.xml`, `values-sw600dp-land/dimens.xml`: form 72dp / auth 96dp gutters.
+- `values-sw900dp/dimens.xml`, `values-sw900dp-land/dimens.xml`: form 120dp / auth 160dp gutters.
+- `@dimen/home_rail_width`: 280dp in phone landscape, 300dp default, 320dp sw600, 340dp sw900.
+- `layout-land/activity_home.xml` now uses the rail dimension instead of a hardcoded 300dp.
+
+**Device configurations tested on the API 29 emulator**
+
+| Configuration | Size | Density | Result |
+|---|---|---:|---|
+| Standard phone portrait/landscape | 1080×2280 px (`393×829dp`) | 440 | Phone layouts, all 4 rotations on Home/Ask/Profile/QuestionDetail/WordDetail |
+| Small phone portrait/landscape | 720×1280 px (`360×640dp`) | 320 | QuestionDetail/Home checked; input, `Gửi`, bottom nav visible; content scrolls |
+| Tablet portrait | 1600×2560 px (`800×1280dp`) | 320 | Home full-width; EditProfile centered with tablet gutters; no clipping |
+| Tablet landscape | 2560×1600 px (`1280×800dp`) | 320 | Two-pane Home; EditProfile with sw900dp gutters; no clipping |
+| Font scale 1.3× | 1080×2280 px | 440 | EditProfile labels/fields fit; actions remain reachable by scrolling |
+
+**Screen matrix**
+
+| Screen | 4 orientations (standard phone) | Small phone | Tablet | Verification status |
+|---|---|---|---|---|
+| Home | 0/2/3/1/0 passed (wm matrix); automatic sensor cycle passed earlier | Portrait/landscape checked | Portrait/landscape checked | FIXED AND VERIFIED |
+| Ask/MainActivity | 0/2/3/1/0 passed | Not separately run | Not separately run | FIXED AND VERIFIED (phone); other sizes NOT TESTED |
+| Profile | 0/2/3/1/0 passed | Not separately run | Portrait checked | FIXED AND VERIFIED (phone/tablet portrait) |
+| QuestionDetail | 0/2/3/1/0 passed | Portrait/landscape checked | Portrait checked | FIXED AND VERIFIED |
+| WordDetail | 0/2/3/1/0 passed | Not tested | Not tested | FIXED AND VERIFIED (phone) |
+| EditProfile | 0/2/3/1/0 passed earlier | Not tested | Portrait/landscape + 1.3× font checked | FIXED AND VERIFIED (phone/tablet) |
+| CenterList/CenterDetail/CenterRequest | Mostly 0/2/3/1/0 in earlier pass; CenterList one uiautomator transition flake | Not tested | Not tested | FIXED - NOT RUNTIME VERIFIED for all sizes |
+| Notification / Settings / SavedPromos | Portrait/landscape checked; Settings 4 rotations applied | Not tested | Not tested | FIXED - NOT RUNTIME VERIFIED for all four |
+| Login / Register | Portrait/landscape checked; forced 4 rotations resumed the activity | Not tested | Tablet Login not completed | FIXED - NOT RUNTIME VERIFIED for all sizes |
+| ChooseLevel | Portrait/landscape fully-visible Espresso (previous pass) | Not tested | Not tested | FIXED - NOT RUNTIME VERIFIED for small/tablet |
+| ServerError | Landscape fully-visible Espresso (previous pass) | Not tested | Not tested | FIXED - NOT RUNTIME VERIFIED for small/tablet |
+| PromoDetail | Not individually 4-rotated | Not tested | Not tested | NOT TESTED |
+| ImageViewer | Tap did not open the viewer (placeholder media) | Not tested | Not tested | NOT TESTED |
+| Lead/report dialogs | Layout reviewed; scrolling added to lead dialog | Not tested | Not tested | FIXED - NOT RUNTIME VERIFIED (keyboard/landscape) |
+
+**Multi-device conclusion:** all activities remain `fullSensor` with no `configChanges`; the shared
+layouts use weights/scroll/flexible dimensions and the new tablet qualifiers apply. Runtime
+verification is strong for the core phone flows and representative tablet screens, but not every
+screen × every size × every transition was executed. In particular, PromoDetail, ImageViewer, and
+some centre/admin forms still lack a full four-orientation runtime pass; this is recorded rather
+than claimed as verified.
 
 ---
 
@@ -1457,7 +1500,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
   4. Test the Room v1→v2 migration on an installed v1 database (the SQL matches Room's generated v2 schema, but the upgrade was not executed).
   5. Decide whether avatar editing is in scope; if yes, add the picker/upload/storage integration and tests.
   6. Run `tools/seed/reindex-search.js --dry-run` after any bulk import/older-data restore; it should report zero changes. New questions are indexed automatically; the existing 17 questions were backfilled (0 remaining changes). After any bulk user import, run `tools/seed/backfill-usernames.js --dry-run` and expect 0 missing reservations (13 existing profiles were backfilled; 3 invalid names skipped).
-  7. Run the responsive checks on a tablet/foldable and reverse-landscape, and with the keyboard open on the lead/report dialogs and centre forms.
+  7. Finish the full matrix for foldable/multi-window, PromoDetail, ImageViewer, centre/admin forms, and lead/report dialogs with the keyboard open; every screen has not been run at every size.
   8. Create the release keystore, register its SHA-1/SHA-256 in Firebase/Google Cloud, regenerate `google-services.json` (the current file has no certificate hash), verify the Google provider, and publish the new APK. **The old APK still uses the denied `users` username query and will keep failing registration until updated.**
 - **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, search is verified with deployed indexes, and the main screens now adapt correctly on an API 29 phone in both orientations. The application is suitable for **further QA and a release-signing/Google-OAuth pass**, not yet for production release, because destructive workflows have not been end-to-end verified, release signing/SHA fingerprints and the Google provider still require manual configuration, BUG-005/008 remain partially fixed without a trusted backend, and tablet/foldable responsive coverage is still limited.
 

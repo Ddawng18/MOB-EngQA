@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Large tablet landscape: readable form width with compact vertical spacing. -->
+    <dimen name="form_horizontal_padding">120dp</dimen>
+    <dimen name="auth_horizontal_padding">160dp</dimen>
+    <dimen name="auth_title_top_margin">16dp</dimen>
+    <dimen name="auth_field_top_margin">24dp</dimen>
+    <dimen name="home_rail_width">340dp</dimen>
+</resources>
