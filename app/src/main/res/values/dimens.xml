@@ -15,6 +15,12 @@
     <dimen name="text_body">14sp</dimen>
     <dimen name="text_small">12sp</dimen>
 
+    <!-- Responsive form/auth spacing; landscape variants widen the side gutters. -->
+    <dimen name="form_horizontal_padding">16dp</dimen>
+    <dimen name="auth_horizontal_padding">24dp</dimen>
+    <dimen name="auth_title_top_margin">48dp</dimen>
+    <dimen name="auth_field_top_margin">40dp</dimen>
+
     <!-- Promo cards -->
     <dimen name="promo_card_radius">14dp</dimen>
     <dimen name="promo_banner_height">220dp</dimen>

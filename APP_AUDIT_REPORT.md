@@ -84,7 +84,7 @@ Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 - No Google account, no inbox for verification/reset emails, and no second user were available for end-to-end Google sign-in, email verification, password reset, or notification delivery tests.
 - The dictionary API was reachable from the host but the live Word-of-the-Day card did not load during the original audit; during the remediation re-check it loaded successfully ("feasible" with definition) after a fresh login.
 - **Post-remediation deployment status:** `firestore.indexes.json` was deployed to project `accountdata-dd29b` on 2026-10-24; all 19 indexes are READY and the composite search/filter queries were exercised live. `firestore.rules` was **not** deployed; rules changes remain statically reviewed because no rules-emulator test was available. The app's search work therefore runs against the currently deployed rules.
-- No performance, accessibility, localization, rotation/process-death, or penetration testing was performed.
+- No performance, accessibility, localization, process-death, or penetration testing was performed. Rotation/responsive UI was tested separately in §4.2 on a phone emulator; tablet/foldable sizes and process death remain untested.
 
 ---
 
@@ -282,6 +282,42 @@ The table above records the **original** audit run and is preserved for traceabi
 | Search indexes | 19/19 READY; direct Firestore REST `array-contains-any` + category query succeeded |
 
 **Not re-executed (documented per issue):** accept/change-accept, vote/reopen/unvote, delete-confirm, question cascade, offline worker/account switch, notification backlog/type, **Firestore rules deployment**, Android 11+ intents, Android 13+ notification permission, and the v1→v2 Room upgrade.
+
+### 4.2 Responsive UI pass (2026-10-24)
+
+The manifest already used `screenOrientation="fullSensor"` and did not suppress recreation, so the
+root cause was layout, not rotation policy. The audit had not previously tested rotation.
+
+| Screen | Before | After / verification |
+|---|---|---|
+| Home | Landscape used a 2-column category grid inside a ~54dp-tall rail; lower chips were clipped and unreachable | One horizontal, scrollable chip row in both orientations; landscape screenshot verified no clipped rows |
+| Ask (`MainActivity`) | Existing landscape two-column layout | Reviewed in landscape; form scrolls, bottom action and nav remain reachable |
+| Login / Register | XML gutters were overwritten by the edge-to-edge inset listener; fields stretched edge-to-edge | Insets now add to the XML padding; landscape auth gutters are 96dp and the form is centered. Login screenshot verified |
+| ChooseLevel | Portrait stack was taller than landscape and had no scroll; `axis` baseline alignment could also clip the middle card | New `layout-land` horizontal card row with compact heights and `baselineAligned=false`; temporary Espresso test verified every card and Continue are fully visible in portrait and landscape, and the selected level survives `recreate()` |
+| ServerError | 277dp illustration + 72dp top bar did not fit between the top and bottom bars in landscape | New `layout-land` side-by-side illustration/copy with a 56dp top bar; temporary Espresso test verified image, title and bottom nav are fully visible |
+| Profile | Tab selection reset on recreation | Selection saved/restored; runtime rotation kept "Câu trả lời của tôi" active |
+| Edit profile / centre forms / create promo | Full-width fields on wide landscape screens | `values-land/dimens.xml` widens side gutters to 64dp; Edit Profile screenshot verified |
+| Detail screens | Scroll position was not restorable (no view IDs) | `scrollQuestion`, `scrollPromo`, `scrollCenter`, `scrollWord` and `scrollProfile` IDs added; answer/draft text fields already save state |
+| Lead dialog | Fixed-height stack could be clipped by the IME in landscape | Custom content is now wrapped in a `ScrollView`, preserving the same fields |
+
+**Responsive verification performed:** API 29 Pixel_4 emulator, `wm set-user-rotation lock` between
+0 and 1. Temporary `TempResponsiveLayoutTest` (fully-visible ChooseLevel/ServerError checks and
+ChooseLevel selection recreation in portrait and landscape) was executed and deleted; a temporary
+Register hold/screenshot verified the scrollable landscape form. The existing instrumented suite
+passes **7/7 in portrait and 7/7 in landscape** (after making `RegisterValidationTest` scroll the
+form instead of relying on a brittle single `scrollTo`). Runtime screenshots/dumps covered Login,
+Register, Home, Ask, Profile, Edit Profile, QuestionDetail, CenterList, CenterDetail, Notification,
+Settings and SavedPromos in landscape; Home/search/search-result state and the Ask draft were
+rotated and verified; ChooseLevel and ServerError were fully-visible in portrait and landscape.
+No crashes or `InflateException`s appeared in logcat.
+
+**Other checks:** `assembleDebug`, `assembleRelease`, `testDebugUnitTest` **69/69**, `lintDebug`
+**0 errors / 273 warnings** (one pre-existing lint quickfix warning remains on `server_error_code`).
+
+**Not verified in this pass:** tablet/sw600dp and foldable layouts, reverse-landscape, PromoDetail,
+WordDetail, CenterRequest/CenterEdit/CreatePromo in landscape, image viewer, lead/report dialogs
+with the keyboard open, and rotation during in-flight uploads/playback. These layouts are
+scrollable or use the same responsive dimensions, but they were not executed end-to-end.
 
 ---
 
@@ -1249,8 +1285,8 @@ The table above records the **original** audit run and is preserved for traceabi
 - Google Sign-In completion, logged-out authentication, revoked/expired sessions.
 - Notification delivery, click-through, mark-read/per-item behavior, Android 13 permission.
 - Camera capture, gallery picker, permission denial/permanent denial, image orientation.
-- Rotation, process death, low-memory behavior, background restrictions.
-- RTL, accessibility, localization, large font, dark theme, tablet/landscape.
+- Process death, low-memory behavior, background restrictions.
+- RTL, accessibility, localization, large font, dark theme, tablet/foldable widths and sizes beyond the API 29 phone used in §4.2.
 - Firestore rules emulator tests and fresh-project index deployment.
 - Release signing and Play Store compliance.
 - Performance/leak testing.
@@ -1305,7 +1341,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 - Firebase rules-emulator suite covering every collection, actor, and field.
 - End-to-end instrumentation for: registration → level → post with media; offline queue → account switch/reconnect; vote → reopen → toggle off; accept A → accept B; delete with children; promo create → approve → view → lead; centre request → approve → edit.
 - API 33+ notification-permission and API 30+ package-visibility tests.
-- Rotation/process-death tests for drafts, forms, and playback.
+- Process-death tests for drafts/forms/playback; tablet, foldable and reverse-landscape responsive checks.
 - Accessibility and performance profiling, especially Base64 media decoding.
 
 **Recommended fix order and dependencies**
@@ -1343,6 +1379,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 - **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, and no Firebase rules emulator/deployment.
 - **Partially fixed:** question deletion (005) now removes answers, votes and media and derives profile counters from live data, but notifications/reports and other users' stored counters still require a trusted backend. Firestore authorization (008) no longer exposes profiles or allows arbitrary answer/acceptance edits, but bounded counter deltas cannot be fully attributed on the client without Cloud Functions.
 - **Unresolved:** avatar editing (026) requires a product decision; the unused `avatarUrl` field remains without a picker/upload/display contract.
+- **Responsive UI (additional pass, not a numbered finding):** portrait/landscape layouts were repaired for Home (clipped category grid), ChooseLevel (overflow + baseline clipping + selected-level state), ServerError (overflow), Login/Register (insets overwrote gutters), all form gutters, profile tab state, lead-dialog scrolling and detail scroll restoration. API 29 phone screenshot/dump checks covered Login, Register, Home, Ask, Profile, Edit Profile, QuestionDetail, CenterList, CenterDetail, Notification, Settings and SavedPromos; temporary fully-visible Espresso checks covered ChooseLevel and ServerError; existing instrumented tests pass 7/7 in both orientations. Tablet/foldable, reverse-landscape, PromoDetail, WordDetail, centre forms, image viewer and open-keyboard dialogs remain untested (see §4.2).
 - **Remaining actions required before release:**
   1. Deploy the updated `firestore.rules` (indexes are already deployed and READY), then run a rules-emulator suite covering every collection/actor/field.
   2. Execute the destructive/write flows in a disposable Firebase project: post with media, vote → reopen → unvote, accept A → accept B → accept A, delete with answers/votes/media, worker account switch/permanent failure, notification backlog/type, and promo create → approve → lead.
@@ -1350,6 +1387,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
   4. Test the Room v1→v2 migration on an installed v1 database (the SQL matches Room's generated v2 schema, but the upgrade was not executed).
   5. Decide whether avatar editing is in scope; if yes, add the picker/upload/storage integration and tests.
   6. Run `tools/seed/reindex-search.js --dry-run` after any bulk import/older-data restore; it should report zero changes. New questions are indexed automatically; the existing 17 questions were backfilled (0 remaining changes).
-- **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, and search is now verified with deployed indexes. The application is suitable for **further QA and a rules-deployment pass**, not yet for production release, because the security rules are not deployed, destructive workflows have not been end-to-end verified, and BUG-005/008 remain partially fixed without a trusted backend.
+  7. Run the responsive checks on a tablet/foldable and reverse-landscape, and with the keyboard open on the lead/report dialogs and centre forms.
+- **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, search is verified with deployed indexes, and the main screens now adapt correctly on an API 29 phone in both orientations. The application is suitable for **further QA and a rules-deployment pass**, not yet for production release, because the security rules are not deployed, destructive workflows have not been end-to-end verified, BUG-005/008 remain partially fixed without a trusted backend, and tablet/foldable responsive coverage is still limited.
 
-**Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. `firestore.indexes.json` was deployed to `accountdata-dd29b` (19/19 READY); `firestore.rules` was **not** deployed. No destructive writes to shared Firebase content were performed. Search metadata on 17 existing questions was rebuilt additively via `tools/seed/reindex-search.js --apply`, which updates only the `searchKeywords` field and preserves title/body/tags/answers; a follow-up dry-run reported 0 changes. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, Back behaviour, and the search scenarios listed in §4.1. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.
+**Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. `firestore.indexes.json` was deployed to `accountdata-dd29b` (19/19 READY); `firestore.rules` was **not** deployed. No destructive writes to shared Firebase content were performed. Search metadata on 17 existing questions was rebuilt additively via `tools/seed/reindex-search.js --apply`, which updates only the `searchKeywords` field and preserves title/body/tags/answers; a follow-up dry-run reported 0 changes. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, Back behaviour, and the search scenarios listed in §4.1. The responsive pass additionally rotated the emulator between portrait and landscape for Login, Home/search, Ask draft, Profile tab, Edit Profile, QuestionDetail, CenterList/Detail, Notification, Settings and SavedPromos, and used a temporary `TempResponsiveLayoutTest` for fully-visible ChooseLevel/ServerError checks; that test was deleted after execution. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.

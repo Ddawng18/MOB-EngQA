@@ -84,10 +84,17 @@ public class LoginActivity extends AppCompatActivity {
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_login);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.loginRoot), (v, insets) -> {
+        View loginRoot = findViewById(R.id.loginRoot);
+        int baseStart = loginRoot.getPaddingStart();
+        int baseTop = loginRoot.getPaddingTop();
+        int baseEnd = loginRoot.getPaddingEnd();
+        int baseBottom = loginRoot.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(loginRoot, (v, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                     | WindowInsetsCompat.Type.ime());
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            // Keep the XML landscape gutters instead of replacing them with the bar insets.
+            v.setPaddingRelative(baseStart + bars.left, baseTop + bars.top,
+                    baseEnd + bars.right, baseBottom + bars.bottom);
             return insets;
         });
 

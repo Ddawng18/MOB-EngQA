@@ -4,6 +4,7 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
+import static androidx.test.espresso.action.ViewActions.swipeUp;
 import static androidx.test.espresso.action.ViewActions.typeText;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
@@ -35,7 +36,10 @@ public class RegisterValidationTest {
                     .perform(typeText("123456"), closeSoftKeyboard());
             onView(withId(R.id.edtConfirmPassword))
                     .perform(scrollTo(), typeText("123456"), closeSoftKeyboard());
-            onView(withId(R.id.btnRegister)).perform(scrollTo(), click());
+            // Landscape has less vertical space; scroll the form instead of relying on a single
+            // scrollTo (which can run while the IME is still settling).
+            onView(withId(R.id.registerRoot)).perform(swipeUp(), swipeUp());
+            onView(withId(R.id.btnRegister)).perform(click());
             onView(withId(R.id.tvAuthError))
                     .check(matches(isDisplayed()))
                     .check(matches(withText("Tên hiển thị phải từ 3 đến 24 ký tự")));

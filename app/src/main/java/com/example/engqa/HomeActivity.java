@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.MenuItem;
@@ -25,7 +24,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -349,13 +347,10 @@ public class HomeActivity extends BaseNavActivity {
             sortRecycler.setVisibility(FeedMixer.FILTER_CENTER.equals(category.getId())
                     ? View.GONE : View.VISIBLE);
         });
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            // The landscape layout puts the chips in a narrow left rail, so use a 2-column grid.
-            recycler.setLayoutManager(new GridLayoutManager(this, 2));
-        } else {
-            recycler.setLayoutManager(
-                    new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
-        }
+        // One horizontal, scrollable row in both orientations. A grid inside the short landscape
+        // rail was clipped and hid categories below the second row.
+        recycler.setLayoutManager(
+                new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
         recycler.setAdapter(categoryAdapter);
 
         viewModel.getCategories().observe(this, categories -> {

@@ -9,6 +9,7 @@ import android.text.Spanned;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -39,6 +40,7 @@ public class ChooseLevelActivity extends AppCompatActivity {
     private static final String LEVEL_BEGINNER = "Beginner";
     private static final String LEVEL_INTERMEDIATE = "Intermediate";
     private static final String LEVEL_ADVANCED = "Advanced";
+    private static final String STATE_SELECTED_LEVEL = "selected_level";
 
     private static final String DESC_BEGINNER = "Dành cho người mới bắt đầu.";
     private static final String DESC_INTERMEDIATE =
@@ -53,10 +55,16 @@ public class ChooseLevelActivity extends AppCompatActivity {
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_choose_level);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.rootLayout), (v, insets) -> {
+        View rootLayout = findViewById(R.id.rootLayout);
+        int baseStart = rootLayout.getPaddingStart();
+        int baseTop = rootLayout.getPaddingTop();
+        int baseEnd = rootLayout.getPaddingEnd();
+        int baseBottom = rootLayout.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                     | WindowInsetsCompat.Type.ime());
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            v.setPaddingRelative(baseStart + bars.left, baseTop + bars.top,
+                    baseEnd + bars.right, baseBottom + bars.bottom);
             return insets;
         });
 
@@ -96,6 +104,19 @@ public class ChooseLevelActivity extends AppCompatActivity {
                 }
             });
         });
+
+        if (savedInstanceState != null) {
+            String restored = savedInstanceState.getString(STATE_SELECTED_LEVEL);
+            if (restored != null) {
+                selectLevel(restored);
+            }
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SELECTED_LEVEL, selectedLevel);
     }
 
     private void goHome() {

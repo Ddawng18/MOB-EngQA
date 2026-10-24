@@ -45,6 +45,7 @@ public class MenuScreenActivity extends BaseNavActivity {
     private int liveQuestionCount = -1;
     private int liveAnswerCount = -1;
     private int liveAcceptedCount = -1;
+    private boolean showingQuestions = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +84,9 @@ public class MenuScreenActivity extends BaseNavActivity {
         btnMyQuestions.setOnClickListener(v -> showTab(true));
         btnMyAnswers.setOnClickListener(v -> showTab(false));
         findViewById(R.id.btnLogout).setOnClickListener(v -> logout());
+        if (savedInstanceState != null) {
+            showTab(savedInstanceState.getBoolean("showingQuestions", true));
+        }
         bindBottomNav();
 
         observe();
@@ -248,7 +252,14 @@ public class MenuScreenActivity extends BaseNavActivity {
         ((TextView) findViewById(R.id.tvAcceptedCount)).setText(String.valueOf(accepted));
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("showingQuestions", showingQuestions);
+    }
+
     private void showTab(boolean questions) {
+        showingQuestions = questions;
         recyclerQuestions.setVisibility(questions ? View.VISIBLE : View.GONE);
         recyclerAnswers.setVisibility(questions ? View.GONE : View.VISIBLE);
         styleTab(btnMyQuestions, questions);

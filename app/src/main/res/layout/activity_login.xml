@@ -6,7 +6,10 @@
     android:layout_height="match_parent"
     android:background="#0D1117"
     android:fillViewport="true"
-    android:padding="24dp">
+    android:paddingStart="@dimen/auth_horizontal_padding"
+    android:paddingTop="24dp"
+    android:paddingEnd="@dimen/auth_horizontal_padding"
+    android:paddingBottom="24dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,7 +21,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="48dp"
+            android:layout_marginTop="@dimen/auth_title_top_margin"
             android:gravity="center"
             android:text="@string/login_title"
             android:textColor="@android:color/white"
@@ -30,7 +33,7 @@
             android:id="@+id/edtEmail"
             android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="@dimen/auth_field_top_margin"
             android:autofillHints="emailAddress"
             android:background="@drawable/bg_auth_input"
             android:hint="@string/hint_email"

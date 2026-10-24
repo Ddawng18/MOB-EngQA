@@ -77,11 +77,18 @@ public class RegisterActivity extends AppCompatActivity {
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_register);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.registerRoot),
+        View registerRoot = findViewById(R.id.registerRoot);
+        int baseStart = registerRoot.getPaddingStart();
+        int baseTop = registerRoot.getPaddingTop();
+        int baseEnd = registerRoot.getPaddingEnd();
+        int baseBottom = registerRoot.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(registerRoot,
                 (v, insets) -> {
                     Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                             | WindowInsetsCompat.Type.ime());
-                    v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                    // Keep the XML landscape gutters instead of replacing them with the bar insets.
+                    v.setPaddingRelative(baseStart + bars.left, baseTop + bars.top,
+                            baseEnd + bars.right, baseBottom + bars.bottom);
                     return insets;
                 });
 

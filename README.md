@@ -296,7 +296,17 @@ Home, Ask, Profile.
 Every screen keeps its state in a `ViewModel`, so a configuration change does not reload data or
 create a duplicate Firestore listener (the listener is attached in `onStart` and detached in
 `onStop`, and `onCleared` guarantees cleanup). The draft on the "Đặt câu hỏi" screen is kept in its
-ViewModel and mirrored into `onSaveInstanceState` so it also survives process death.
+ViewModel and mirrored into `onSaveInstanceState` so it also survives process death. The profile
+tab selection and the level chosen on `ChooseLevelActivity` are also saved across recreation, and
+detail scroll views have IDs so their position is restored.
+
+All activities use `screenOrientation="fullSensor"`; no `configChanges` shortcut is used. Home and
+the Ask screen have dedicated `layout-land` variants, `ChooseLevelActivity` switches to a compact
+horizontal card row in landscape, and the offline error screen uses a side-by-side illustration
+instead of a 277dp vertical stack. Auth and form screens use `values-land/dimens.xml` to widen the
+side gutters (96dp auth / 64dp forms) so fields do not stretch across a landscape phone. The Home
+category chips remain one horizontally scrollable row in both orientations; a 2-column grid inside
+the short landscape rail used to clip the lower categories.
 
 ## Build and test
 
