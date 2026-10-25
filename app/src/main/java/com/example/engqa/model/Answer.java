@@ -17,6 +17,7 @@ public class Answer {
     private String authorId;
     private String authorName;
     private String body;
+    private String questionTitle;
     private long upCount;
     private long downCount;
     private boolean isAccepted;
@@ -64,6 +65,18 @@ public class Answer {
 
     public void setBody(String body) {
         this.body = body;
+    }
+
+    /**
+     * Title of the question this answer belongs to, denormalised so the profile can show
+     * "answered in …" without an extra read. Older answers may not have it; the profile fills it.
+     */
+    public String getQuestionTitle() {
+        return questionTitle;
+    }
+
+    public void setQuestionTitle(String questionTitle) {
+        this.questionTitle = questionTitle;
     }
 
     public long getUpCount() {

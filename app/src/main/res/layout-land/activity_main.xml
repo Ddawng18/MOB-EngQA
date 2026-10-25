@@ -76,7 +76,7 @@
                 <EditText
                     android:id="@+id/etTitle"
                     style="@style/FormInput"
-                    android:layout_height="46dp"
+                    android:layout_height="@dimen/input_height"
                     android:hint="@string/hint_title"
                     android:inputType="textCapSentences"
                     android:maxLines="1" />
@@ -124,7 +124,7 @@
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="46dp"
+                    android:layout_height="@dimen/input_height"
                     android:background="@drawable/bg_input">
 
                     <Spinner
@@ -153,7 +153,7 @@
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="46dp"
+                    android:layout_height="@dimen/input_height"
                     android:background="@drawable/bg_input">
 
                     <Spinner

@@ -1,6 +1,9 @@
 package com.example.engqa;
 
+import java.util.Locale;
+
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -19,20 +22,26 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.data.Callback;
-import com.example.engqa.data.UserRepository;
+import com.example.engqa.media.MediaCompressor;
 import com.example.engqa.model.Answer;
 import com.example.engqa.model.Question;
+import com.example.engqa.model.StoredMedia;
 import com.example.engqa.model.UiState;
-import com.example.engqa.model.User;
 import com.example.engqa.ui.AnswerAdapter;
 import com.example.engqa.ui.AudioPlayerView;
 import com.example.engqa.ui.ImageAdapter;
+import com.example.engqa.ui.MediaImageAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.TimeUtils;
+import com.example.engqa.viewmodel.AdminViewModel;
 import com.example.engqa.viewmodel.QuestionDetailViewModel;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import com.example.engqa.util.Navigation;
 
 /** Question detail: realtime question + answers, up/down vote, accept, media and reporting. */
 public class QuestionDetailActivity extends BaseNavActivity {
@@ -42,15 +51,19 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private QuestionDetailViewModel viewModel;
     private AnswerAdapter answerAdapter;
     private ImageAdapter imageAdapter;
+    private MediaImageAdapter mediaImageAdapter;
     private StateView stateView;
     private AudioPlayerView audioPlayer;
     private TextView tvAnswersHeader;
     private EditText etAnswer;
+    private TextView btnSend;
     private String questionId;
     private String uid;
-    private String currentUsername = "user";
-    private final UserRepository userRepository = new UserRepository();
+    private boolean isAdmin;
     private Question currentQuestion;
+    private List<StoredMedia> currentMedia = new ArrayList<>();
+    private StoredMedia currentAudio;
+    private final ExecutorService mediaExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,23 +85,13 @@ public class QuestionDetailActivity extends BaseNavActivity {
             return;
         }
         uid = new SessionManager(this).getUserId();
-        if (uid != null) {
-            userRepository.getUser(uid, new Callback<User>() {
-                @Override
-                public void onSuccess(User user) {
-                    if (user != null && user.getUsername() != null) {
-                        currentUsername = user.getUsername();
-                    }
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    // keep the default name
-                }
-            });
-        }
 
         viewModel = new ViewModelProvider(this).get(QuestionDetailViewModel.class);
+        // Admins get the same delete action on reported content; the rules already allow it.
+        AdminViewModel adminViewModel = new ViewModelProvider(this).get(AdminViewModel.class);
+        adminViewModel.getIsAdmin().observe(this,
+                allowed -> isAdmin = Boolean.TRUE.equals(allowed));
+        adminViewModel.checkAdmin();
         stateView = findViewById(R.id.stateView);
         audioPlayer = findViewById(R.id.audioPlayer);
         tvAnswersHeader = findViewById(R.id.tvAnswersHeader);
@@ -97,8 +100,9 @@ public class QuestionDetailActivity extends BaseNavActivity {
         setupAnswers();
         setupImages();
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
-        findViewById(R.id.btnSend).setOnClickListener(v -> submitAnswer());
+        Navigation.wireBack(this);
+        btnSend = findViewById(R.id.btnSend);
+        btnSend.setOnClickListener(v -> submitAnswer());
         findViewById(R.id.btnMore).setOnClickListener(this::showOptionsMenu);
         stateView.setOnRetryListener(v -> {
             viewModel.stop();
@@ -126,6 +130,12 @@ public class QuestionDetailActivity extends BaseNavActivity {
         viewModel.stop();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mediaExecutor.shutdownNow();
+    }
+
     private void setupAnswers() {
         answerAdapter = new AnswerAdapter(new AnswerAdapter.OnAnswerActionListener() {
             @Override
@@ -147,19 +157,28 @@ public class QuestionDetailActivity extends BaseNavActivity {
     }
 
     private void setupImages() {
+        // Detail images are shown large: full width, one per row, original aspect ratio. Tapping
+        // one still opens the zoomable viewer.
         imageAdapter = new ImageAdapter(url -> {
             Intent intent = new Intent(this, ImageViewerActivity.class);
             intent.putExtra(ImageViewerActivity.EXTRA_IMAGE_URL, url);
             startActivity(intent);
-        });
+        }, R.layout.item_detail_image);
+        mediaImageAdapter = new MediaImageAdapter(media -> {
+            Intent intent = new Intent(this, ImageViewerActivity.class);
+            intent.putExtra(ImageViewerActivity.EXTRA_QUESTION_ID, questionId);
+            intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_ID, media.getId());
+            startActivity(intent);
+        }, R.layout.item_detail_image);
         RecyclerView recycler = findViewById(R.id.recyclerImages);
-        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(imageAdapter);
     }
 
     private void observe() {
         viewModel.getQuestion().observe(this, this::renderQuestion);
         viewModel.getAnswers().observe(this, this::renderAnswers);
+        viewModel.getMedia().observe(this, this::renderMedia);
         viewModel.getMyVotes().observe(this, votes -> {
             answerAdapter.setMyVotes(votes);
             answerAdapter.notifyDataSetChanged();
@@ -169,17 +188,24 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 return;
             }
             switch (state.getStatus()) {
+                case LOADING:
+                    btnSend.setEnabled(false);
+                    break;
                 case SUCCESS:
+                    btnSend.setEnabled(true);
                     if ("question_deleted".equals(state.getData())) {
                         finish();
                     } else if ("deleted".equals(state.getData())) {
                         toast(getString(R.string.answer_deleted));
-                    } else {
+                    } else if ("answer_posted".equals(state.getData())) {
                         etAnswer.setText("");
+                        toast(getString(R.string.answer_posted));
+                    } else {
                         toast(getString(R.string.accepted_success));
                     }
                     break;
                 case ERROR:
+                    btnSend.setEnabled(true);
                     toast(state.getMessage());
                     break;
                 default:
@@ -211,7 +237,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
         currentQuestion = question;
         String name = question.getAuthorName() != null ? question.getAuthorName() : "user";
         ((TextView) findViewById(R.id.tvQuestionAvatar)).setText(
-                name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+                name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
         ((TextView) findViewById(R.id.tvQuestionUser)).setText(name);
         ((TextView) findViewById(R.id.tvQuestionTime)).setText(
                 TimeUtils.relative(question.getCreatedAt()));
@@ -231,11 +257,65 @@ public class QuestionDetailActivity extends BaseNavActivity {
             passage.setVisibility(View.GONE);
         }
 
-        imageAdapter.submit(question.getImageUrls());
-        audioPlayer.setUrl(question.getAudioUrl());
+        renderImages();
+        renderAudio();
 
         answerAdapter.setContext(question.getAuthorId(), uid);
         answerAdapter.setVotingEnabled(uid != null);
+    }
+
+    private void renderMedia(List<StoredMedia> media) {
+        currentMedia = media != null ? media : new ArrayList<>();
+        currentAudio = null;
+        for (StoredMedia item : currentMedia) {
+            if (item.isAudio()) {
+                currentAudio = item;
+                break;
+            }
+        }
+        renderImages();
+        renderAudio();
+    }
+
+    private void renderImages() {
+        List<StoredMedia> images = new ArrayList<>();
+        for (StoredMedia item : currentMedia) {
+            if (item.isImage()) {
+                images.add(item);
+            }
+        }
+        RecyclerView recycler = findViewById(R.id.recyclerImages);
+        if (!images.isEmpty()) {
+            if (recycler.getAdapter() != mediaImageAdapter) {
+                recycler.setAdapter(mediaImageAdapter);
+            }
+            mediaImageAdapter.submit(images);
+        } else {
+            if (recycler.getAdapter() != imageAdapter) {
+                recycler.setAdapter(imageAdapter);
+            }
+            imageAdapter.submit(currentQuestion != null
+                    ? currentQuestion.getImageUrls() : null);
+        }
+    }
+
+    private void renderAudio() {
+        if (currentAudio != null) {
+            final StoredMedia audio = currentAudio;
+            mediaExecutor.execute(() -> {
+                try {
+                    String name = "remote_" + audio.getId() + ".m4a";
+                    File file = MediaCompressor.writeToCache(this, audio.getData(), name);
+                    runOnUiThread(() -> audioPlayer.setUrl(Uri.fromFile(file).toString()));
+                } catch (Exception e) {
+                    runOnUiThread(() -> audioPlayer.setUrl(null));
+                }
+            });
+        } else if (currentQuestion != null && currentQuestion.getAudioUrl() != null) {
+            audioPlayer.setUrl(currentQuestion.getAudioUrl());
+        } else {
+            audioPlayer.setUrl(null);
+        }
     }
 
     private void renderAnswers(UiState<List<Answer>> state) {
@@ -260,15 +340,14 @@ public class QuestionDetailActivity extends BaseNavActivity {
             startActivity(new Intent(this, LoginActivity.class));
             return;
         }
-        String authorName = currentUsername;
-        viewModel.addAnswer(etAnswer.getText().toString(), authorName);
+        viewModel.addAnswer(etAnswer.getText().toString());
     }
 
     private void showOptionsMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add(0, 1, 0, R.string.report);
         if (currentQuestion != null && uid != null
-                && uid.equals(currentQuestion.getAuthorId())) {
+                && (uid.equals(currentQuestion.getAuthorId()) || isAdmin)) {
             popup.getMenu().add(0, 2, 1, R.string.delete);
         }
         popup.setOnMenuItemClickListener(item -> {
@@ -277,12 +356,25 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 return true;
             }
             if (item.getItemId() == 2) {
-                viewModel.deleteQuestion();
+                confirmDeleteQuestion();
                 return true;
             }
             return false;
         });
         popup.show();
+    }
+
+    /** Destructive actions always ask first; the answers and media are removed as well. */
+    private void confirmDeleteQuestion() {
+        String message = currentQuestion != null && currentQuestion.getTitle() != null
+                ? getString(R.string.delete_question_message, currentQuestion.getTitle())
+                : getString(R.string.delete_question_message_generic);
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.delete_question_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.delete, (dialog, which) -> viewModel.deleteQuestion())
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void showReportDialog() {

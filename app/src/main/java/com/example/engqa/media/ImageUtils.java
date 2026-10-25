@@ -1,5 +1,7 @@
 package com.example.engqa.media;
 
+import java.util.Locale;
+
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -80,7 +82,7 @@ public final class ImageUtils {
         String extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString());
         if (extension != null) {
             String fromExtension = MimeTypeMap.getSingleton()
-                    .getMimeTypeFromExtension(extension.toLowerCase());
+                    .getMimeTypeFromExtension(extension.toLowerCase(Locale.ROOT));
             if (fromExtension != null) {
                 return fromExtension;
             }

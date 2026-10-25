@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -24,13 +26,11 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.data.Callback;
-import com.example.engqa.data.UserRepository;
 import com.example.engqa.media.AudioRecorder;
 import com.example.engqa.media.ImageUtils;
+import com.example.engqa.media.MediaBudget;
 import com.example.engqa.model.Categories;
 import com.example.engqa.model.UiState;
-import com.example.engqa.model.User;
 import com.example.engqa.ui.AttachmentAdapter;
 import com.example.engqa.ui.AudioPlayerView;
 import com.example.engqa.util.PermissionHelper;
@@ -38,6 +38,7 @@ import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.CreateQuestionViewModel;
 
 import java.io.File;
+import com.example.engqa.util.Navigation;
 
 /** "Đặt câu hỏi" screen: text, reading passage, images, audio and type/level selection. */
 public class MainActivity extends BaseNavActivity {
@@ -57,8 +58,8 @@ public class MainActivity extends BaseNavActivity {
     private Uri pendingCameraUri;
     private AudioRecorder audioRecorder;
     private boolean recording;
-
-    private final UserRepository userRepository = new UserRepository();
+    private final Handler recordHandler = new Handler(Looper.getMainLooper());
+    private final Runnable autoStopRecording = this::stopRecording;
 
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -131,7 +132,7 @@ public class MainActivity extends BaseNavActivity {
         setupLevelSpinner();
         setupAttachments();
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBackToHome(this);
         findViewById(R.id.btnAttachImage).setOnClickListener(v -> pickImage());
         findViewById(R.id.btnTakePhoto).setOnClickListener(v -> requestCamera());
         findViewById(R.id.btnAddAudio).setOnClickListener(v -> pickAudio());
@@ -146,6 +147,11 @@ public class MainActivity extends BaseNavActivity {
     @Override
     protected int selectedNavItem() {
         return NAV_ASK;
+    }
+
+    @Override
+    protected boolean isTabActivity() {
+        return true;
     }
 
     @Override
@@ -272,6 +278,10 @@ public class MainActivity extends BaseNavActivity {
             toast("Ảnh vượt quá 5MB");
             return;
         }
+        if (viewModel.getImageUris().size() >= MediaBudget.MAX_IMAGES) {
+            toast(getString(R.string.image_limit));
+            return;
+        }
         viewModel.addImage(uri);
         attachmentAdapter.submit(viewModel.getImageUris());
     }
@@ -281,8 +291,8 @@ public class MainActivity extends BaseNavActivity {
             return;
         }
         long size = ImageUtils.sizeBytes(this, uri);
-        if (size > Validators.MAX_AUDIO_BYTES) {
-            toast("Âm thanh vượt quá 10MB");
+        if (size > MediaBudget.MAX_AUDIO_BYTES) {
+            toast(getString(R.string.audio_too_large));
             return;
         }
         viewModel.setAudioUri(uri);
@@ -307,6 +317,9 @@ public class MainActivity extends BaseNavActivity {
             audioRecorder.start(this);
             recording = true;
             btnRecordAudio.setText(R.string.btn_stop_record);
+            recordHandler.removeCallbacks(autoStopRecording);
+            recordHandler.postDelayed(autoStopRecording,
+                    MediaBudget.MAX_AUDIO_SECONDS * 1000L);
         } catch (Exception e) {
             audioRecorder = null;
             recording = false;
@@ -315,6 +328,7 @@ public class MainActivity extends BaseNavActivity {
     }
 
     private void stopRecording() {
+        recordHandler.removeCallbacks(autoStopRecording);
         recording = false;
         btnRecordAudio.setText(R.string.btn_record_audio);
         if (audioRecorder == null) {
@@ -329,7 +343,7 @@ public class MainActivity extends BaseNavActivity {
     }
 
     private void submit() {
-        String uid = userRepository.currentUid();
+        String uid = new SessionManager(this).getUserId();
         if (uid == null) {
             toast("Bạn cần đăng nhập");
             startActivity(new Intent(this, LoginActivity.class));
@@ -343,17 +357,7 @@ public class MainActivity extends BaseNavActivity {
         viewModel.setLevel((String) spinnerLevel.getSelectedItem());
 
         btnPost.setEnabled(false);
-        userRepository.getUser(uid, new Callback<User>() {
-            @Override
-            public void onSuccess(User user) {
-                viewModel.submit(uid, user != null ? user.getUsername() : "user");
-            }
-
-            @Override
-            public void onError(Exception e) {
-                viewModel.submit(uid, "user");
-            }
-        });
+        viewModel.submit();
     }
 
     private void observeSubmit() {
@@ -369,10 +373,15 @@ public class MainActivity extends BaseNavActivity {
                 case SUCCESS:
                     btnPost.setEnabled(true);
                     tvUploadStatus.setVisibility(View.GONE);
-                    toast(getString(R.string.post_success));
-                    Intent intent = new Intent(this, QuestionDetailActivity.class);
-                    intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, state.getData());
-                    startActivity(intent);
+                    if ("pending_saved".equals(state.getData())) {
+                        toast(getString(R.string.pending_saved));
+                    } else {
+                        toast(getString(R.string.post_success));
+                        Intent intent = new Intent(this, QuestionDetailActivity.class);
+                        intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID,
+                                state.getData());
+                        startActivity(intent);
+                    }
                     finish();
                     break;
                 case ERROR:
@@ -393,6 +402,7 @@ public class MainActivity extends BaseNavActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        recordHandler.removeCallbacks(autoStopRecording);
         if (recording && audioRecorder != null) {
             audioRecorder.cancel();
             audioRecorder = null;
