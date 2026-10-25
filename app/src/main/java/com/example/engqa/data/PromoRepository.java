@@ -67,6 +67,36 @@ public class PromoRepository {
                 });
     }
 
+    /** Promos authored by a centre, in every status (pending/approved/rejected/hidden). */
+    public ListenerRegistration observeMine(String uid, Callback<List<Promo>> callback) {
+        return db.collection(FirestoreRefs.PROMOS)
+                .whereEqualTo(FirestoreRefs.FIELD_AUTHOR_UID, uid)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        callback.onError(error);
+                        return;
+                    }
+                    List<Promo> promos = new ArrayList<>();
+                    if (snapshots != null) {
+                        for (DocumentSnapshot document : snapshots.getDocuments()) {
+                            Promo promo = document.toObject(Promo.class);
+                            if (promo != null) {
+                                if (promo.getPromoId() == null) {
+                                    promo.setPromoId(document.getId());
+                                }
+                                promos.add(promo);
+                            }
+                        }
+                    }
+                    promos.sort((a, b) -> {
+                        long left = a.getCreatedAt() != null ? a.getCreatedAt().getTime() : 0L;
+                        long right = b.getCreatedAt() != null ? b.getCreatedAt().getTime() : 0L;
+                        return Long.compare(right, left);
+                    });
+                    callback.onSuccess(promos);
+                });
+    }
+
     public ListenerRegistration observeById(String promoId, Callback<Promo> callback) {
         return db.collection(FirestoreRefs.PROMOS).document(promoId)
                 .addSnapshotListener((snapshot, error) -> {

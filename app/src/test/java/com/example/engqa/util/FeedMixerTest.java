@@ -139,6 +139,25 @@ public class FeedMixerTest {
     }
 
     @Test
+    public void filterByKeyword_unsearchableQuery_returnsEmpty() {
+        List<Promo> all = Arrays.asList(promo("a", null), promo("b", null));
+        assertTrue(FeedMixer.filterByKeyword(all, "a").isEmpty());
+        assertTrue(FeedMixer.filterByKeyword(all, "!!").isEmpty());
+        assertEquals(2, FeedMixer.filterByKeyword(all, "   ").size());
+    }
+
+    @Test
+    public void mix_appendsPromosLeftAfterTheLastQuestion() {
+        List<FeedItem> items = FeedMixer.mix(
+                questions(3),
+                Arrays.asList(promo("p1", null), promo("p2", null), promo("p3", null)),
+                FeedMixer.FILTER_ALL, 2, NOW);
+
+        assertEquals(Arrays.asList("question:q1", "question:q2", "promo:p1",
+                "question:q3", "promo:p2", "promo:p3"), keys(items));
+    }
+
+    @Test
     public void onlyPromosWithQuestionsEmpty_areShown() {
         List<FeedItem> items = FeedMixer.mix(Collections.emptyList(),
                 Arrays.asList(promo("p1", null), promo("p2", null)),

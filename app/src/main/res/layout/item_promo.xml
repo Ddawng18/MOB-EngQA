@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Feed card for an approved centre promo. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/promoCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -9,7 +10,7 @@
     android:clickable="true"
     android:focusable="true"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="@dimen/card_padding">
 
     <!-- Centre row -->
     <LinearLayout
@@ -58,16 +59,18 @@
             android:text="@string/promo_badge" />
     </LinearLayout>
 
-    <!-- Banner (hidden when imageUrl is empty) -->
-    <ImageView
+    <!-- Banner (hidden when imageUrl is empty); keeps the promo image's aspect ratio. -->
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/ivPromoBanner"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/promo_banner_height"
+        android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_attachment"
+        android:adjustViewBounds="true"
         android:contentDescription="@string/promo_badge"
-        android:scaleType="centerCrop"
-        android:visibility="gone" />
+        android:minHeight="140dp"
+        android:scaleType="fitCenter"
+        android:visibility="gone"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.EngQA.Image" />
 
     <TextView
         android:id="@+id/tvPromoType"

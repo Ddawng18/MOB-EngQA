@@ -7,12 +7,12 @@
     android:clickable="true"
     android:focusable="true"
     android:orientation="horizontal"
-    android:padding="14dp">
+    android:padding="@dimen/card_padding">
 
     <ImageView
         android:id="@+id/ivCenterLogo"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
         android:background="@drawable/bg_avatar"
         android:contentDescription="@string/center_name"
         android:scaleType="centerCrop" />
@@ -20,7 +20,7 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="14dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -28,26 +28,22 @@
             android:id="@+id/tvCenterName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.EngQA.Subtitle" />
 
         <TextView
             android:id="@+id/tvCenterDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="3dp"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textColor="@color/text_body"
-            android:textSize="13sp" />
+            android:textAppearance="@style/TextAppearance.EngQA.BodySmall" />
 
         <TextView
             android:id="@+id/tvCenterAddress"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:layout_marginTop="6dp"
+            android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
     </LinearLayout>
 </LinearLayout>

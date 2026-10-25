@@ -18,29 +18,25 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
-import com.example.engqa.data.local.SavedPromo;
-import com.example.engqa.data.local.SavedPromoRepository;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.UiState;
 import com.example.engqa.ui.StateView;
-import com.example.engqa.util.UiUtils;
 import com.example.engqa.viewmodel.PromoViewModel;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import com.example.engqa.util.Navigation;
 
 /**
  * Promo detail: reads the promo by id from Firestore, counts one view per opening, opens the
- * website/phone through implicit intents (checked with {@code resolveActivity}), saves locally and
- * opens the consultation dialog.
+ * website/phone through implicit intents, saves locally and opens the consultation dialog.
  */
 public class PromoDetailActivity extends AppCompatActivity {
 
     public static final String EXTRA_PROMO_ID = "com.example.engqa.extra.PROMO_ID";
 
     private PromoViewModel viewModel;
-    private SavedPromoRepository savedRepository;
     private StateView stateView;
     private TextView tvSave;
     private Promo currentPromo;
@@ -71,15 +67,15 @@ public class PromoDetailActivity extends AppCompatActivity {
         uid = new SessionManager(this).getUserId();
 
         viewModel = new ViewModelProvider(this).get(PromoViewModel.class);
-        savedRepository = new SavedPromoRepository(this);
         stateView = findViewById(R.id.stateView);
         tvSave = findViewById(R.id.btnSavePromo);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnWebsite).setOnClickListener(v -> openWebsite());
         findViewById(R.id.btnCall).setOnClickListener(v -> callNow());
         findViewById(R.id.btnRegisterLead).setOnClickListener(v -> openLeadDialog());
         tvSave.setOnClickListener(v -> toggleSaved());
+        findViewById(R.id.btnReportPromo).setOnClickListener(v -> reportPromo());
 
         stateView.setOnRetryListener(v -> {
             viewModel.stop();
@@ -98,13 +94,29 @@ public class PromoDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, state.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
+        viewModel.getSaved().observe(this, value -> {
+            saved = Boolean.TRUE.equals(value);
+            updateSaveButton();
+        });
+        viewModel.getSaveEvent().observe(this, message -> {
+            if (message == null) {
+                return;
+            }
+            if ("saved".equals(message)) {
+                Toast.makeText(this, R.string.promo_saved, Toast.LENGTH_SHORT).show();
+            } else if ("removed".equals(message)) {
+                Toast.makeText(this, R.string.saved_removed, Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         viewModel.start(promoId);
-        refreshSavedState();
+        viewModel.refreshSaved();
     }
 
     @Override
@@ -177,21 +189,27 @@ public class PromoDetailActivity extends AppCompatActivity {
 
     // ------------------------------------------------------------------ actions
 
+    /** Sends an approved promo to the same moderation queue as question reports. */
+    private void reportPromo() {
+        if (uid == null) {
+            Toast.makeText(this, R.string.login_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ReportDialogFragment.newInstance("promos/" + promoId)
+                .show(getSupportFragmentManager(), "report");
+    }
+
     private void openWebsite() {
         if (currentPromo == null || currentPromo.getLinkUrl() == null) {
             return;
         }
         viewModel.onContactClick();
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW,
-                    Uri.parse(currentPromo.getLinkUrl()));
-            if (intent.resolveActivity(getPackageManager()) != null) {
-                startActivity(intent);
-            } else {
-                Toast.makeText(this, R.string.promo_open_website, Toast.LENGTH_SHORT).show();
-            }
+            // Start directly: resolveActivity() can return null under Android 11+ package
+            // visibility even when a browser is installed.
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(currentPromo.getLinkUrl())));
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.promo_open_website, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.promo_no_browser, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -202,15 +220,10 @@ public class PromoDetailActivity extends AppCompatActivity {
         viewModel.onContactClick();
         try {
             // ACTION_DIAL only opens the dialer, so no CALL_PHONE permission is needed.
-            Intent intent = new Intent(Intent.ACTION_DIAL,
-                    Uri.parse("tel:" + currentPromo.getContactPhone()));
-            if (intent.resolveActivity(getPackageManager()) != null) {
-                startActivity(intent);
-            } else {
-                Toast.makeText(this, R.string.promo_call_now, Toast.LENGTH_SHORT).show();
-            }
+            startActivity(new Intent(Intent.ACTION_DIAL,
+                    Uri.parse("tel:" + currentPromo.getContactPhone())));
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.promo_call_now, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.promo_no_dialer, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -225,55 +238,7 @@ public class PromoDetailActivity extends AppCompatActivity {
     }
 
     private void toggleSaved() {
-        if (currentPromo == null) {
-            return;
-        }
-        if (saved) {
-            savedRepository.remove(promoId, new com.example.engqa.data.Callback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    saved = false;
-                    updateSaveButton();
-                    UiUtils.toast(PromoDetailActivity.this, getString(R.string.saved_removed));
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    UiUtils.toast(PromoDetailActivity.this, e.getLocalizedMessage());
-                }
-            });
-        } else {
-            SavedPromo entity = new SavedPromo(promoId, currentPromo.getCenterName(),
-                    currentPromo.getTitle(), currentPromo.getImageUrl(), System.currentTimeMillis());
-            savedRepository.save(entity, new com.example.engqa.data.Callback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    saved = true;
-                    updateSaveButton();
-                    UiUtils.toast(PromoDetailActivity.this, getString(R.string.promo_saved));
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    UiUtils.toast(PromoDetailActivity.this, e.getLocalizedMessage());
-                }
-            });
-        }
-    }
-
-    private void refreshSavedState() {
-        savedRepository.isSaved(promoId, new com.example.engqa.data.Callback<Boolean>() {
-            @Override
-            public void onSuccess(Boolean result) {
-                saved = Boolean.TRUE.equals(result);
-                updateSaveButton();
-            }
-
-            @Override
-            public void onError(Exception e) {
-                // Keep the current label.
-            }
-        });
+        viewModel.toggleSaved(currentPromo);
     }
 
     private void updateSaveButton() {

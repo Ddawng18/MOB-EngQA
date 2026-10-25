@@ -1,11 +1,16 @@
 package com.example.engqa.viewmodel;
 
+import android.app.Application;
+import android.net.Uri;
+
+import androidx.annotation.NonNull;
+import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 
 import com.example.engqa.data.Callback;
 import com.example.engqa.data.CenterRepository;
+import com.example.engqa.data.LinkStorageRepository;
 import com.example.engqa.data.PromoRepository;
 import com.example.engqa.data.RepoErrors;
 import com.example.engqa.data.UserRepository;
@@ -21,11 +26,13 @@ import java.util.Date;
  * Backs "Đăng bài quảng bá": loads the author's role and centre, then writes a promo in
  * {@code PENDING} state. Only a CENTER account linked to a centre may submit.
  */
-public class CreatePromoViewModel extends ViewModel {
+public class CreatePromoViewModel extends AndroidViewModel {
 
     private final UserRepository userRepository = new UserRepository();
     private final CenterRepository centerRepository = new CenterRepository();
     private final PromoRepository promoRepository = new PromoRepository();
+    private final LinkStorageRepository storageRepository;
+    private final MutableLiveData<UiState<String>> uploadState = new MutableLiveData<>();
 
     private final MutableLiveData<UiState<User>> user = new MutableLiveData<>();
     private final MutableLiveData<UiState<Center>> center = new MutableLiveData<>();
@@ -33,6 +40,35 @@ public class CreatePromoViewModel extends ViewModel {
 
     private ListenerRegistration centerRegistration;
     private String uid;
+
+    public CreatePromoViewModel(@NonNull Application application) {
+        super(application);
+        storageRepository = new LinkStorageRepository(application);
+    }
+
+    public LiveData<UiState<String>> getUploadState() {
+        return uploadState;
+    }
+
+    public void uploadImage(Uri uri) {
+        if (uid == null) {
+            uploadState.setValue(UiState.<String>error("Bạn cần đăng nhập"));
+            return;
+        }
+        uploadState.setValue(UiState.<String>loading());
+        storageRepository.uploadImage(uri, uid, null, "promo", null,
+                new Callback<String>() {
+                    @Override
+                    public void onSuccess(String result) {
+                        uploadState.setValue(UiState.success(result));
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        uploadState.setValue(UiState.<String>error(RepoErrors.message(e)));
+                    }
+                });
+    }
 
     public LiveData<UiState<User>> getUser() {
         return user;
@@ -112,6 +148,7 @@ public class CreatePromoViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         stop();
+        storageRepository.shutdown();
         super.onCleared();
     }
 
