@@ -1,6 +1,13 @@
 package com.example.engqa;
 
+import java.util.Locale;
+
+import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -14,28 +21,34 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.data.Callback;
+import com.example.engqa.NetworkUtils;
 import com.example.engqa.data.QuestionRepository;
-import com.example.engqa.data.UserRepository;
+import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Category;
 import com.example.engqa.model.FeedItem;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.Question;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
+import com.example.engqa.model.WordEntry;
+import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.ui.CategoryChipAdapter;
 import com.example.engqa.ui.FeedAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.FeedMixer;
+import com.example.engqa.util.PermissionHelper;
+import com.example.engqa.util.PrefsHelper;
 import com.example.engqa.viewmodel.FeedViewModel;
+import com.example.engqa.viewmodel.NotificationViewModel;
+import com.example.engqa.worker.PendingQuestionWorker;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,12 +66,27 @@ public class HomeActivity extends BaseNavActivity {
     private CategoryChipAdapter sortAdapter;
     private StateView stateView;
     private ProgressBar progressMore;
-    private TextView cacheHint;
     private RecyclerView recyclerView;
     private RecyclerView sortRecycler;
+    private TextView profileButton;
+    private TextView notificationBadge;
+    private NotificationViewModel notificationViewModel;
 
-    private final UserRepository userRepository = new UserRepository();
     private User currentUser;
+    private boolean pendingReceiverRegistered;
+    private boolean showingServerError;
+    private boolean blockedShown;
+
+    /** Dynamic receiver: refreshes the feed after a queued post finishes uploading. */
+    private final BroadcastReceiver pendingPostedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Toast.makeText(HomeActivity.this, R.string.pending_posted_body,
+                    Toast.LENGTH_SHORT).show();
+            viewModel.stop();
+            viewModel.start();
+        }
+    };
 
     private static final String[][] SORTS = {
             {QuestionRepository.SORT_NEWEST, "Mới nhất"},
@@ -72,6 +100,16 @@ public class HomeActivity extends BaseNavActivity {
                     Toast.makeText(this, R.string.promo_submitted, Toast.LENGTH_SHORT).show();
                 }
             });
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        if (!granted) {
+                            // Keep the stored preference in step with the OS; Settings can retry.
+                            PrefsHelper.setNotificationsEnabled(this, false);
+                            NotificationWatcher.stop();
+                        }
+                    });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,25 +127,26 @@ public class HomeActivity extends BaseNavActivity {
         });
 
         viewModel = new ViewModelProvider(this).get(FeedViewModel.class);
+        notificationViewModel = new ViewModelProvider(this).get(NotificationViewModel.class);
         stateView = findViewById(R.id.stateView);
         progressMore = findViewById(R.id.progressMore);
-        cacheHint = findViewById(R.id.tvCacheHint);
         recyclerView = findViewById(R.id.recyclerQuestions);
         sortRecycler = findViewById(R.id.recyclerSort);
+        notificationBadge = findViewById(R.id.tvNotificationBadge);
 
         setupFeed();
         setupCategoryChips();
         setupSortChips();
         setupSearch();
 
-        findViewById(R.id.btnNotifications).setOnClickListener(v -> {
+        findViewById(R.id.notificationButton).setOnClickListener(v -> {
             if (new SessionManager(this).isLoggedIn()) {
                 startActivity(new Intent(this, NotificationActivity.class));
             } else {
                 startActivity(new Intent(this, LoginActivity.class));
             }
         });
-        View profileButton = findViewById(R.id.btnProfile);
+        profileButton = findViewById(R.id.btnProfile);
         profileButton.setOnClickListener(this::showProfileMenu);
 
         stateView.setOnRetryListener(v -> {
@@ -115,6 +154,24 @@ public class HomeActivity extends BaseNavActivity {
             viewModel.start();
         });
         bindBottomNav();
+        viewModel.getCurrentUser().observe(this, this::bindCurrentUser);
+        notificationViewModel.getNotifications().observe(this, this::bindNotificationBadge);
+        maybeRequestNotificationPermission();
+    }
+
+    /** Ask for POST_NOTIFICATIONS once on Android 13+; Settings can re-request later. */
+    private void maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (PrefsHelper.hasAskedNotifications(this)) {
+            return;
+        }
+        if (PermissionHelper.hasNotifications(this)) {
+            return;
+        }
+        PrefsHelper.setAskedNotifications(this, true);
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
     }
 
     @Override
@@ -123,35 +180,93 @@ public class HomeActivity extends BaseNavActivity {
     }
 
     @Override
+    protected boolean isTabActivity() {
+        return true;
+    }
+
+    @Override
     protected void onStart() {
         super.onStart();
+        String uid = new SessionManager(this).getUserId();
+        if (uid == null) {
+            // The feed requires authentication; never leave a signed-out user on stale content.
+            goToLogin();
+            return;
+        }
         viewModel.start();
-        loadCurrentUser();
+        notificationViewModel.start(uid);
+        if (!pendingReceiverRegistered) {
+            ContextCompat.registerReceiver(this, pendingPostedReceiver,
+                    new IntentFilter(PendingQuestionWorker.ACTION_PENDING_POSTED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED);
+            pendingReceiverRegistered = true;
+        }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        viewModel.stop();
+        if (pendingReceiverRegistered) {
+            unregisterReceiver(pendingPostedReceiver);
+            pendingReceiverRegistered = false;
+        }
+        // Keep the feed listeners/ViewModel state so returning from a detail screen or a
+        // configuration change does not restart the first page. onCleared() detaches them.
+        notificationViewModel.stop();
     }
 
-    private void loadCurrentUser() {
-        String uid = userRepository.currentUid();
-        if (uid == null) {
-            currentUser = null;
+    /** Red badge with the unread notification count (hidden at zero). */
+    private void bindNotificationBadge(UiState<List<AppNotification>> state) {
+        int unread = 0;
+        if (state != null && state.getData() != null) {
+            for (AppNotification notification : state.getData()) {
+                if (!notification.isRead()) {
+                    unread++;
+                }
+            }
+        }
+        if (notificationBadge == null) {
             return;
         }
-        userRepository.getUser(uid, new Callback<User>() {
-            @Override
-            public void onSuccess(User user) {
-                currentUser = user;
-            }
+        if (unread <= 0) {
+            notificationBadge.setVisibility(View.GONE);
+        } else {
+            notificationBadge.setText(unread > 99 ? "99+" : String.valueOf(unread));
+            notificationBadge.setVisibility(View.VISIBLE);
+        }
+    }
 
-            @Override
-            public void onError(Exception e) {
-                // Keep the previous value; the menu falls back to the visitor state.
+    private void bindCurrentUser(User user) {
+        currentUser = user;
+        if (user != null) {
+            if (user.isDeleted()) {
+                showBlocked(AccountBlockedActivity.MODE_DELETED);
+                return;
             }
-        });
+            if (user.isTimedOut()) {
+                showBlocked(AccountBlockedActivity.MODE_TIMEOUT);
+                return;
+            }
+        }
+        if (profileButton == null) {
+            return;
+        }
+        String name = user != null && user.getUsername() != null ? user.getUsername() : "";
+        profileButton.setText(name.isEmpty()
+                ? getString(R.string.avatar_placeholder)
+                : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
+    }
+
+    /** Moderation gate: the whole app is unreachable for a timed-out or deleted account. */
+    private void showBlocked(String mode) {
+        if (blockedShown) {
+            return;
+        }
+        blockedShown = true;
+        startActivity(new Intent(this, AccountBlockedActivity.class)
+                .putExtra(AccountBlockedActivity.EXTRA_MODE, mode)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        finish();
     }
 
     // ------------------------------------------------------------------ feed
@@ -167,10 +282,18 @@ public class HomeActivity extends BaseNavActivity {
             public void onPromoClick(Promo promo) {
                 openPromo(promo);
             }
+
+            @Override
+            public void onWordClick(WordEntry word) {
+                Intent intent = new Intent(HomeActivity.this, WordDetailActivity.class);
+                intent.putExtra(WordDetailActivity.EXTRA_WORD,
+                        word != null ? word.getWord() : "");
+                startActivity(intent);
+            }
         });
 
-        int columns = Math.max(1, getResources().getInteger(R.integer.feed_columns));
-        recyclerView.setLayoutManager(new GridLayoutManager(this, columns));
+        // Reddit-style feed: always one full-width column, even on wide screens.
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(feedAdapter);
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -178,14 +301,11 @@ public class HomeActivity extends BaseNavActivity {
                 if (dy <= 0 || Boolean.TRUE.equals(viewModel.getLoadingMore().getValue())) {
                     return;
                 }
-                RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
-                int lastVisible = -1;
-                if (manager instanceof GridLayoutManager) {
-                    lastVisible = ((GridLayoutManager) manager).findLastVisibleItemPosition();
-                } else if (manager instanceof LinearLayoutManager) {
-                    lastVisible = ((LinearLayoutManager) manager).findLastVisibleItemPosition();
-                }
-                if (lastVisible >= feedAdapter.getItemCount() - 3) {
+                LinearLayoutManager manager =
+                        (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (manager != null
+                        && manager.findLastVisibleItemPosition()
+                            >= feedAdapter.getItemCount() - 3) {
                     viewModel.loadMore();
                 }
             }
@@ -209,14 +329,31 @@ public class HomeActivity extends BaseNavActivity {
                 stateView.showContent();
                 recyclerView.setVisibility(View.VISIBLE);
                 feedAdapter.submitList(state.getData());
-                cacheHint.setVisibility(state.isFromCache() ? View.VISIBLE : View.GONE);
                 break;
             case EMPTY:
-                stateView.showEmpty();
+                if (viewModel.isUnsearchableQuery()) {
+                    stateView.showEmpty(R.string.search_too_short);
+                } else if (viewModel.hasSearchQuery()) {
+                    stateView.showEmpty(R.string.search_no_results);
+                } else {
+                    stateView.showEmpty();
+                }
                 recyclerView.setVisibility(View.GONE);
                 break;
             case ERROR:
             default:
+                if (!NetworkUtils.isOnline(this)) {
+                    // The dedicated offline/error screen retries automatically when the network
+                    // returns; the inline error state remains for non-network failures.
+                    if (!showingServerError) {
+                        showingServerError = true;
+                        Intent intent = new Intent(this, ServerErrorActivity.class);
+                        intent.putExtra(ServerErrorActivity.EXTRA_AUTO_RETRY, true);
+                        startActivity(intent);
+                        finish();
+                    }
+                    return;
+                }
                 stateView.showError(state.getMessage());
                 recyclerView.setVisibility(View.GONE);
                 break;
@@ -233,7 +370,10 @@ public class HomeActivity extends BaseNavActivity {
             sortRecycler.setVisibility(FeedMixer.FILTER_CENTER.equals(category.getId())
                     ? View.GONE : View.VISIBLE);
         });
-        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        // One horizontal, scrollable row in both orientations. A grid inside the short landscape
+        // rail was clipped and hid categories below the second row.
+        recycler.setLayoutManager(
+                new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
         recycler.setAdapter(categoryAdapter);
 
         viewModel.getCategories().observe(this, categories -> {
@@ -253,7 +393,7 @@ public class HomeActivity extends BaseNavActivity {
     }
 
     private void setupSortChips() {
-        sortAdapter = new CategoryChipAdapter(QuestionRepository.SORT_NEWEST, category -> {
+        sortAdapter = new CategoryChipAdapter(viewModel.getSort(), category -> {
             viewModel.setSort(category.getId());
             sortAdapter.setSelectedId(category.getId());
         });
@@ -299,12 +439,15 @@ public class HomeActivity extends BaseNavActivity {
 
         boolean loggedIn = new SessionManager(this).isLoggedIn();
         boolean isCenter = currentUser != null
-                && (User.ROLE_CENTER.equals(currentUser.getRole())
-                    || currentUser.getCenterId() != null);
+                && User.ROLE_CENTER.equals(currentUser.getRole())
+                && currentUser.getCenterId() != null;
 
         popup.getMenu().findItem(R.id.action_login).setVisible(!loggedIn);
         popup.getMenu().findItem(R.id.action_create_promo).setVisible(loggedIn && isCenter);
+        popup.getMenu().findItem(R.id.action_my_promos).setVisible(loggedIn && isCenter);
+        popup.getMenu().findItem(R.id.action_centers).setVisible(true);
         popup.getMenu().findItem(R.id.action_saved_promos).setVisible(true);
+        popup.getMenu().findItem(R.id.action_settings).setVisible(true);
         popup.getMenu().findItem(R.id.action_logout).setVisible(loggedIn);
 
         popup.setOnMenuItemClickListener(this::onProfileMenuClick);
@@ -321,17 +464,37 @@ public class HomeActivity extends BaseNavActivity {
             createPromoLauncher.launch(new Intent(this, CreatePromoActivity.class));
             return true;
         }
+        if (id == R.id.action_my_promos) {
+            startActivity(new Intent(this, MyPromosActivity.class));
+            return true;
+        }
+        if (id == R.id.action_centers) {
+            startActivity(new Intent(this, CenterListActivity.class));
+            return true;
+        }
         if (id == R.id.action_saved_promos) {
             startActivity(new Intent(this, SavedPromosActivity.class));
+            return true;
+        }
+        if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
         if (id == R.id.action_logout) {
             new SessionManager(this).logout();
             Toast.makeText(this, R.string.logged_out, Toast.LENGTH_SHORT).show();
-            recreate();
+            goToLogin();
             return true;
         }
         return false;
+    }
+
+    /** Clears the whole task so no signed-in screen or cached profile can be reached with Back. */
+    private void goToLogin() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private abstract static class SimpleTextWatcher implements android.text.TextWatcher {

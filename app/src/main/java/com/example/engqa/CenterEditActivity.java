@@ -17,6 +17,7 @@ import com.example.engqa.model.CenterPost;
 import com.example.engqa.model.Course;
 import com.example.engqa.model.UiState;
 import com.example.engqa.viewmodel.CenterViewModel;
+import com.example.engqa.util.Navigation;
 
 /** Manager screen to edit the centre profile and add courses or posts. */
 public class CenterEditActivity extends AppCompatActivity {
@@ -68,7 +69,7 @@ public class CenterEditActivity extends AppCompatActivity {
         etPostTitle = findViewById(R.id.etPostTitle);
         etPostBody = findViewById(R.id.etPostBody);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnSaveCenter).setOnClickListener(v -> saveCenter());
         findViewById(R.id.btnAddCourse).setOnClickListener(v -> addCourse());
         findViewById(R.id.btnAddPost).setOnClickListener(v -> addPost());

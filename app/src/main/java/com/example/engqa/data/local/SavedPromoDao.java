@@ -15,12 +15,13 @@ public interface SavedPromoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(SavedPromo promo);
 
-    @Query("DELETE FROM saved_promo WHERE promoId = :promoId")
-    void delete(String promoId);
+    @Query("DELETE FROM saved_promo WHERE owner_uid = :ownerUid AND promo_id = :promoId")
+    void delete(String ownerUid, String promoId);
 
-    @Query("SELECT * FROM saved_promo ORDER BY saved_at DESC")
-    LiveData<List<SavedPromo>> getAll();
+    @Query("SELECT * FROM saved_promo WHERE owner_uid = :ownerUid ORDER BY saved_at DESC")
+    LiveData<List<SavedPromo>> getAll(String ownerUid);
 
-    @Query("SELECT promoId FROM saved_promo WHERE promoId = :promoId LIMIT 1")
-    String findId(String promoId);
+    @Query("SELECT promo_id FROM saved_promo WHERE owner_uid = :ownerUid "
+            + "AND promo_id = :promoId LIMIT 1")
+    String findId(String ownerUid, String promoId);
 }

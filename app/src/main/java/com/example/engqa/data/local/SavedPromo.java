@@ -3,17 +3,22 @@ package com.example.engqa.data.local;
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
-import androidx.room.PrimaryKey;
 
 /**
  * Locally saved promo (Room). Keeping this out of Firestore means saving costs no reads/writes and
- * needs no security rule.
+ * needs no security rule. The owner and promo id form the key so two accounts on one device can
+ * each keep their own copy of the same promo.
  */
-@Entity(tableName = "saved_promo")
+@Entity(tableName = "saved_promo", primaryKeys = {"owner_uid", "promo_id"})
 public class SavedPromo {
 
-    @PrimaryKey
+    /** The signed-in owner, so saved items never leak between accounts on one device. */
     @NonNull
+    @ColumnInfo(name = "owner_uid")
+    private String ownerUid;
+
+    @NonNull
+    @ColumnInfo(name = "promo_id")
     private String promoId;
 
     @ColumnInfo(name = "center_name")
@@ -27,13 +32,23 @@ public class SavedPromo {
     @ColumnInfo(name = "saved_at")
     private long savedAt;
 
-    public SavedPromo(@NonNull String promoId, String centerName, String title,
-                      String imageUrl, long savedAt) {
+    public SavedPromo(@NonNull String ownerUid, @NonNull String promoId, String centerName,
+                      String title, String imageUrl, long savedAt) {
+        this.ownerUid = ownerUid;
         this.promoId = promoId;
         this.centerName = centerName;
         this.title = title;
         this.imageUrl = imageUrl;
         this.savedAt = savedAt;
+    }
+
+    @NonNull
+    public String getOwnerUid() {
+        return ownerUid;
+    }
+
+    public void setOwnerUid(@NonNull String ownerUid) {
+        this.ownerUid = ownerUid;
     }
 
     @NonNull
