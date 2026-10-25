@@ -12,8 +12,7 @@
     <FrameLayout
         android:id="@+id/errorTopBar"
         android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:background="@color/bg_topbar"
+        android:layout_height="@dimen/topbar_height"
         android:paddingStart="16dp"
         android:paddingTop="10dp"
         android:paddingEnd="16dp"
@@ -88,7 +87,7 @@
         android:id="@+id/bottomNav"
         layout="@layout/view_bottom_nav"
         android:layout_width="0dp"
-        android:layout_height="68dp"
+        android:layout_height="@dimen/bottom_nav_height"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

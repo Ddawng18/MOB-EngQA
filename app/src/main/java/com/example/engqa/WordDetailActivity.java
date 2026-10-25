@@ -18,6 +18,7 @@ import com.example.engqa.model.WordEntry;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.ui.WordMeaningAdapter;
 import com.example.engqa.viewmodel.WordOfDayViewModel;
+import com.example.engqa.util.Navigation;
 
 /** Full definitions, examples and pronunciation for the daily word. */
 public class WordDetailActivity extends AppCompatActivity {
@@ -57,7 +58,7 @@ public class WordDetailActivity extends AppCompatActivity {
         recycler.setAdapter(adapter);
         recycler.setNestedScrollingEnabled(false);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         stateView.setOnRetryListener(v -> viewModel.loadWord(word, true));
 
         viewModel.getWord().observe(this, this::render);

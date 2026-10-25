@@ -14,7 +14,6 @@
     <string name="search_no_results">Không tìm thấy câu hỏi phù hợp</string>
     <string name="search_too_short">Nhập ít nhất 2 ký tự để tìm kiếm</string>
     <string name="state_error">Đã xảy ra lỗi. Vui lòng thử lại.</string>
-    <string name="state_cached">Đang xem dữ liệu đã lưu ngoại tuyến</string>
     <string name="notifications">Thông báo</string>
 
     <!-- Screen 1: Đặt câu hỏi -->
@@ -24,7 +23,7 @@
     <string name="label_description">Mô tả chi tiết *</string>
     <string name="hint_description">Mô tả câu hỏi tiếng Anh của bạn...</string>
     <string name="label_images">Hình ảnh (không bắt buộc)</string>
-    <string name="btn_attach_image">+  Đính kèm ảnh</string>
+    <string name="btn_attach_image">Đính kèm ảnh</string>
     <string name="btn_take_photo">Chụp ảnh</string>
     <string name="image_note">JPG/PNG; ảnh được nén tự động, tối đa 5 ảnh</string>
     <string name="image_limit">Tối đa 5 ảnh</string>
@@ -36,7 +35,7 @@
     <string name="label_passage">Đoạn văn / ngữ liệu</string>
     <string name="hint_passage">Dán đoạn văn hoặc ngữ liệu liên quan...</string>
     <string name="label_audio">Âm thanh (không bắt buộc)</string>
-    <string name="btn_add_audio">+  Thêm âm thanh</string>
+    <string name="btn_add_audio">Thêm âm thanh</string>
     <string name="btn_record_audio">Ghi âm</string>
     <string name="btn_stop_record">Dừng ghi âm</string>
     <string name="btn_remove">Gỡ</string>
@@ -65,6 +64,15 @@
     <string name="upvote">Upvote</string>
     <string name="downvote">Downvote</string>
     <string name="report">Báo cáo nội dung</string>
+    <string name="login_required">Bạn cần đăng nhập</string>
+
+    <!-- Moderation: account states -->
+    <string name="blocked_illustration">Tài khoản bị hạn chế</string>
+    <string name="blocked_timeout_title">Tài khoản đang bị tạm khoá</string>
+    <string name="blocked_timeout_message">You got timeout, better behave next time ok? OR ELSE</string>
+    <string name="blocked_deleted_title">Tài khoản đã bị xoá</string>
+    <string name="blocked_deleted_message">Tài khoản này đã bị xóa</string>
+    <string name="blocked_retry">Thử lại</string>
     <string name="answer_deleted">Đã xoá</string>
     <string name="delete_question_title">Xoá câu hỏi?</string>
     <string name="delete_question_message">Câu hỏi \"%1$s\" cùng toàn bộ câu trả lời, bình chọn và tệp đính kèm sẽ bị xoá vĩnh viễn. Bạn có chắc không?</string>
@@ -76,17 +84,22 @@
     <string name="nav_home">home</string>
     <string name="nav_ask">ask</string>
     <string name="nav_profile">profile</string>
-    <string name="nav_home_item">⌂\nTrang chủ</string>
-    <string name="nav_ask_item">＋\nĐặt câu hỏi</string>
-    <string name="nav_profile_item">👤\nCá nhân</string>
+    <string name="nav_home_item">Trang chủ</string>
+    <string name="nav_ask_item">Đặt câu hỏi</string>
+    <string name="nav_profile_item">Cá nhân</string>
     <string name="avatar_placeholder">U</string>
-    <string name="detail_link">Xem chi tiết ›</string>
+    <string name="detail_link">Xem chi tiết</string>
     <string name="server_error_illustration">Không thể kết nối tới máy chủ</string>
     <string name="server_error_offline">Không có kết nối mạng. Vui lòng kiểm tra lại.</string>
     <string name="profile_soon">Hồ sơ cá nhân (chưa triển khai)</string>
 
     <!-- Auth Flow -->
     <string name="login_title">Đăng Nhập</string>
+    <string name="login_subtitle">Đăng nhập để tiếp tục học cùng cộng đồng EngQA</string>
+    <string name="register_subtitle">Tạo tài khoản để đặt câu hỏi và nhận lời giải</string>
+    <string name="brand_letter">E</string>
+    <string name="auth_switch_register">Chưa có tài khoản? &lt;font color=\"%1$s\"&gt;&lt;b&gt;Đăng ký&lt;/b&gt;&lt;/font&gt;</string>
+    <string name="auth_switch_login">Đã có tài khoản? &lt;font color=\"%1$s\"&gt;&lt;b&gt;Đăng nhập&lt;/b&gt;&lt;/font&gt;</string>
     <string name="register_title">Đăng ký</string>
     <string name="hint_email">Email</string>
     <string name="hint_password">Mật khẩu</string>
@@ -105,6 +118,8 @@
     <string name="no_account">Chưa có tài khoản? </string>
     <string name="go_register">Đăng ký</string>
     <string name="reset_email_sent">Đã gửi email đặt lại mật khẩu</string>
+    <string name="reset_password_message">Nhập email để nhận liên kết đặt lại mật khẩu.\n\nNếu bạn đăng nhập bằng Google, hãy đổi mật khẩu trong tài khoản Google thay vì dùng email này.</string>
+    <string name="err_invalid_email">Email không hợp lệ</string>
 
     <!-- Home / feed -->
     <string name="home_title">Khám phá câu hỏi</string>
@@ -115,6 +130,7 @@
     <string name="sort_popular">Phổ biến</string>
     <string name="sort_unanswered">Chưa trả lời</string>
     <string name="answer_count">%1$d câu trả lời</string>
+    <string name="label_answers">Câu trả lời</string>
     <string name="answered_in">Trả lời: %1$s</string>
     <string name="more_images">+%1$d</string>
     <string name="load_more">Tải thêm</string>
@@ -216,7 +232,7 @@
     <string name="promo_badge">Quảng bá</string>
     <string name="promo_verified">Đã xác minh</string>
     <string name="promo_filter_center">Trung tâm</string>
-    <string name="promo_view_deal">Xem ưu đãi ›</string>
+    <string name="promo_view_deal">Xem ưu đãi</string>
     <string name="promo_views">%1$s lượt xem</string>
     <string name="promo_leads">%1$d người đã đăng ký</string>
     <string name="promo_type_course">Khóa học</string>
@@ -242,7 +258,14 @@
     <string name="promo_field_schedule">Lịch học</string>
     <string name="promo_field_phone">SĐT liên hệ</string>
     <string name="promo_field_link">Liên kết (https://...)</string>
-    <string name="promo_field_image">Ảnh banner (URL, không bắt buộc)</string>
+    <string name="promo_field_image">Ảnh banner (không bắt buộc)</string>
+    <string name="promo_image_pick">Chọn ảnh từ máy</string>
+    <string name="promo_image_remove">Xoá ảnh</string>
+    <string name="promo_image_uploading">Đang tải ảnh…</string>
+    <string name="promo_image_uploaded">Đã tải ảnh lên</string>
+    <string name="promo_image_wait">Ảnh đang tải lên, vui lòng đợi</string>
+    <string name="image_type_error">Chỉ hỗ trợ ảnh JPG/PNG</string>
+    <string name="image_too_large">Ảnh vượt quá 5MB</string>
     <string name="promo_field_end_at">Hạn ưu đãi</string>
     <string name="promo_title_hint">Tiêu đề bài đăng</string>
     <string name="promo_body_hint">Nội dung giới thiệu / quảng bá</string>
@@ -271,19 +294,20 @@
     <!-- Profile menu -->
     <string name="menu_login">Đăng nhập</string>
     <string name="menu_create_promo">Đăng bài quảng bá</string>
-    <string name="menu_saved_promos">Bài đã lưu</string>
+    <string name="menu_saved_promos">Bài quảng bá đã lưu</string>
     <string name="menu_logout">Đăng xuất</string>
 
     <!-- Saved promos (Room) -->
-    <string name="saved_promos_title">Bài đã lưu</string>    <string name="saved_empty">Chưa lưu bài nào</string>
+    <string name="saved_promos_title">Bài quảng bá đã lưu</string>
+    <string name="saved_empty">Chưa lưu bài quảng bá nào</string>
     <string name="save_promo">Lưu bài</string>
     <string name="unsave_promo">Bỏ lưu</string>
-    <string name="promo_saved">Đã lưu bài</string>
+    <string name="promo_saved">Đã lưu bài quảng bá</string>
     <string name="saved_removed">Đã bỏ lưu</string>
 
     <!-- Word of the Day -->
     <string name="word_of_day">Word of the Day</string>
-    <string name="word_more">Xem thêm ›</string>
+    <string name="word_more">Xem thêm</string>
     <string name="word_detail_title">Word of the Day</string>
     <string name="word_audio">Phát âm</string>
     <string name="word_source">Nguồn: dictionaryapi.dev (từ điển mở, miễn phí)</string>
@@ -299,7 +323,74 @@
     <string name="settings_clear_cache">Xoá bộ nhớ tạm</string>
     <string name="settings_clear_cache_summary">Xoá ảnh và âm thanh đã tải tạm</string>
     <string name="settings_cache_cleared">Đã xoá bộ nhớ tạm</string>
-    <string name="settings_account">Tài khoản</string>
+    <string name="settings_account">Tài khoản &amp; hồ sơ</string>
+    <string name="settings_edit_profile">Chỉnh sửa hồ sơ</string>
+    <string name="settings_edit_profile_summary">Tên hiển thị và trình độ của bạn</string>
+    <string name="settings_security">Bảo mật tài khoản</string>
+    <string name="settings_security_summary_password">Đổi mật khẩu hoặc gửi email đặt lại</string>
+    <string name="settings_security_summary_google">Mật khẩu do Google quản lý</string>
+    <string name="settings_saved_promos">Bài quảng bá đã lưu</string>
+    <string name="settings_saved_promos_summary">Các bài quảng bá bạn đã lưu để xem lại</string>
+    <string name="settings_signed_out">Đăng nhập để chỉnh sửa hồ sơ và bảo mật</string>
+    <string name="profile_updated">Đã cập nhật hồ sơ</string>
+
+    <!-- Moderation console -->
+    <string name="admin_title">Kiểm duyệt</string>
+    <string name="admin_pending">Chờ duyệt</string>
+    <string name="settings_admin_category">Quản trị</string>
+    <string name="settings_admin_moderation">Kiểm duyệt nội dung</string>
+    <string name="settings_admin_moderation_summary">Duyệt trung tâm, bài quảng bá và báo cáo</string>
+    <string name="admin_tab_centers">Trung tâm</string>
+    <string name="admin_tab_promos">Bài quảng bá</string>
+    <string name="admin_tab_reports">Báo cáo</string>
+    <string name="admin_tab_with_count">%1$s (%2$d)</string>
+    <string name="admin_empty_centers">Không có đơn trung tâm nào chờ duyệt</string>
+    <string name="admin_empty_promos">Không có bài quảng bá nào chờ duyệt</string>
+    <string name="admin_empty_reports">Không có báo cáo nào chờ xử lý</string>
+    <string name="admin_approve">Duyệt</string>
+    <string name="admin_reject">Từ chối</string>
+    <string name="admin_resolve">Xử lý</string>
+    <string name="admin_warn">Cảnh cáo</string>
+    <string name="admin_delete_post">Xoá</string>
+    <string name="admin_dismiss">Bỏ qua</string>
+    <string name="admin_approve_center_title">Duyệt trung tâm?</string>
+    <string name="admin_approve_center_message">%1$s sẽ được xác minh và tài khoản chủ sở hữu được nâng lên Trung tâm.</string>
+    <string name="admin_reject_center_title">Từ chối đơn trung tâm?</string>
+    <string name="admin_reject_promo_title">Từ chối bài quảng bá?</string>
+    <string name="admin_reject_hint">Lý do (không bắt buộc)</string>
+    <string name="admin_approve_promo_title">Duyệt bài quảng bá?</string>
+    <string name="admin_approve_promo_message">“%1$s” sẽ xuất hiện trên bảng tin.</string>
+    <string name="admin_report_resolve_title">Xử lý báo cáo?</string>
+    <string name="admin_report_resolve_message">Báo cáo được đánh dấu đã xử lý. Nếu là bài quảng bá, bài đó sẽ bị ẩn.</string>
+    <string name="admin_report_dismiss_title">Bỏ qua báo cáo?</string>
+    <string name="admin_report_dismiss_message">Báo cáo sẽ đóng mà không thay đổi nội dung.</string>
+    <string name="admin_report_warn_title">Gửi cảnh cáo?</string>
+    <string name="admin_report_warn_message">Tác giả sẽ nhận 1 cảnh cáo. Đủ 3 cảnh cáo, tài khoản bị tạm khoá 1 ngày; đủ 3 lần tạm khoá, tài khoản bị xoá. Bài quảng bá bị cảnh cáo 3 lần sẽ mất quyền trung tâm.</string>
+    <string name="admin_report_delete_title">Xoá nội dung bị báo cáo?</string>
+    <string name="admin_report_delete_message">Nội dung sẽ bị xoá vĩnh viễn. Hành động này không thể hoàn tác.</string>
+    <string name="admin_center_approved">Đã duyệt trung tâm</string>
+    <string name="admin_center_rejected">Đã từ chối đơn trung tâm</string>
+    <string name="admin_promo_approved">Đã duyệt bài quảng bá</string>
+    <string name="admin_promo_rejected">Đã từ chối bài quảng bá</string>
+    <string name="admin_report_resolved">Đã xử lý báo cáo</string>
+    <string name="admin_report_warned">Đã gửi cảnh cáo</string>
+    <string name="admin_report_deleted">Đã xoá nội dung bị báo cáo</string>
+    <string name="admin_report_dismissed">Đã bỏ qua báo cáo</string>
+    <string name="admin_not_allowed">Bạn không có quyền kiểm duyệt</string>
+    <string name="admin_target_question">Câu hỏi bị báo cáo</string>
+    <string name="admin_target_promo">Bài quảng bá bị báo cáo</string>
+    <string name="admin_reporter">Người báo cáo: %1$s</string>
+    <string name="admin_promo_author">Tác giả: %1$s</string>
+    <string name="admin_owner_uid">Chủ sở hữu: %1$s</string>
+
+    <!-- My promotions -->
+    <string name="my_promos_title">Bài quảng bá của tôi</string>
+    <string name="my_promos_empty">Bạn chưa có bài quảng bá nào</string>
+    <string name="menu_my_promos">Bài quảng bá của tôi</string>
+    <string name="promo_status_pending">Đang chờ duyệt</string>
+    <string name="promo_status_approved">Đã duyệt</string>
+    <string name="promo_status_rejected">Bị từ chối</string>
+    <string name="promo_status_hidden">Đã ẩn</string>
     <string name="settings_logout">Đăng xuất</string>
     <string name="settings_logout_confirm_title">Đăng xuất?</string>
     <string name="settings_logout_confirm_message">Bạn có chắc muốn đăng xuất khỏi EngQA?</string>
@@ -307,6 +398,20 @@
     <string name="settings_about">Về EngQA</string>
     <string name="settings_about_summary">Phiên bản và nguồn dữ liệu</string>
     <string name="settings_about_message">EngQA\nPhiên bản %1$s\n\nDữ liệu từ vựng: dictionaryapi.dev\nDữ liệu câu hỏi: Firebase Cloud Firestore</string>
+
+    <!-- Account security -->
+    <string name="account_security_title">Bảo mật tài khoản</string>
+    <string name="security_native_body">Bạn đăng nhập bằng email và mật khẩu. Nhập mật khẩu hiện tại để đặt mật khẩu mới, hoặc gửi email đặt lại nếu bạn quên.</string>
+    <string name="security_google_body">Bạn đăng nhập bằng Google nên EngQA không giữ mật khẩu. Hãy đổi mật khẩu và bảo mật 2 lớp trong tài khoản Google của bạn.</string>
+    <string name="security_linked_note">Tài khoản của bạn cũng liên kết với Google. Bạn có thể dùng một trong hai cách đăng nhập.</string>
+    <string name="security_google_button">Mở bảo mật Google</string>
+    <string name="security_reset_button">Gửi email đặt lại mật khẩu</string>
+    <string name="security_reset_confirm_title">Gửi email đặt lại?</string>
+    <string name="security_reset_confirm_message">EngQA sẽ gửi liên kết đặt lại mật khẩu tới %1$s. Bạn vẫn cần mật khẩu hiện tại để đổi ngay trong ứng dụng.</string>
+    <string name="security_reset_sent">Đã gửi email đặt lại mật khẩu</string>
+    <string name="security_save">Cập nhật mật khẩu</string>
+    <string name="security_checking">Đang kiểm tra phương thức đăng nhập…</string>
+    <string name="security_current_password_wrong">Mật khẩu hiện tại không đúng</string>
 
     <!-- Offline posting (WorkManager) -->
     <string name="pending_saved">Đã lưu, sẽ đăng khi có mạng</string>

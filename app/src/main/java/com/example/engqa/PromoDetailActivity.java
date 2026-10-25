@@ -26,6 +26,7 @@ import com.example.engqa.viewmodel.PromoViewModel;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import com.example.engqa.util.Navigation;
 
 /**
  * Promo detail: reads the promo by id from Firestore, counts one view per opening, opens the
@@ -69,11 +70,12 @@ public class PromoDetailActivity extends AppCompatActivity {
         stateView = findViewById(R.id.stateView);
         tvSave = findViewById(R.id.btnSavePromo);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnWebsite).setOnClickListener(v -> openWebsite());
         findViewById(R.id.btnCall).setOnClickListener(v -> callNow());
         findViewById(R.id.btnRegisterLead).setOnClickListener(v -> openLeadDialog());
         tvSave.setOnClickListener(v -> toggleSaved());
+        findViewById(R.id.btnReportPromo).setOnClickListener(v -> reportPromo());
 
         stateView.setOnRetryListener(v -> {
             viewModel.stop();
@@ -186,6 +188,16 @@ public class PromoDetailActivity extends AppCompatActivity {
     }
 
     // ------------------------------------------------------------------ actions
+
+    /** Sends an approved promo to the same moderation queue as question reports. */
+    private void reportPromo() {
+        if (uid == null) {
+            Toast.makeText(this, R.string.login_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ReportDialogFragment.newInstance("promos/" + promoId)
+                .show(getSupportFragmentManager(), "report");
+    }
 
     private void openWebsite() {
         if (currentPromo == null || currentPromo.getLinkUrl() == null) {

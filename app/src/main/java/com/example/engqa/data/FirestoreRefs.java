@@ -17,6 +17,8 @@ public final class FirestoreRefs {
     public static final String REPORTS = "reports";
     public static final String NOTIFICATIONS = "notifications";
     public static final String CENTERS = "centers";
+    /** One lifetime request per account; document id = uid. */
+    public static final String CENTER_REQUESTS = "centerRequests";
     public static final String COURSES = "courses";
     public static final String POSTS = "posts";
     public static final String PROMOS = "promos";

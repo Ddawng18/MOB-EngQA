@@ -17,6 +17,7 @@ import com.example.engqa.model.UiState;
 import com.example.engqa.viewmodel.CenterViewModel;
 
 import java.util.Collections;
+import com.example.engqa.util.Navigation;
 
 /** Sends a centre registration request that an admin must approve. */
 public class CenterRequestActivity extends AppCompatActivity {
@@ -57,7 +58,7 @@ public class CenterRequestActivity extends AppCompatActivity {
         etPhone = findViewById(R.id.etCenterPhone);
         etEmail = findViewById(R.id.etCenterEmail);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnSubmitRequest).setOnClickListener(v -> submit());
 
         viewModel.getActionState().observe(this, state -> {

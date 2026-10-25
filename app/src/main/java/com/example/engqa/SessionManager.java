@@ -28,6 +28,12 @@ public class SessionManager {
         return auth.getCurrentUser() != null;
     }
 
+    /** Email of the signed-in account, used by the account-security screens. */
+    public String getEmail() {
+        FirebaseUser user = auth.getCurrentUser();
+        return user != null ? user.getEmail() : null;
+    }
+
     /** Call after a successful sign-in so notifications start arriving immediately. */
     public void onLoginSuccess() {
         String uid = getUserId();

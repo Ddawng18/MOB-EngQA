@@ -104,7 +104,17 @@ service cloud.firestore {
           && (!('answerCount' in request.resource.data)
               || request.resource.data.answerCount == 0)
           && (!('acceptedCount' in request.resource.data)
-              || request.resource.data.acceptedCount == 0);
+              || request.resource.data.acceptedCount == 0)
+          && (!('status' in request.resource.data)
+              || request.resource.data.status == 'ACTIVE')
+          && (!('warningCount' in request.resource.data)
+              || request.resource.data.warningCount == 0)
+          && (!('timeoutCount' in request.resource.data)
+              || request.resource.data.timeoutCount == 0)
+          && (!('promoWarningCount' in request.resource.data)
+              || request.resource.data.promoWarningCount == 0)
+          && (!('timeoutUntil' in request.resource.data)
+              || request.resource.data.timeoutUntil == null);
 
       // Owners may edit their profile and their own question/answer counters, but not privileges.
       // The accepted-answer statistic is derived from the author's answers, so it is read-only.
@@ -309,6 +319,29 @@ service cloud.firestore {
           && request.resource.data.reporterId == request.auth.uid
           && request.resource.data.status == 'pending';
       allow read, update, delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------ audit logs
+    // Written by the moderation console together with every privileged transition. Immutable and
+    // readable by admins only, so approvals always have a trail.
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+          && request.resource.data.actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------- centre requests
+    // One lifetime request per account. The marker document is written in the same batch as the
+    // centre itself; a second attempt is an update, which only admins may perform, so the batch
+    // fails even if the client skips its own pre-check.
+    match /centerRequests/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid)
+          && request.resource.data.status == 'PENDING'
+          && request.resource.data.centerId is string;
+      allow update: if isAdmin();
+      allow delete: if false;
     }
 
     // ----------------------------------------------------------------- admins

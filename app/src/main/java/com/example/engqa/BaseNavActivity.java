@@ -1,13 +1,11 @@
 package com.example.engqa;
 
 import android.content.Intent;
-import android.graphics.Typeface;
 import android.os.Bundle;
-import android.widget.TextView;
+import android.view.View;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 
 /**
  * Base class for every screen that shows the shared bottom navigation bar.
@@ -59,14 +57,13 @@ public abstract class BaseNavActivity extends AppCompatActivity {
         setupNavItem(findViewById(R.id.navProfile), NAV_PROFILE);
     }
 
-    private void setupNavItem(TextView item, int navItem) {
+    private void setupNavItem(View item, int navItem) {
         if (item == null) {
             return;
         }
-        boolean active = navItem == selectedNavItem();
-        item.setTextColor(ContextCompat.getColor(this,
-                active ? R.color.accent_orange : R.color.text_secondary));
-        item.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
+        // The label and icon use a state-list colour (@color/nav_item_color), so selecting the
+        // row is all the styling the bar needs.
+        item.setSelected(navItem == selectedNavItem());
         item.setOnClickListener(view -> navigateTo(navItem));
     }
 

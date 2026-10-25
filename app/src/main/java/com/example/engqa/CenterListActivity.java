@@ -20,6 +20,7 @@ import com.example.engqa.ui.StateView;
 import com.example.engqa.viewmodel.CenterViewModel;
 
 import java.util.List;
+import com.example.engqa.util.Navigation;
 
 /** List of approved English centres with a link to request a new centre page. */
 public class CenterListActivity extends BaseNavActivity {
@@ -51,7 +52,7 @@ public class CenterListActivity extends BaseNavActivity {
         recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(adapter);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnRequestCenter).setOnClickListener(v ->
                 startActivity(new Intent(this, CenterRequestActivity.class)));
         stateView.setOnRetryListener(v -> {

@@ -20,6 +20,7 @@ import com.example.engqa.ui.StateView;
 import com.example.engqa.viewmodel.NotificationViewModel;
 
 import java.util.List;
+import com.example.engqa.util.Navigation;
 
 /** In-app notification list; tapping a row opens the related question. */
 public class NotificationActivity extends BaseNavActivity {
@@ -59,7 +60,7 @@ public class NotificationActivity extends BaseNavActivity {
         recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(adapter);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnMarkAllRead).setOnClickListener(v -> viewModel.markAllRead());
         stateView.setOnRetryListener(v -> {
             viewModel.stop();

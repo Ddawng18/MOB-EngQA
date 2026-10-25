@@ -12,6 +12,7 @@ public class Report {
 
     public static final String STATUS_PENDING = "pending";
     public static final String STATUS_RESOLVED = "resolved";
+    public static final String STATUS_DISMISSED = "dismissed";
 
     @DocumentId
     private String id;

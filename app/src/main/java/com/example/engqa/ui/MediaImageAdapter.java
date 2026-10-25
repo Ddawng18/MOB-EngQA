@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -16,7 +17,10 @@ import com.example.engqa.model.StoredMedia;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Horizontal thumbnails for media stored in Firestore (Base64 images). */
+/**
+ * Images stored in Firestore (Base64). The layout is a parameter so the detail screen can render
+ * full-width pictures instead of the small attachment thumbnails.
+ */
 public class MediaImageAdapter
         extends RecyclerView.Adapter<MediaImageAdapter.MediaViewHolder> {
 
@@ -26,9 +30,16 @@ public class MediaImageAdapter
 
     private final List<StoredMedia> items = new ArrayList<>();
     private final OnMediaClickListener listener;
+    @LayoutRes
+    private final int itemLayout;
 
     public MediaImageAdapter(OnMediaClickListener listener) {
+        this(listener, R.layout.item_attachment);
+    }
+
+    public MediaImageAdapter(OnMediaClickListener listener, @LayoutRes int itemLayout) {
         this.listener = listener;
+        this.itemLayout = itemLayout;
     }
 
     public void submit(List<StoredMedia> media) {
@@ -43,7 +54,7 @@ public class MediaImageAdapter
     @Override
     public MediaViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         return new MediaViewHolder(LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_attachment, parent, false));
+                .inflate(itemLayout, parent, false));
     }
 
     @Override
@@ -68,7 +79,9 @@ public class MediaImageAdapter
         }
 
         void bind(StoredMedia media, OnMediaClickListener listener) {
-            remove.setVisibility(View.GONE);
+            if (remove != null) {
+                remove.setVisibility(View.GONE);
+            }
             Bitmap bitmap = MediaCompressor.decodeBitmap(media.getData());
             if (bitmap != null) {
                 image.setImageBitmap(bitmap);

@@ -2,9 +2,6 @@ package com.example.engqa;
 
 import java.util.Locale;
 
-import android.content.ActivityNotFoundException;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,27 +21,28 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
+import com.example.engqa.util.Navigation;
 import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.ProfileViewModel;
 
-/** Edits the display name and level of the signed-in user. */
+/**
+ * Edits the display name and level of the signed-in user.
+ *
+ * <p>Reached from Settings (the profile screen no longer owns an Edit action). Password changes
+ * live in {@link AccountSecurityActivity} so the flows stay separate.
+ */
 public class EditProfileActivity extends AppCompatActivity {
-
-    private static final String GOOGLE_SECURITY_URL = "https://myaccount.google.com/security";
 
     private ProfileViewModel viewModel;
     private EditText etUsername;
     private Spinner spinnerLevel;
-    private TextView btnChangePassword;
-    private TextView tvPasswordManaged;
-    private TextView btnGoogleSecurity;
     private String uid;
     private User currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        int barColor = getColor(R.color.bg_topbar);
+        int barColor = getColor(R.color.bg_screen);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_edit_profile);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content),
@@ -64,9 +62,6 @@ public class EditProfileActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this).get(ProfileViewModel.class);
         etUsername = findViewById(R.id.etUsername);
         spinnerLevel = findViewById(R.id.spinnerLevel);
-        btnChangePassword = findViewById(R.id.btnChangePassword);
-        tvPasswordManaged = findViewById(R.id.tvPasswordManaged);
-        btnGoogleSecurity = findViewById(R.id.btnGoogleSecurity);
 
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item, getResources().getStringArray(R.array.levels)) {
@@ -74,18 +69,15 @@ public class EditProfileActivity extends AppCompatActivity {
             public View getView(int position, View convertView, ViewGroup parent) {
                 TextView tv = (TextView) super.getView(position, convertView, parent);
                 tv.setTextColor(getColor(R.color.text_primary));
-                tv.setTextSize(14);
+                tv.setTextSize(15);
                 return tv;
             }
         };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerLevel.setAdapter(adapter);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnSaveProfile).setOnClickListener(v -> save());
-        btnChangePassword.setOnClickListener(v -> showChangePasswordDialog());
-        btnGoogleSecurity.setOnClickListener(v -> openGoogleSecurity());
-        configurePasswordControls();
 
         viewModel.getUser().observe(this, state -> {
             if (state != null && state.getStatus() == UiState.Status.SUCCESS) {
@@ -97,80 +89,12 @@ public class EditProfileActivity extends AppCompatActivity {
                 return;
             }
             if (state.getStatus() == UiState.Status.SUCCESS) {
-                if ("password_changed".equals(state.getData())) {
-                    Toast.makeText(this, R.string.password_changed, Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(this, "Đã cập nhật hồ sơ", Toast.LENGTH_SHORT).show();
-                    finish();
-                }
+                Toast.makeText(this, R.string.profile_updated, Toast.LENGTH_SHORT).show();
+                finish();
             } else if (state.getStatus() == UiState.Status.ERROR) {
                 Toast.makeText(this, state.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
-    }
-
-    /**
-     * A Google-only account has no application password. Hide the unusable form and offer the
-     * official Google security page instead; linked/email accounts keep the existing flow.
-     */
-    private void configurePasswordControls() {
-        boolean hasPassword = viewModel.hasPasswordProvider();
-        boolean hasGoogle = viewModel.hasGoogleProvider();
-        btnChangePassword.setVisibility(hasPassword ? View.VISIBLE : View.GONE);
-        tvPasswordManaged.setVisibility(hasPassword ? View.GONE : View.VISIBLE);
-        btnGoogleSecurity.setVisibility(!hasPassword && hasGoogle ? View.VISIBLE : View.GONE);
-        if (!hasPassword) {
-            tvPasswordManaged.setText(hasGoogle
-                    ? R.string.password_managed_by_google
-                    : R.string.password_change_unavailable);
-        }
-    }
-
-    private void openGoogleSecurity() {
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GOOGLE_SECURITY_URL)));
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.google_security_unavailable, Toast.LENGTH_LONG).show();
-        }
-    }
-
-    /** Three-field dialog: current password, new password, confirmation. */
-    private void showChangePasswordDialog() {
-        if (!viewModel.hasPasswordProvider()) {
-            configurePasswordControls();
-            return;
-        }
-        int padding = (int) (20 * getResources().getDisplayMetrics().density);
-        androidx.appcompat.widget.LinearLayoutCompat container =
-                new androidx.appcompat.widget.LinearLayoutCompat(this);
-        container.setOrientation(androidx.appcompat.widget.LinearLayoutCompat.VERTICAL);
-        container.setPadding(padding, padding / 2, padding, 0);
-
-        EditText current = passwordField(R.string.hint_current_password);
-        EditText newPassword = passwordField(R.string.hint_new_password);
-        EditText confirm = passwordField(R.string.hint_confirm_password);
-        container.addView(current);
-        container.addView(newPassword);
-        container.addView(confirm);
-
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(R.string.change_password_title)
-                .setView(container)
-                .setPositiveButton(R.string.save, (dialog, which) -> viewModel.changePassword(
-                        current.getText().toString(),
-                        newPassword.getText().toString(),
-                        confirm.getText().toString()))
-                .setNegativeButton(R.string.cancel, null)
-                .show();
-    }
-
-    private EditText passwordField(int hintRes) {
-        EditText field = new EditText(this);
-        field.setHint(hintRes);
-        field.setInputType(android.text.InputType.TYPE_CLASS_TEXT
-                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        field.setMaxLines(1);
-        return field;
     }
 
     @Override
@@ -193,7 +117,8 @@ public class EditProfileActivity extends AppCompatActivity {
         etUsername.setText(user.getUsername());
         ((TextView) findViewById(R.id.tvAvatarLarge)).setText(
                 user.getUsername() != null && !user.getUsername().isEmpty()
-                        ? String.valueOf(user.getUsername().charAt(0)).toUpperCase(Locale.getDefault()) : "?");
+                        ? String.valueOf(user.getUsername().charAt(0)).toUpperCase(Locale.getDefault())
+                        : "?");
         if (user.getLevel() != null) {
             String[] levels = getResources().getStringArray(R.array.levels);
             for (int i = 0; i < levels.length; i++) {

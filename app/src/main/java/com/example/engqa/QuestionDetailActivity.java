@@ -33,6 +33,7 @@ import com.example.engqa.ui.ImageAdapter;
 import com.example.engqa.ui.MediaImageAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.util.TimeUtils;
+import com.example.engqa.viewmodel.AdminViewModel;
 import com.example.engqa.viewmodel.QuestionDetailViewModel;
 
 import java.io.File;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.example.engqa.util.Navigation;
 
 /** Question detail: realtime question + answers, up/down vote, accept, media and reporting. */
 public class QuestionDetailActivity extends BaseNavActivity {
@@ -57,6 +59,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private TextView btnSend;
     private String questionId;
     private String uid;
+    private boolean isAdmin;
     private Question currentQuestion;
     private List<StoredMedia> currentMedia = new ArrayList<>();
     private StoredMedia currentAudio;
@@ -84,6 +87,11 @@ public class QuestionDetailActivity extends BaseNavActivity {
         uid = new SessionManager(this).getUserId();
 
         viewModel = new ViewModelProvider(this).get(QuestionDetailViewModel.class);
+        // Admins get the same delete action on reported content; the rules already allow it.
+        AdminViewModel adminViewModel = new ViewModelProvider(this).get(AdminViewModel.class);
+        adminViewModel.getIsAdmin().observe(this,
+                allowed -> isAdmin = Boolean.TRUE.equals(allowed));
+        adminViewModel.checkAdmin();
         stateView = findViewById(R.id.stateView);
         audioPlayer = findViewById(R.id.audioPlayer);
         tvAnswersHeader = findViewById(R.id.tvAnswersHeader);
@@ -92,7 +100,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
         setupAnswers();
         setupImages();
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         btnSend = findViewById(R.id.btnSend);
         btnSend.setOnClickListener(v -> submitAnswer());
         findViewById(R.id.btnMore).setOnClickListener(this::showOptionsMenu);
@@ -149,19 +157,21 @@ public class QuestionDetailActivity extends BaseNavActivity {
     }
 
     private void setupImages() {
+        // Detail images are shown large: full width, one per row, original aspect ratio. Tapping
+        // one still opens the zoomable viewer.
         imageAdapter = new ImageAdapter(url -> {
             Intent intent = new Intent(this, ImageViewerActivity.class);
             intent.putExtra(ImageViewerActivity.EXTRA_IMAGE_URL, url);
             startActivity(intent);
-        });
+        }, R.layout.item_detail_image);
         mediaImageAdapter = new MediaImageAdapter(media -> {
             Intent intent = new Intent(this, ImageViewerActivity.class);
             intent.putExtra(ImageViewerActivity.EXTRA_QUESTION_ID, questionId);
             intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_ID, media.getId());
             startActivity(intent);
-        });
+        }, R.layout.item_detail_image);
         RecyclerView recycler = findViewById(R.id.recyclerImages);
-        recycler.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(imageAdapter);
     }
 
@@ -337,7 +347,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add(0, 1, 0, R.string.report);
         if (currentQuestion != null && uid != null
-                && uid.equals(currentQuestion.getAuthorId())) {
+                && (uid.equals(currentQuestion.getAuthorId()) || isAdmin)) {
             popup.getMenu().add(0, 2, 1, R.string.delete);
         }
         popup.setOnMenuItemClickListener(item -> {

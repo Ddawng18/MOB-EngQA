@@ -2,9 +2,11 @@ package com.example.engqa.ui;
 
 import java.util.Locale;
 
+import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -113,8 +115,8 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
         private final TextView username;
         private final TextView time;
         private final TextView body;
-        private final TextView upvote;
-        private final TextView downvote;
+        private final ImageView upvote;
+        private final ImageView downvote;
         private final TextView score;
         private final TextView acceptedBadge;
         private final TextView acceptButton;
@@ -163,13 +165,15 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
 
             int myVote = myVotes.getOrDefault(answer.getId(), 0);
             long net = answer.netScore();
-            upvote.setText("\u25B2");
-            downvote.setText("\u25BC");
             score.setText(String.valueOf(net));
             int upColor = myVote == Vote.UP ? R.color.vote_up_active : R.color.text_secondary;
             int downColor = myVote == Vote.DOWN ? R.color.vote_down_active : R.color.text_secondary;
-            upvote.setTextColor(ContextCompat.getColor(itemView.getContext(), upColor));
-            downvote.setTextColor(ContextCompat.getColor(itemView.getContext(), downColor));
+            upvote.setImageResource(R.drawable.ic_upvote);
+            downvote.setImageResource(R.drawable.ic_downvote);
+            upvote.setImageTintList(ColorStateList.valueOf(
+                    ContextCompat.getColor(itemView.getContext(), upColor)));
+            downvote.setImageTintList(ColorStateList.valueOf(
+                    ContextCompat.getColor(itemView.getContext(), downColor)));
             int scoreColor = net < 0 ? R.color.vote_down_active
                     : net > 0 ? R.color.text_primary : R.color.text_secondary;
             score.setTextColor(ContextCompat.getColor(itemView.getContext(), scoreColor));

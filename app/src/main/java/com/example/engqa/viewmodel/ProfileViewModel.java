@@ -149,6 +149,27 @@ public class ProfileViewModel extends ViewModel {
         });
     }
 
+    /** Sends the recovery email for the signed-in account (native/password provider). */
+    public void sendPasswordReset() {
+        com.google.firebase.auth.FirebaseUser user = userRepository.currentUser();
+        String email = user != null ? user.getEmail() : null;
+        if (email == null || email.trim().isEmpty()) {
+            actionState.setValue(UiState.error("Không tìm thấy email của tài khoản"));
+            return;
+        }
+        userRepository.sendPasswordReset(email, new Callback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                actionState.setValue(UiState.success("password_reset_sent"));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                actionState.setValue(UiState.error(RepoErrors.message(e)));
+            }
+        });
+    }
+
     private void attach() {
         user.setValue(UiState.<User>loading());
         userRegistration = userRepository.observeUser(uid, new Callback<User>() {

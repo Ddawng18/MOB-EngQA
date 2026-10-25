@@ -38,6 +38,7 @@ import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.CreateQuestionViewModel;
 
 import java.io.File;
+import com.example.engqa.util.Navigation;
 
 /** "Đặt câu hỏi" screen: text, reading passage, images, audio and type/level selection. */
 public class MainActivity extends BaseNavActivity {
@@ -131,7 +132,7 @@ public class MainActivity extends BaseNavActivity {
         setupLevelSpinner();
         setupAttachments();
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBackToHome(this);
         findViewById(R.id.btnAttachImage).setOnClickListener(v -> pickImage());
         findViewById(R.id.btnTakePhoto).setOnClickListener(v -> requestCamera());
         findViewById(R.id.btnAddAudio).setOnClickListener(v -> pickAudio());

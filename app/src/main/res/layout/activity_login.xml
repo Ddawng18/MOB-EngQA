@@ -4,7 +4,7 @@
     android:id="@+id/loginRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D1117"
+    android:background="@color/bg_screen"
     android:fillViewport="true"
     android:paddingStart="@dimen/auth_horizontal_padding"
     android:paddingTop="24dp"
@@ -17,67 +17,79 @@
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
-        <!-- Title -->
+        <!-- Brand mark -->
+        <TextView
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="@dimen/auth_title_top_margin"
+            android:background="@drawable/bg_logo"
+            android:gravity="center"
+            android:text="@string/brand_letter"
+            android:textColor="@color/on_primary"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/auth_title_top_margin"
+            android:layout_marginTop="20dp"
             android:gravity="center"
             android:text="@string/login_title"
-            android:textColor="@android:color/white"
-            android:textSize="32sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.EngQA.Display"
+            android:textSize="30sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="@string/login_subtitle"
+            android:textAppearance="@style/TextAppearance.EngQA.Caption"
+            android:textSize="14sp" />
 
         <!-- Email -->
         <EditText
             android:id="@+id/edtEmail"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
+            style="@style/FormInput"
+            android:layout_height="54dp"
             android:layout_marginTop="@dimen/auth_field_top_margin"
             android:autofillHints="emailAddress"
-            android:background="@drawable/bg_auth_input"
+            android:drawableStart="@drawable/ic_mail"
+            android:drawableTint="@color/text_hint"
             android:hint="@string/hint_email"
             android:imeOptions="actionNext"
             android:inputType="textEmailAddress"
-            android:maxLines="1"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:textColor="@android:color/white"
-            android:textColorHint="#CCCCCC"
-            android:textSize="13sp" />
+            android:maxLines="1" />
 
         <!-- Password with visibility toggle -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="54dp"
             android:layout_marginTop="12dp">
 
             <EditText
                 android:id="@+id/edtPassword"
-                android:layout_width="match_parent"
+                style="@style/FormInput"
                 android:layout_height="match_parent"
                 android:autofillHints="password"
-                android:background="@drawable/bg_auth_input"
+                android:drawableStart="@drawable/ic_lock"
+                android:drawableTint="@color/text_hint"
                 android:hint="@string/hint_password"
                 android:imeOptions="actionDone"
                 android:inputType="textPassword"
                 android:maxLines="1"
-                android:paddingStart="12dp"
-                android:paddingEnd="44dp"
-                android:textColor="@android:color/white"
-                android:textColorHint="#CCCCCC"
-                android:textSize="13sp" />
+                android:paddingEnd="48dp" />
 
             <ImageView
                 android:id="@+id/btnTogglePassword"
-                android:layout_width="40dp"
+                android:layout_width="44dp"
                 android:layout_height="match_parent"
                 android:layout_gravity="end"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/toggle_password"
-                android:padding="10dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_visibility_off"
-                app:tint="#AAAAAA" />
+                app:tint="@color/text_secondary" />
         </FrameLayout>
 
         <!-- Inline error -->
@@ -86,8 +98,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textColor="#FF6B6B"
-            android:textSize="12sp"
+            android:textColor="@color/error_red"
+            android:textSize="13sp"
             android:visibility="gone" />
 
         <!-- Unverified email notice -->
@@ -95,41 +107,43 @@
             android:id="@+id/verifyBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/bg_chip"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_attachment"
             android:orientation="vertical"
-            android:padding="10dp"
+            android:padding="14dp"
             android:visibility="gone">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/verify_email_notice"
-                android:textColor="#FFB86B"
+                android:textColor="@color/warning_amber"
                 android:textSize="12sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="8dp"
                 android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/tvResendVerification"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingEnd="16dp"
+                    android:paddingEnd="20dp"
                     android:text="@string/resend_verification"
-                    android:textColor="#1E90FF"
-                    android:textSize="12sp" />
+                    android:textColor="@color/link_blue"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvVerifyNow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/verify_now"
-                    android:textColor="#1E90FF"
-                    android:textSize="12sp" />
+                    android:textColor="@color/link_blue"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
@@ -139,10 +153,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:text="@string/forgot_password"
-            android:textColor="#1E90FF"
-            android:textSize="12sp" />
+            android:textColor="@color/link_blue"
+            android:textSize="13sp"
+            android:textStyle="bold" />
 
         <!-- Login button + progress -->
         <FrameLayout
@@ -152,22 +169,18 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnLogin"
+                style="@style/Widget.EngQA.Button"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:text="@string/btn_login"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                app:backgroundTint="#FF4500"
-                app:cornerRadius="8dp" />
+                android:layout_height="52dp"
+                android:text="@string/btn_login" />
 
             <ProgressBar
                 android:id="@+id/progressAuth"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:layout_gravity="center_vertical|end"
-                android:layout_marginEnd="12dp"
-                android:indeterminateTint="@android:color/white"
+                android:layout_marginEnd="16dp"
+                android:indeterminateTint="@color/on_primary"
                 android:visibility="gone" />
         </FrameLayout>
 
@@ -183,7 +196,7 @@
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1"
-                android:background="#888888" />
+                android:background="@color/divider" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -191,27 +204,29 @@
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
                 android:text="@string/or"
-                android:textColor="@android:color/white"
-                android:textSize="11sp" />
+                android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
 
             <View
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1"
-                android:background="#888888" />
+                android:background="@color/divider" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGoogle"
+            style="@style/Widget.EngQA.Button"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="52dp"
             android:layout_marginTop="20dp"
             android:text="@string/btn_google"
-            android:textAllCaps="false"
-            android:textColor="#222222"
-            android:textSize="12sp"
-            app:backgroundTint="#F5F5F5"
-            app:cornerRadius="8dp" />
+            android:textColor="#1F1F1F"
+            app:backgroundTint="#FFFFFFFF"
+            app:cornerRadius="@dimen/radius_m"
+            app:icon="@drawable/ic_google"
+            app:iconGravity="textStart"
+            app:iconPadding="10dp"
+            app:iconTint="@null" />
 
         <TextView
             android:id="@+id/tvTerms"
@@ -220,8 +235,8 @@
             android:layout_marginTop="24dp"
             android:gravity="center"
             android:text="@string/terms_text"
-            android:textColor="@android:color/white"
-            android:textColorLink="#1E90FF"
+            android:textColor="@color/text_hint"
+            android:textColorLink="@color/link_blue"
             android:textSize="11sp" />
 
         <TextView
@@ -231,10 +246,10 @@
             android:layout_marginTop="24dp"
             android:layout_marginBottom="24dp"
             android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="@string/no_account"
-            android:textColor="@android:color/white"
-            android:textSize="12sp" />
-
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
     </LinearLayout>
-
 </ScrollView>

@@ -202,7 +202,7 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
                 thumbnail.setImageBitmap(thumbBitmap);
             } else if (hasUrlCover) {
                 imageWrap.setVisibility(View.VISIBLE);
-                Glide.with(thumbnail).load(cover).centerCrop().into(thumbnail);
+                Glide.with(thumbnail).load(cover).fitCenter().override(1080, 1920).into(thumbnail);
             } else {
                 imageWrap.setVisibility(View.GONE);
                 Glide.with(thumbnail).clear(thumbnail);
@@ -275,7 +275,7 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
 
             if (promo.getImageUrl() != null && !promo.getImageUrl().isEmpty()) {
                 banner.setVisibility(View.VISIBLE);
-                Glide.with(banner).load(promo.getImageUrl()).centerCrop().into(banner);
+                Glide.with(banner).load(promo.getImageUrl()).fitCenter().override(1080, 1920).into(banner);
             } else {
                 banner.setVisibility(View.GONE);
             }

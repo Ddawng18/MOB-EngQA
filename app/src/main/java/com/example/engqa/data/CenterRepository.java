@@ -3,11 +3,13 @@ package com.example.engqa.data;
 import com.example.engqa.model.Center;
 import com.example.engqa.model.CenterPost;
 import com.example.engqa.model.Course;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,8 +57,42 @@ public class CenterRepository {
                 });
     }
 
-    /** A normal account creates a centre request that stays hidden until an admin approves it. */
+    /**
+     * A normal account creates a centre request that stays hidden until an admin approves it.
+     *
+     * <p>One lifetime request per account: the centre document and a {@code centerRequests/{uid}}
+     * marker are written in the same batch. A second request can only overwrite the marker, which
+     * the rules forbid (admin-only update), so the limit holds even against a modified client.
+     */
     public void requestCenter(String ownerUid, Center center, Callback<String> callback) {
+        DocumentReference markerRef = db.collection(FirestoreRefs.CENTER_REQUESTS)
+                .document(ownerUid);
+        markerRef.get().addOnSuccessListener(snapshot -> {
+            if (snapshot.exists()) {
+                callback.onError(new IllegalStateException(
+                        "Tài khoản đã dùng lượt đăng ký trung tâm"));
+                return;
+            }
+            // Legacy accounts predate the marker: also refuse when a centre already exists.
+            db.collection(FirestoreRefs.CENTERS)
+                    .whereEqualTo("ownerUid", ownerUid)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(existing -> {
+                        if (!existing.isEmpty()) {
+                            callback.onError(new IllegalStateException(
+                                    "Tài khoản đã đăng ký trung tâm"));
+                            return;
+                        }
+                        createCenterRequest(ownerUid, center, markerRef, callback);
+                    })
+                    .addOnFailureListener(callback::onError);
+        }).addOnFailureListener(callback::onError);
+    }
+
+    private void createCenterRequest(String ownerUid, Center center,
+                                     DocumentReference markerRef, Callback<String> callback) {
+        DocumentReference centerRef = db.collection(FirestoreRefs.CENTERS).document();
         Map<String, Object> data = new HashMap<>();
         data.put("name", center.getName());
         data.put("logoUrl", center.getLogoUrl());
@@ -72,8 +108,17 @@ public class CenterRepository {
         data.put("status", Center.STATUS_PENDING);
         data.put("createdAt", FieldValue.serverTimestamp());
 
-        db.collection(FirestoreRefs.CENTERS).add(data)
-                .addOnSuccessListener(ref -> callback.onSuccess(ref.getId()))
+        Map<String, Object> marker = new HashMap<>();
+        marker.put("centerId", centerRef.getId());
+        marker.put("ownerUid", ownerUid);
+        marker.put("status", Center.STATUS_PENDING);
+        marker.put("createdAt", FieldValue.serverTimestamp());
+
+        WriteBatch batch = db.batch();
+        batch.set(centerRef, data);
+        batch.set(markerRef, marker);
+        batch.commit()
+                .addOnSuccessListener(unused -> callback.onSuccess(centerRef.getId()))
                 .addOnFailureListener(callback::onError);
     }
 

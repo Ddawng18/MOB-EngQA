@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.LayoutRes;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -14,7 +15,10 @@ import com.example.engqa.R;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Clickable image thumbnails on the question detail screen. */
+/**
+ * Clickable question images. The same adapter powers the small attachment strip in the compose
+ * screen and the full-width gallery in the detail screen; only the item layout differs.
+ */
 public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageViewHolder> {
 
     public interface OnImageClickListener {
@@ -23,9 +27,16 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageViewHol
 
     private final List<String> urls = new ArrayList<>();
     private final OnImageClickListener listener;
+    @LayoutRes
+    private final int itemLayout;
 
     public ImageAdapter(OnImageClickListener listener) {
+        this(listener, R.layout.item_attachment);
+    }
+
+    public ImageAdapter(OnImageClickListener listener, @LayoutRes int itemLayout) {
         this.listener = listener;
+        this.itemLayout = itemLayout;
     }
 
     public void submit(List<String> newUrls) {
@@ -40,7 +51,7 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageViewHol
     @Override
     public ImageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_attachment, parent, false);
+                .inflate(itemLayout, parent, false);
         return new ImageViewHolder(view);
     }
 
@@ -66,8 +77,10 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageViewHol
         }
 
         void bind(String url, OnImageClickListener listener) {
-            remove.setVisibility(View.GONE);
-            Glide.with(image).load(url).into(image);
+            if (remove != null) {
+                remove.setVisibility(View.GONE);
+            }
+            Glide.with(image).load(url).fitCenter().override(1080, 1920).into(image);
             image.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onImageClick(url);

@@ -23,6 +23,7 @@ import com.example.engqa.ui.CenterPostAdapter;
 import com.example.engqa.ui.CourseAdapter;
 import com.example.engqa.ui.StateView;
 import com.example.engqa.viewmodel.CenterViewModel;
+import com.example.engqa.util.Navigation;
 
 /** Centre page: profile, courses and posts, with an edit shortcut for the manager. */
 public class CenterDetailActivity extends BaseNavActivity {
@@ -72,7 +73,7 @@ public class CenterDetailActivity extends BaseNavActivity {
         posts.setAdapter(postAdapter);
         posts.setNestedScrollingEnabled(false);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnEditCenter).setOnClickListener(v ->
                 startActivity(new Intent(this, CenterEditActivity.class)
                         .putExtra(CenterEditActivity.EXTRA_CENTER_ID, centerId)));

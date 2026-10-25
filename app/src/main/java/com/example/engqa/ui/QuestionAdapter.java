@@ -129,7 +129,7 @@ public class QuestionAdapter extends ListAdapter<Question, QuestionAdapter.Quest
                 thumbnail.setImageBitmap(thumbBitmap);
             } else if (hasUrlCover) {
                 imageWrap.setVisibility(View.VISIBLE);
-                Glide.with(thumbnail).load(cover).centerCrop().into(thumbnail);
+                Glide.with(thumbnail).load(cover).fitCenter().override(1080, 1920).into(thumbnail);
             } else {
                 imageWrap.setVisibility(View.GONE);
                 Glide.with(thumbnail).clear(thumbnail);

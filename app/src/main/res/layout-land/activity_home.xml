@@ -113,13 +113,12 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="8dp">
 
-                <TextView
-                    android:layout_width="24dp"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="⌕"
-                    android:textColor="@color/accent_orange"
-                    android:textSize="24sp" />
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:contentDescription="@string/search_hint"
+                    android:src="@drawable/ic_search"
+                    app:tint="@color/text_hint" />
 
                 <EditText
                     android:id="@+id/etSearch"
@@ -135,7 +134,7 @@
                     android:paddingEnd="6dp"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
-                    android:textSize="14sp" />
+                    android:textSize="15sp" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -156,16 +155,7 @@
                 android:orientation="horizontal"
                 android:scrollbars="none" />
 
-            <TextView
-                android:id="@+id/tvCacheHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/state_cached"
-                android:textColor="@color/text_hint"
-                android:textSize="11sp"
-                android:visibility="gone" />
-        </LinearLayout>
+</LinearLayout>
 
         <View
             android:layout_width="1dp"
@@ -206,5 +196,5 @@
         android:id="@+id/bottomNav"
         layout="@layout/view_bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="68dp" />
+        android:layout_height="@dimen/bottom_nav_height" />
 </LinearLayout>

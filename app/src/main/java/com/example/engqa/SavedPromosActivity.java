@@ -21,6 +21,7 @@ import com.example.engqa.ui.SavedPromoAdapter;
 import com.example.engqa.viewmodel.SavedViewModel;
 
 import java.util.List;
+import com.example.engqa.util.Navigation;
 
 /** Lists promos saved locally in Room; tapping opens the detail, the × removes it. */
 public class SavedPromosActivity extends AppCompatActivity {
@@ -72,7 +73,7 @@ public class SavedPromosActivity extends AppCompatActivity {
         recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(adapter);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
 
         viewModel.getSavedPromos().observe(this, this::render);
     }

@@ -28,6 +28,7 @@ import com.example.engqa.viewmodel.ProfileViewModel;
 
 import java.util.Collections;
 import java.util.List;
+import com.example.engqa.util.Navigation;
 
 /** Profile screen: header with stats plus the user's own questions and answers. */
 public class MenuScreenActivity extends BaseNavActivity {
@@ -80,12 +81,11 @@ public class MenuScreenActivity extends BaseNavActivity {
 
         setupLists();
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
-        findViewById(R.id.btnEditProfile).setOnClickListener(v ->
-                startActivity(new Intent(this, EditProfileActivity.class)));
+        Navigation.wireBackToHome(this);
+        findViewById(R.id.btnSettings).setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class)));
         btnMyQuestions.setOnClickListener(v -> showTab(true));
         btnMyAnswers.setOnClickListener(v -> showTab(false));
-        findViewById(R.id.btnLogout).setOnClickListener(v -> logout());
         if (savedInstanceState != null) {
             showTab(savedInstanceState.getBoolean("showingQuestions", true));
         }
@@ -204,7 +204,7 @@ public class MenuScreenActivity extends BaseNavActivity {
         viewModel.getActionState().observe(this, state -> {
             if (state != null && state.getStatus() == UiState.Status.SUCCESS
                     && "profile_updated".equals(state.getData())) {
-                toast("Đã cập nhật hồ sơ");
+                toast(getString(R.string.profile_updated));
             }
         });
     }
@@ -270,9 +270,9 @@ public class MenuScreenActivity extends BaseNavActivity {
     }
 
     private void styleTab(TextView tab, boolean active) {
-        tab.setBackgroundResource(active ? R.drawable.bg_button_primary : R.drawable.bg_chip);
+        tab.setBackgroundResource(active ? R.drawable.bg_chip_active : R.drawable.bg_chip);
         tab.setTextColor(ContextCompat.getColor(this,
-                active ? R.color.white : R.color.text_secondary));
+                active ? R.color.accent_orange : R.color.text_secondary));
     }
 
     private void updateEmpty() {
@@ -288,15 +288,6 @@ public class MenuScreenActivity extends BaseNavActivity {
         } else {
             emptyView.setVisibility(View.GONE);
         }
-    }
-
-    private void logout() {
-        new SessionManager(this).logout();
-        toast(getString(R.string.logged_out));
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
     }
 
     private void toast(String message) {

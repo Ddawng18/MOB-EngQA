@@ -14,7 +14,7 @@
         <EditText
             android:id="@+id/etLeadName"
             style="@style/FormInput"
-            android:layout_height="46dp"
+            android:layout_height="@dimen/input_height"
             android:hint="@string/lead_name"
             android:imeOptions="actionNext"
             android:inputType="textPersonName"
@@ -23,7 +23,7 @@
         <EditText
             android:id="@+id/etLeadPhone"
             style="@style/FormInput"
-            android:layout_height="46dp"
+            android:layout_height="@dimen/input_height"
             android:layout_marginTop="10dp"
             android:hint="@string/lead_phone"
             android:imeOptions="actionNext"

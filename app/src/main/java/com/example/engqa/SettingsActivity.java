@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import com.example.engqa.util.Navigation;
 
 /** Hosts the preference screen (course 9.2). */
 public class SettingsActivity extends AppCompatActivity {
@@ -27,7 +28,7 @@ public class SettingsActivity extends AppCompatActivity {
                     return insets;
                 });
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.settingsContainer, new SettingsFragment())

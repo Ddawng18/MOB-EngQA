@@ -66,7 +66,6 @@ public class HomeActivity extends BaseNavActivity {
     private CategoryChipAdapter sortAdapter;
     private StateView stateView;
     private ProgressBar progressMore;
-    private TextView cacheHint;
     private RecyclerView recyclerView;
     private RecyclerView sortRecycler;
     private TextView profileButton;
@@ -76,6 +75,7 @@ public class HomeActivity extends BaseNavActivity {
     private User currentUser;
     private boolean pendingReceiverRegistered;
     private boolean showingServerError;
+    private boolean blockedShown;
 
     /** Dynamic receiver: refreshes the feed after a queued post finishes uploading. */
     private final BroadcastReceiver pendingPostedReceiver = new BroadcastReceiver() {
@@ -130,7 +130,6 @@ public class HomeActivity extends BaseNavActivity {
         notificationViewModel = new ViewModelProvider(this).get(NotificationViewModel.class);
         stateView = findViewById(R.id.stateView);
         progressMore = findViewById(R.id.progressMore);
-        cacheHint = findViewById(R.id.tvCacheHint);
         recyclerView = findViewById(R.id.recyclerQuestions);
         sortRecycler = findViewById(R.id.recyclerSort);
         notificationBadge = findViewById(R.id.tvNotificationBadge);
@@ -238,6 +237,16 @@ public class HomeActivity extends BaseNavActivity {
 
     private void bindCurrentUser(User user) {
         currentUser = user;
+        if (user != null) {
+            if (user.isDeleted()) {
+                showBlocked(AccountBlockedActivity.MODE_DELETED);
+                return;
+            }
+            if (user.isTimedOut()) {
+                showBlocked(AccountBlockedActivity.MODE_TIMEOUT);
+                return;
+            }
+        }
         if (profileButton == null) {
             return;
         }
@@ -245,6 +254,18 @@ public class HomeActivity extends BaseNavActivity {
         profileButton.setText(name.isEmpty()
                 ? getString(R.string.avatar_placeholder)
                 : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
+    }
+
+    /** Moderation gate: the whole app is unreachable for a timed-out or deleted account. */
+    private void showBlocked(String mode) {
+        if (blockedShown) {
+            return;
+        }
+        blockedShown = true;
+        startActivity(new Intent(this, AccountBlockedActivity.class)
+                .putExtra(AccountBlockedActivity.EXTRA_MODE, mode)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        finish();
     }
 
     // ------------------------------------------------------------------ feed
@@ -307,7 +328,6 @@ public class HomeActivity extends BaseNavActivity {
                 stateView.showContent();
                 recyclerView.setVisibility(View.VISIBLE);
                 feedAdapter.submitList(state.getData());
-                cacheHint.setVisibility(state.isFromCache() ? View.VISIBLE : View.GONE);
                 break;
             case EMPTY:
                 if (viewModel.isUnsearchableQuery()) {
@@ -418,11 +438,12 @@ public class HomeActivity extends BaseNavActivity {
 
         boolean loggedIn = new SessionManager(this).isLoggedIn();
         boolean isCenter = currentUser != null
-                && (User.ROLE_CENTER.equals(currentUser.getRole())
-                    || currentUser.getCenterId() != null);
+                && User.ROLE_CENTER.equals(currentUser.getRole())
+                && currentUser.getCenterId() != null;
 
         popup.getMenu().findItem(R.id.action_login).setVisible(!loggedIn);
         popup.getMenu().findItem(R.id.action_create_promo).setVisible(loggedIn && isCenter);
+        popup.getMenu().findItem(R.id.action_my_promos).setVisible(loggedIn && isCenter);
         popup.getMenu().findItem(R.id.action_centers).setVisible(true);
         popup.getMenu().findItem(R.id.action_saved_promos).setVisible(true);
         popup.getMenu().findItem(R.id.action_settings).setVisible(true);
@@ -440,6 +461,10 @@ public class HomeActivity extends BaseNavActivity {
         }
         if (id == R.id.action_create_promo) {
             createPromoLauncher.launch(new Intent(this, CreatePromoActivity.class));
+            return true;
+        }
+        if (id == R.id.action_my_promos) {
+            startActivity(new Intent(this, MyPromosActivity.class));
             return true;
         }
         if (id == R.id.action_centers) {

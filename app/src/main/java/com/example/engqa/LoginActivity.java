@@ -120,7 +120,8 @@ public class LoginActivity extends AppCompatActivity {
 
         TextView tvGoRegister = findViewById(R.id.tvGoRegister);
         tvGoRegister.setText(Html.fromHtml(
-                "Chưa có tài khoản? <font color='#1E90FF'><b>Đăng ký</b></font>",
+                getString(R.string.auth_switch_register,
+                        String.format("#%06X", 0xFFFFFF & getColor(R.color.accent_orange))),
                 Html.FROM_HTML_MODE_LEGACY));
     }
 
@@ -235,12 +236,12 @@ public class LoginActivity extends AppCompatActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle(R.string.forgot_password)
-                .setMessage("Nhập email để nhận liên kết đặt lại mật khẩu.")
+                .setMessage(R.string.reset_password_message)
                 .setView(input)
                 .setPositiveButton(R.string.ok, (dialog, which) -> {
                     String email = input.getText().toString().trim();
                     if (!Validators.isValidEmail(email)) {
-                        showError("Email không hợp lệ");
+                        showError(getString(R.string.err_invalid_email));
                         return;
                     }
                     viewModel.sendPasswordReset(email);

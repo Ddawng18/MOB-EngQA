@@ -89,6 +89,26 @@
             android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".AccountSecurityActivity"
+            android:exported="false"
+            android:parentActivityName=".HomeActivity"
+            android:screenOrientation="fullSensor"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".AccountBlockedActivity"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+        <activity
+            android:name=".MyPromosActivity"
+            android:exported="false"
+            android:parentActivityName=".HomeActivity"
+            android:screenOrientation="fullSensor" />
+        <activity
+            android:name=".AdminActivity"
+            android:exported="false"
+            android:parentActivityName=".SettingsActivity"
+            android:screenOrientation="fullSensor" />
+        <activity
             android:name=".NotificationActivity"
             android:exported="false"
             android:screenOrientation="fullSensor"

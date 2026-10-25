@@ -1,6 +1,7 @@
 package com.example.engqa;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -13,6 +14,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.activity.SystemBarStyle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -20,17 +23,21 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.bumptech.glide.Glide;
+import com.example.engqa.media.ImageUtils;
 import com.example.engqa.model.Center;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.User;
 import com.example.engqa.util.PromoValidator;
+import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.CreatePromoViewModel;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import com.example.engqa.util.Navigation;
 
 /**
  * "Đăng bài quảng bá": a CENTER account composes a post, picks an optional deadline and submits it
@@ -58,7 +65,12 @@ public class CreatePromoActivity extends AppCompatActivity
     private EditText etSchedule;
     private EditText etPhone;
     private EditText etLink;
-    private EditText etImage;
+    private TextView btnPickPromoImage;
+    private TextView btnRemovePromoImage;
+    private TextView tvPromoImageStatus;
+    private android.widget.ImageView ivPromoImagePreview;
+    private String promoImageUrl;
+    private boolean uploadingImage;
     private TextView tvDeadline;
     private TextView tvFormError;
     private TextView btnSubmit;
@@ -66,6 +78,13 @@ public class CreatePromoActivity extends AppCompatActivity
 
     private Date endAt;
     private User loadedUser;
+
+    private final ActivityResultLauncher<String> imagePicker = registerForActivityResult(
+            new ActivityResultContracts.GetContent(), uri -> {
+                if (uri != null) {
+                    pickImage(uri);
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,7 +117,10 @@ public class CreatePromoActivity extends AppCompatActivity
         etSchedule = findViewById(R.id.etPromoSchedule);
         etPhone = findViewById(R.id.etPromoPhone);
         etLink = findViewById(R.id.etPromoLink);
-        etImage = findViewById(R.id.etPromoImage);
+        btnPickPromoImage = findViewById(R.id.btnPickPromoImage);
+        btnRemovePromoImage = findViewById(R.id.btnRemovePromoImage);
+        tvPromoImageStatus = findViewById(R.id.tvPromoImageStatus);
+        ivPromoImagePreview = findViewById(R.id.ivPromoImagePreview);
         tvDeadline = findViewById(R.id.tvPromoDeadline);
         tvFormError = findViewById(R.id.tvFormError);
         btnSubmit = findViewById(R.id.btnSubmitPromo);
@@ -106,7 +128,7 @@ public class CreatePromoActivity extends AppCompatActivity
 
         setupTypeSpinner();
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnPickDate).setOnClickListener(v ->
                 DatePickerFragment.newInstance(endAt)
                         .show(getSupportFragmentManager(), "deadline"));
@@ -120,8 +142,69 @@ public class CreatePromoActivity extends AppCompatActivity
             return true;
         });
         btnSubmit.setOnClickListener(v -> submit());
+        btnPickPromoImage.setOnClickListener(v -> imagePicker.launch("image/*"));
+        btnRemovePromoImage.setOnClickListener(v -> removeImage());
 
         observe(uid);
+        observeUpload();
+    }
+
+    private void observeUpload() {
+        viewModel.getUploadState().observe(this, state -> {
+            if (state == null) {
+                return;
+            }
+            switch (state.getStatus()) {
+                case LOADING:
+                    uploadingImage = true;
+                    btnPickPromoImage.setEnabled(false);
+                    tvPromoImageStatus.setTextColor(getColor(R.color.text_secondary));
+                    tvPromoImageStatus.setText(R.string.promo_image_uploading);
+                    tvPromoImageStatus.setVisibility(View.VISIBLE);
+                    break;
+                case SUCCESS:
+                    uploadingImage = false;
+                    promoImageUrl = state.getData();
+                    btnPickPromoImage.setEnabled(true);
+                    tvPromoImageStatus.setTextColor(getColor(R.color.text_secondary));
+                    tvPromoImageStatus.setText(R.string.promo_image_uploaded);
+                    tvPromoImageStatus.setVisibility(View.VISIBLE);
+                    btnRemovePromoImage.setVisibility(View.VISIBLE);
+                    ivPromoImagePreview.setVisibility(View.VISIBLE);
+                    Glide.with(this).load(promoImageUrl).into(ivPromoImagePreview);
+                    break;
+                case ERROR:
+                default:
+                    uploadingImage = false;
+                    btnPickPromoImage.setEnabled(true);
+                    tvPromoImageStatus.setTextColor(getColor(R.color.error_red));
+                    tvPromoImageStatus.setText(state.getMessage());
+                    tvPromoImageStatus.setVisibility(View.VISIBLE);
+                    break;
+            }
+        });
+    }
+
+    private void pickImage(Uri uri) {
+        String mime = ImageUtils.mimeType(this, uri);
+        long size = ImageUtils.sizeBytes(this, uri);
+        if (!Validators.isAllowedImageType(mime)) {
+            Toast.makeText(this, R.string.image_type_error, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (size > Validators.MAX_IMAGE_BYTES) {
+            Toast.makeText(this, R.string.image_too_large, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        viewModel.uploadImage(uri);
+    }
+
+    private void removeImage() {
+        promoImageUrl = null;
+        btnRemovePromoImage.setVisibility(View.GONE);
+        ivPromoImagePreview.setVisibility(View.GONE);
+        tvPromoImageStatus.setVisibility(View.GONE);
+        Glide.with(this).clear(ivPromoImagePreview);
     }
 
     @Override
@@ -183,7 +266,10 @@ public class CreatePromoActivity extends AppCompatActivity
             }
             if (state.getStatus() == UiState.Status.SUCCESS) {
                 loadedUser = state.getData();
-                if (loadedUser != null && !User.ROLE_CENTER.equals(loadedUser.getRole())) {
+                // Matches firestore.rules -> isCenterOwner(): CENTER role *and* a centre id.
+                if (loadedUser == null
+                        || !User.ROLE_CENTER.equals(loadedUser.getRole())
+                        || loadedUser.getCenterId() == null) {
                     Toast.makeText(this, R.string.promo_center_only, Toast.LENGTH_LONG).show();
                     finish();
                 }
@@ -239,7 +325,7 @@ public class CreatePromoActivity extends AppCompatActivity
         String body = etBody.getText().toString();
         String phone = etPhone.getText().toString();
         String link = etLink.getText().toString();
-        String image = etImage.getText().toString();
+        String image = promoImageUrl != null ? promoImageUrl : "";
 
         String titleError = PromoValidator.titleError(title);
         if (titleError != null) {
@@ -271,8 +357,6 @@ public class CreatePromoActivity extends AppCompatActivity
         }
         String imageError = PromoValidator.imageUrlError(image);
         if (imageError != null) {
-            etImage.setError(imageError);
-            etImage.requestFocus();
             showError(imageError);
             return;
         }

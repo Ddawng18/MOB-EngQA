@@ -51,7 +51,7 @@ public class ChooseLevelActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        int barColor = Color.parseColor("#121417");
+        int barColor = getColor(R.color.bg_screen);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_choose_level);
 
@@ -149,13 +149,15 @@ public class ChooseLevelActivity extends AppCompatActivity {
 
         ss.setSpan(new AbsoluteSizeSpan(16, true), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         ss.setSpan(new StyleSpan(Typeface.BOLD), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.WHITE : Color.parseColor("#333333")),
+        ss.setSpan(new ForegroundColorSpan(isSelected
+                        ? getColor(R.color.on_primary) : getColor(R.color.text_primary)),
                 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         ss.setSpan(new AbsoluteSizeSpan(13, true), title.length() + 1, fullText.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.parseColor("#E0E0E0")
-                        : Color.parseColor("#666666")), title.length() + 1, fullText.length(),
+        ss.setSpan(new ForegroundColorSpan(isSelected
+                        ? 0xCC240F05 : getColor(R.color.text_secondary)),
+                title.length() + 1, fullText.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         btn.setText(ss);

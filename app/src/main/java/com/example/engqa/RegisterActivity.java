@@ -113,7 +113,8 @@ public class RegisterActivity extends AppCompatActivity {
 
         TextView tvGoLogin = findViewById(R.id.tvGoLogin);
         tvGoLogin.setText(Html.fromHtml(
-                "Đã có tài khoản? <font color='#1E90FF'><b>đăng nhập</b></font>",
+                getString(R.string.auth_switch_login,
+                        String.format("#%06X", 0xFFFFFF & getColor(R.color.accent_orange))),
                 Html.FROM_HTML_MODE_LEGACY));
     }
 
@@ -210,15 +211,15 @@ public class RegisterActivity extends AppCompatActivity {
     private void updateUsernameHint(String username) {
         if (username.trim().isEmpty()) {
             tvUsernameHint.setText(R.string.username_rules);
-            tvUsernameHint.setTextColor(0xFF888888);
+            tvUsernameHint.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_hint));
             return;
         }
         if (com.example.engqa.util.Validators.isValidUsername(username)) {
             tvUsernameHint.setText(R.string.username_available);
-            tvUsernameHint.setTextColor(0xFF4CAF50);
+            tvUsernameHint.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.accepted_green));
         } else {
             tvUsernameHint.setText(com.example.engqa.util.Validators.usernameError(username));
-            tvUsernameHint.setTextColor(0xFFFF6B6B);
+            tvUsernameHint.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.error_red));
         }
     }
 
