@@ -6,6 +6,7 @@ import com.example.engqa.model.Report;
 import com.example.engqa.model.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -212,7 +213,8 @@ public class AdminRepository {
      *
      * <p>Three warnings apply a 24h timeout and reset the warning counter; the third timeout marks
      * the profile as DELETED (a soft delete — the Auth user itself needs an Admin SDK job). Three
-     * warnings on promos additionally revoke the CENTER role. Everything runs in one transaction so
+     * warnings on promos additionally revoke the CENTER role and delete the centre it manages
+     * (its courses, posts and promos are cleaned up right after). Everything runs in one transaction so
      * the counters, the target flag, the report, the notification and the audit entry stay in sync.
      */
     public void warnReport(Report report, Callback<Void> callback) {
@@ -245,6 +247,7 @@ public class AdminRepository {
         }
         final DocumentReference reportRef = db.collection(FirestoreRefs.REPORTS)
                 .document(report.getId());
+        final String[] centerToDelete = {null};
 
         db.runTransaction(transaction -> {
             DocumentSnapshot targetSnapshot = transaction.get(target.ref);
@@ -344,10 +347,10 @@ public class AdminRepository {
             transaction.update(userRef, userUpdate);
 
             if (managedCenterRef != null) {
-                // Revoking the role is not enough: also drop them from the centre's manager list
-                // so they cannot keep editing the centre through the manager rules.
-                transaction.update(managedCenterRef,
-                        "managerUids", FieldValue.arrayRemove(authorUid));
+                // Losing the CENTER role removes the centre itself. Its courses/posts and promos
+                // are cleaned up right after the transaction commits.
+                transaction.delete(managedCenterRef);
+                centerToDelete[0] = managedCenterId;
             }
 
             transaction.update(target.ref,
@@ -364,20 +367,29 @@ public class AdminRepository {
 
             transaction.set(db.collection(AUDIT_LOGS).document(),
                     auditData(adminUid, delete ? "REPORT_DELETED" : "REPORT_WARNED",
-                            report.getTargetPath(), delete ? "Xoá nội dung" : "Cảnh cáo"));
+                            report.getTargetPath(),
+                            (delete ? "Xoá nội dung" : "Cảnh cáo")
+                                    + (revokeCenter ? " · Xoá trung tâm" : "")));
             return null;
         }).addOnSuccessListener(unused -> {
-            if (!delete) {
-                callback.onSuccess(null);
-                return;
-            }
-            if (target.promo) {
-                db.collection(FirestoreRefs.PROMOS).document(target.ref.getId()).delete()
-                        .addOnSuccessListener(v -> callback.onSuccess(null))
-                        .addOnFailureListener(callback::onError);
+            Runnable finish = () -> {
+                if (!delete) {
+                    callback.onSuccess(null);
+                    return;
+                }
+                if (target.promo) {
+                    db.collection(FirestoreRefs.PROMOS).document(target.ref.getId()).delete()
+                            .addOnSuccessListener(v -> callback.onSuccess(null))
+                            .addOnFailureListener(callback::onError);
+                } else {
+                    new QuestionRepository().deleteQuestion(target.ref.getId(), questionAuthor,
+                            callback);
+                }
+            };
+            if (centerToDelete[0] != null) {
+                cleanupRevokedCenter(centerToDelete[0], finish);
             } else {
-                new QuestionRepository().deleteQuestion(target.ref.getId(), questionAuthor,
-                        callback);
+                finish.run();
             }
         }).addOnFailureListener(callback::onError);
     }
@@ -399,6 +411,50 @@ public class AdminRepository {
     }
 
     // ------------------------------------------------------------- helpers
+
+    /** Removes a revoked centre: sub-collections first, then its promos. */
+    private void cleanupRevokedCenter(String centerId, Runnable done) {
+        DocumentReference centerRef = db.collection(FirestoreRefs.CENTERS).document(centerId);
+        deleteCollection(centerRef.collection("courses"), () ->
+                deleteCollection(centerRef.collection("posts"), () ->
+                        deleteCenterPromos(centerId, done)));
+    }
+
+    private void deleteCollection(CollectionReference collection, Runnable done) {
+        collection.get().addOnCompleteListener(task -> {
+            if (!task.isSuccessful() || task.getResult() == null) {
+                done.run();
+                return;
+            }
+            deleteDocuments(task.getResult().getDocuments(), done);
+        });
+    }
+
+    private void deleteCenterPromos(String centerId, Runnable done) {
+        db.collection(FirestoreRefs.PROMOS).whereEqualTo("centerId", centerId).get()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful() || task.getResult() == null) {
+                        done.run();
+                        return;
+                    }
+                    deleteDocuments(task.getResult().getDocuments(), done);
+                });
+    }
+
+    private void deleteDocuments(List<DocumentSnapshot> documents, Runnable done) {
+        if (documents == null || documents.isEmpty()) {
+            done.run();
+            return;
+        }
+        // Keep each batch under Firestore's 500-write limit.
+        int end = Math.min(450, documents.size());
+        WriteBatch batch = db.batch();
+        for (int i = 0; i < end; i++) {
+            batch.delete(documents.get(i).getReference());
+        }
+        List<DocumentSnapshot> rest = new ArrayList<>(documents.subList(end, documents.size()));
+        batch.commit().addOnCompleteListener(task -> deleteDocuments(rest, done));
+    }
 
     /** A report target: a question ({@code authorId}) or a promo ({@code authorUid}). */
     private static final class Target {

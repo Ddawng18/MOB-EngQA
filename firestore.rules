@@ -60,6 +60,7 @@ service cloud.firestore {
     function isCenterManager(centerId) {
       return isAdmin()
           || (isSignedIn()
+              && exists(/databases/$(database)/documents/centers/$(centerId))
               && centerId in get(/databases/$(database)/documents/centers/$(centerId)).data.managerUids
               && get(/databases/$(database)/documents/centers/$(centerId)).data.status == 'APPROVED');
     }
@@ -264,11 +265,13 @@ service cloud.firestore {
       match /courses/{courseId} {
         allow read: if true;
         allow write: if isCenterManager(centerId);
+        allow delete: if isAdmin();
       }
 
       match /posts/{postId} {
         allow read: if true;
         allow write: if isCenterManager(centerId);
+        allow delete: if isAdmin();
       }
     }
 
