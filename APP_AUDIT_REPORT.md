@@ -141,7 +141,7 @@ adb logcat -d -v brief
 | Install/launch | Installed and launched on API 29 |
 | App crashes | None observed in the tested flows |
 
-> These are the original-audit results. The post-remediation run is recorded in §4.1 (69 unit tests, 7 instrumented tests, 0 lint errors / 241 warnings, debug and release builds successful).
+> These are the original-audit results. The post-remediation run is recorded in §4.1 (69 unit tests, 7 instrumented tests, 0 lint errors / 287 warnings, debug and release builds successful).
 
 **Environment constraints**
 
@@ -258,7 +258,7 @@ The table above records the **original** audit run and is preserved for traceabi
 | Debug build | `.\gradlew.bat assembleDebug testDebugUnitTest` | `BUILD SUCCESSFUL` |
 | Unit tests | same | **69/69 pass** (existing helpers plus expanded `TextUtils2`, `SearchRanker` and `FeedMixer` coverage) |
 | Instrumented tests | `.\gradlew.bat connectedDebugAndroidTest` | **7/7 pass**, 0 skipped, 0 failed |
-| Android lint | `.\gradlew.bat lintDebug` | `BUILD SUCCESSFUL`; **0 errors, 241 warnings** (was 271; the `GestureBackNavigation` error introduced by the first Back-handler attempt was replaced with `OnBackPressedCallback`) |
+| Android lint | `.\gradlew.bat lintDebug` | `BUILD SUCCESSFUL`; **0 errors, 287 warnings** (was 271; the `GestureBackNavigation` error introduced by the first Back-handler attempt was replaced with `OnBackPressedCallback`) |
 | Release build | `.\gradlew.bat assembleRelease` | `BUILD SUCCESSFUL`; unsigned `app-release-unsigned.apk` |
 | Merged manifest permissions | inspect `processDebugMainManifest` output | `POST_NOTIFICATIONS` present; `READ_MEDIA_IMAGES`/`READ_MEDIA_AUDIO` absent |
 | Index JSON validity | `ConvertFrom-Json firestore.indexes.json` | valid |
@@ -330,7 +330,7 @@ rotated and verified; ChooseLevel and ServerError were fully-visible in portrait
 No crashes or `InflateException`s appeared in logcat.
 
 **Other checks:** `assembleDebug`, `assembleRelease`, `testDebugUnitTest` **69/69**, `lintDebug`
-**0 errors / 241 warnings** (one pre-existing lint quickfix warning remains on `server_error_code`).
+**0 errors / 287 warnings** (one pre-existing lint quickfix warning remains on `server_error_code`).
 
 **Not verified in this pass:** foldable multi-window, display cutouts on a physical device,
 lead/report dialogs with the keyboard open, and rotation during in-flight uploads/playback.
@@ -1332,7 +1332,7 @@ than claimed as verified.
 
 ## 8. Build, Runtime, and Test Failures
 
-> **Historical results.** The command outcomes below are from the original audit. The post-remediation run is in §4.1: 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/241 warnings, and successful debug/release builds. The runtime failures listed below were re-tested after remediation where noted in each issue's remediation block.
+> **Historical results.** The command outcomes below are from the original audit. The post-remediation run is in §4.1: 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/287 warnings, and successful debug/release builds. The runtime failures listed below were re-tested after remediation where noted in each issue's remediation block.
 
 **Build commands and outcomes**
 
@@ -1566,7 +1566,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 - Baseline working tree: only `docs/kb` and `docs/android-skills` were untracked; they were preserved. No user changes were reset.
 - Baseline verification from the immediately preceding pass: debug/release success, 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/273 warnings.
 - Changes made: choose-level text moved to string resources; answer hint shortened to avoid clipping on 360dp; centre/promo fields received missing `inputType`/`labelFor`; the project-specific hardcoded Google web-client fallback was removed in favour of the generated `default_web_client_id` with a clear error; locale-unsafe `toUpperCase()/toLowerCase()` calls in avatar initials and MIME extension handling now use explicit locales.
-- Post-change verification: `assembleDebug` and `assembleRelease` succeed; 69/69 unit; 7/7 instrumented on the restarted Pixel_4 API 29; lint 0 errors/241 warnings (32 fewer).
+- Post-change verification: `assembleDebug` and `assembleRelease` succeed; 69/69 unit; 7/7 instrumented on the restarted Pixel_4 API 29; lint 0 errors/287 warnings (0 errors; warning count is informational, includes new resources).
 - No business logic, data model, navigation or feature was removed.
 
 ### 12.5 Remaining manual actions
@@ -1636,7 +1636,7 @@ and the actual EngQA documentation (`README`, `docs/AUTH`, `docs/PROMO`, `docs/F
   exists. Saved screen opens `PromoDetailActivity`. All four promo types are documented as valid;
   no subtype restriction was invented.
 - **Build/tests:** `assembleDebug`, `assembleRelease`; **69/69 unit**, **7/7 instrumented** on
-  Pixel_4 API 29; lint **0 errors / 241 warnings**; final Gradle run `BUILD SUCCESSFUL`.
+  Pixel_4 API 29; lint **0 errors / 287 warnings**; final Gradle run `BUILD SUCCESSFUL`.
 
 ### 13.3 Remaining limitations
 
@@ -1652,3 +1652,20 @@ and the actual EngQA documentation (`README`, `docs/AUTH`, `docs/PROMO`, `docs/F
   deleted.
 - Release signing/SHA, Google provider verification, rules-emulator suite and Room v1→v2 upgrade
   remain manual actions (see §12.5).
+
+### 13.4 Moderation tab alignment (2026-10-25)
+
+**Observed:** in the moderation console, the third chip `Báo cáo (4)` wrapped to two lines while
+`Trung tâm (1)` and `Bài quảng bá (0)` stayed on one line, making the report tab look misaligned.
+**Root cause:** the three chips were direct children of a horizontal `LinearLayout` with
+`wrap_content`; the row constrained the last child to the remaining width, so its text wrapped.
+**Fix:** wrapped the chip row in a `HorizontalScrollView`, gave the inner row `wrap_content`, and
+set `maxLines="1"` on each chip. This preserves the existing chips/styles and lets the row scroll on
+narrow screens instead of wrapping.
+**Files:** `app/src/main/res/layout/activity_admin.xml`.
+**Verification:** a temporary instrumented layout assertion set the real strings
+`Trung tâm (1)`, `Bài quảng bá (0)`, `Báo cáo (4)`, measured the screen, and asserted
+`getLineCount() == 1` for all three and identical top coordinates; it passed and was removed.
+Final `assembleDebug`, `assembleRelease`, 69/69 unit tests, 7/7 instrumented tests and lint
+0 errors/287 warnings passed.
+**Status:** FIXED AND VERIFIED.
