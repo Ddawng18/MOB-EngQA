@@ -1,6 +1,9 @@
 package com.example.engqa.data;
 
 import com.example.engqa.model.Question;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -27,7 +30,17 @@ public class QuestionRepository {
     public static final String SORT_NEWEST = "newest";
     public static final String SORT_POPULAR = "popular";
     public static final String SORT_UNANSWERED = "unanswered";
+
+    /**
+     * Search fetches one bounded candidate set, ranks it locally, and pages through the ranked
+     * list without additional Firestore reads. 60 is large enough for this app's feed while
+     * keeping each search to a single cheap query.
+     */
+    public static final int SEARCH_CANDIDATE_LIMIT = 60;
     public static final String ALL_CATEGORIES = null;
+
+    /** Firestore batches allow 500 writes; keep room for the question and counter updates. */
+    private static final int BATCH_CHILD_LIMIT = 400;
 
     /** A page of the feed plus the cursor needed by {@link #loadMore}. */
     public static final class Page {
@@ -92,6 +105,15 @@ public class QuestionRepository {
                 });
     }
 
+    /** One-shot read used to fill the denormalised title for answers created before it existed. */
+    public void getQuestionOnce(String questionId, Callback<Question> callback) {
+        db.collection(FirestoreRefs.QUESTIONS).document(questionId).get()
+                .addOnSuccessListener(document -> callback.onSuccess(
+                        document != null && document.exists()
+                                ? document.toObject(Question.class) : null))
+                .addOnFailureListener(callback::onError);
+    }
+
     public void loadMore(String categoryId, String sort, int limit, DocumentSnapshot after,
                          Callback<Page> callback) {
         Query query = buildQuery(categoryId, sort, limit);
@@ -143,6 +165,9 @@ public class QuestionRepository {
         data.put("type", question.getType());
         data.put("imageUrls", question.getImageUrls());
         data.put("audioUrl", question.getAudioUrl());
+        data.put("thumbBase64", question.getThumbBase64());
+        data.put("imageCount", question.getImageCount());
+        data.put("hasAudio", question.isHasAudio());
         data.put("passageText", question.getPassageText());
         data.put("searchKeywords", question.getSearchKeywords());
         data.put("answerCount", 0);
@@ -154,11 +179,95 @@ public class QuestionRepository {
         return data;
     }
 
-    /** Deletes the question and decrements the author's {@code questionCount}. */
+    /**
+     * Deletes the question together with its answers, their votes and its media documents. The
+     * question document is deleted last, so a partial failure can be retried safely. Notifications
+     * and reports that reference the question are left to the moderation backend, and the answer
+     * authors' denormalised counters are not changed (the profile uses the live answer list).
+     */
     public void deleteQuestion(String questionId, String authorId, Callback<Void> callback) {
         DocumentReference questionRef =
                 db.collection(FirestoreRefs.QUESTIONS).document(questionId);
+        CollectionReference answersRef = questionRef.collection(FirestoreRefs.ANSWERS);
+        CollectionReference mediaRef = questionRef.collection(FirestoreRefs.MEDIA);
+
+        answersRef.get()
+                .addOnSuccessListener(answerSnapshots ->
+                        collectVotesAndMedia(questionRef, mediaRef,
+                                answerSnapshots, authorId, callback))
+                .addOnFailureListener(callback::onError);
+    }
+
+    private void collectVotesAndMedia(DocumentReference questionRef,
+                                      CollectionReference mediaRef, QuerySnapshot answerSnapshots,
+                                      String authorId, Callback<Void> callback) {
+        List<Task<QuerySnapshot>> voteTasks = new ArrayList<>();
+        for (DocumentSnapshot answer : answerSnapshots.getDocuments()) {
+            voteTasks.add(answer.getReference().collection(FirestoreRefs.VOTES).get());
+        }
+        mediaRef.get()
+                .addOnSuccessListener(mediaSnapshots -> Tasks.whenAll(voteTasks)
+                        .addOnSuccessListener(unused -> {
+                            List<DocumentReference> children = new ArrayList<>();
+                            // Votes first: if a later chunk fails, the answers are still present, so
+                            // a retry can discover their vote documents again.
+                            for (Task<QuerySnapshot> task : voteTasks) {
+                                QuerySnapshot votes = task.getResult();
+                                if (votes != null) {
+                                    for (DocumentSnapshot vote : votes.getDocuments()) {
+                                        children.add(vote.getReference());
+                                    }
+                                }
+                            }
+                            for (DocumentSnapshot answer : answerSnapshots.getDocuments()) {
+                                children.add(answer.getReference());
+                            }
+                            for (DocumentSnapshot media : mediaSnapshots.getDocuments()) {
+                                children.add(media.getReference());
+                            }
+                            deleteChildrenThenQuestion(questionRef, authorId, children, callback);
+                        })
+                        .addOnFailureListener(callback::onError))
+                .addOnFailureListener(callback::onError);
+    }
+
+    private void deleteChildrenThenQuestion(DocumentReference questionRef, String authorId,
+                                            List<DocumentReference> children,
+                                            Callback<Void> callback) {
+        if (children.size() <= BATCH_CHILD_LIMIT) {
+            commitDeleteBatch(questionRef, authorId, children, callback);
+            return;
+        }
+        deleteChildChunk(questionRef, authorId, children, 0, callback);
+    }
+
+    private void deleteChildChunk(DocumentReference questionRef, String authorId,
+                                  List<DocumentReference> children, int start,
+                                  Callback<Void> callback) {
+        int end = Math.min(start + BATCH_CHILD_LIMIT, children.size());
         WriteBatch batch = db.batch();
+        for (int i = start; i < end; i++) {
+            batch.delete(children.get(i));
+        }
+        final int next = end;
+        batch.commit()
+                .addOnSuccessListener(aVoid -> {
+                    if (next < children.size()) {
+                        deleteChildChunk(questionRef, authorId, children, next, callback);
+                    } else {
+                        commitDeleteBatch(questionRef, authorId,
+                                Collections.emptyList(), callback);
+                    }
+                })
+                .addOnFailureListener(callback::onError);
+    }
+
+    private void commitDeleteBatch(DocumentReference questionRef, String authorId,
+                                   List<DocumentReference> children, Callback<Void> callback) {
+        WriteBatch batch = db.batch();
+        for (DocumentReference child : children) {
+            batch.delete(child);
+        }
         batch.delete(questionRef);
         if (authorId != null) {
             batch.update(db.collection(FirestoreRefs.USERS).document(authorId),
@@ -181,14 +290,16 @@ public class QuestionRepository {
     }
 
     /**
-     * Firestore cannot do full-text search, so a keyword match is done with {@code array-contains}
-     * on the pre-computed {@code searchKeywords} list.
+     * Retrieves a bounded candidate set for a search. Firestore cannot do full-text search, so
+     * {@code array-contains-any} matches any of the normalised query/typo tokens; the ViewModel
+     * then ranks the candidates with {@link com.example.engqa.util.SearchRanker}. Category and
+     * unanswered filters are part of the Firestore query, so unrelated documents never enter the
+     * ranking set. The selected sort is used only to choose which candidates are fetched and as a
+     * tie-breaker; relevance is applied locally.
      */
-    public ListenerRegistration search(String keyword, int limit, Callback<Page> callback) {
-        Query query = db.collection(FirestoreRefs.QUESTIONS)
-                .whereArrayContains(FirestoreRefs.FIELD_SEARCH_KEYWORDS, keyword)
-                .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
-                .limit(limit);
+    public ListenerRegistration search(List<String> tokens, String categoryId, String sort,
+                                       int limit, Callback<Page> callback) {
+        Query query = buildSearchQuery(tokens, categoryId, sort, limit);
         return query.addSnapshotListener((snapshots, error) -> {
             if (error != null) {
                 callback.onError(error);
@@ -198,8 +309,17 @@ public class QuestionRepository {
         });
     }
 
+    private Query buildSearchQuery(List<String> tokens, String categoryId, String sort, int limit) {
+        Query query = db.collection(FirestoreRefs.QUESTIONS)
+                .whereArrayContainsAny(FirestoreRefs.FIELD_SEARCH_KEYWORDS, tokens);
+        return applyFiltersAndSort(query, categoryId, sort, limit);
+    }
+
     private Query buildQuery(String categoryId, String sort, int limit) {
-        Query query = db.collection(FirestoreRefs.QUESTIONS);
+        return applyFiltersAndSort(db.collection(FirestoreRefs.QUESTIONS), categoryId, sort, limit);
+    }
+
+    private Query applyFiltersAndSort(Query query, String categoryId, String sort, int limit) {
         if (categoryId != null && !categoryId.isEmpty()) {
             query = query.whereEqualTo(FirestoreRefs.FIELD_CATEGORY_ID, categoryId);
         }

@@ -6,20 +6,29 @@ import androidx.lifecycle.ViewModel;
 
 import com.example.engqa.data.AnswerRepository;
 import com.example.engqa.data.Callback;
+import com.example.engqa.data.FirestoreMediaRepository;
 import com.example.engqa.data.NotificationRepository;
 import com.example.engqa.data.QuestionRepository;
 import com.example.engqa.data.RepoErrors;
+import com.example.engqa.data.UserRepository;
 import com.example.engqa.data.VoteRepository;
 import com.example.engqa.model.Answer;
 import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Question;
+import com.example.engqa.model.StoredMedia;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.model.Vote;
+import com.example.engqa.util.AnswerRanking;
 import com.google.firebase.firestore.ListenerRegistration;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Backs the question-detail screen: the question, its answers, and the current user's votes. */
 public class QuestionDetailViewModel extends ViewModel {
@@ -28,17 +37,25 @@ public class QuestionDetailViewModel extends ViewModel {
     private final AnswerRepository answerRepository = new AnswerRepository();
     private final VoteRepository voteRepository = new VoteRepository();
     private final NotificationRepository notificationRepository = new NotificationRepository();
+    private final UserRepository userRepository = new UserRepository();
+    private final FirestoreMediaRepository mediaRepository = new FirestoreMediaRepository();
 
     private final MutableLiveData<UiState<Question>> question = new MutableLiveData<>();
     private final MutableLiveData<UiState<List<Answer>>> answers = new MutableLiveData<>();
     private final MutableLiveData<Map<String, Integer>> myVotes = new MutableLiveData<>(new HashMap<>());
     private final MutableLiveData<UiState<String>> actionState = new MutableLiveData<>();
+    private final MutableLiveData<List<StoredMedia>> media =
+            new MutableLiveData<>(new ArrayList<>());
 
     private ListenerRegistration questionRegistration;
     private ListenerRegistration answersRegistration;
+    private ListenerRegistration mediaRegistration;
+    /** One listener per answer for the signed-in user's vote on that answer. */
+    private final Map<String, ListenerRegistration> voteRegistrations = new HashMap<>();
 
     private String questionId;
     private String uid;
+    private boolean submittingAnswer;
 
     public LiveData<UiState<Question>> getQuestion() {
         return question;
@@ -54,6 +71,10 @@ public class QuestionDetailViewModel extends ViewModel {
 
     public LiveData<UiState<String>> getActionState() {
         return actionState;
+    }
+
+    public LiveData<List<StoredMedia>> getMedia() {
+        return media;
     }
 
     public String getQuestionId() {
@@ -79,6 +100,11 @@ public class QuestionDetailViewModel extends ViewModel {
             answersRegistration.remove();
             answersRegistration = null;
         }
+        if (mediaRegistration != null) {
+            mediaRegistration.remove();
+            mediaRegistration = null;
+        }
+        clearVoteRegistrations();
     }
 
     @Override
@@ -87,7 +113,10 @@ public class QuestionDetailViewModel extends ViewModel {
         super.onCleared();
     }
 
-    public void addAnswer(String body, String authorName) {
+    public void addAnswer(String body) {
+        if (submittingAnswer) {
+            return;
+        }
         if (uid == null) {
             actionState.setValue(UiState.error("Bạn cần đăng nhập"));
             return;
@@ -96,21 +125,45 @@ public class QuestionDetailViewModel extends ViewModel {
             actionState.setValue(UiState.error("Vui lòng nhập câu trả lời"));
             return;
         }
+        submittingAnswer = true;
+        actionState.setValue(UiState.<String>loading());
+        userRepository.getUser(uid, new Callback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                String name = user != null && user.getUsername() != null
+                        ? user.getUsername() : "user";
+                createAnswer(body, name);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                createAnswer(body, "user");
+            }
+        });
+    }
+
+    private void createAnswer(String body, String authorName) {
         Answer answer = new Answer();
         answer.setQuestionId(questionId);
         answer.setAuthorId(uid);
         answer.setAuthorName(authorName);
         answer.setBody(body.trim());
+        Question current = question.getValue() != null ? question.getValue().getData() : null;
+        if (current != null) {
+            answer.setQuestionTitle(current.getTitle());
+        }
         answerRepository.addAnswer(answer, new Callback<String>() {
             @Override
             public void onSuccess(String answerId) {
-                actionState.setValue(UiState.success(answerId));
+                submittingAnswer = false;
+                actionState.setValue(UiState.success("answer_posted"));
                 notifyQuestionAuthor(AppNotification.TYPE_ANSWER, authorName,
                         "Có câu trả lời mới", authorName + " đã trả lời câu hỏi của bạn");
             }
 
             @Override
             public void onError(Exception e) {
+                submittingAnswer = false;
                 actionState.setValue(UiState.error(RepoErrors.message(e)));
             }
         });
@@ -138,8 +191,8 @@ public class QuestionDetailViewModel extends ViewModel {
                 myVotes.setValue(updated);
 
                 if (result.value == Vote.UP) {
-                    notifyAnswerAuthor(answerId, "Có lượt bình chọn",
-                            "Câu trả lời của bạn vừa được upvote");
+                    notifyAnswerAuthor(answerId, AppNotification.TYPE_VOTE,
+                            "Có lượt bình chọn", "Câu trả lời của bạn vừa được upvote");
                 }
             }
 
@@ -155,7 +208,8 @@ public class QuestionDetailViewModel extends ViewModel {
             @Override
             public void onSuccess(Void result) {
                 actionState.setValue(UiState.success(answerId));
-                notifyAnswerAuthor(answerId, "Câu trả lời được chấp nhận",
+                notifyAnswerAuthor(answerId, AppNotification.TYPE_ACCEPTED,
+                        "Câu trả lời được chấp nhận",
                         "Câu trả lời của bạn đã được chấp nhận");
             }
 
@@ -196,6 +250,72 @@ public class QuestionDetailViewModel extends ViewModel {
         });
     }
 
+    /**
+     * Observes {@code votes/{uid}} for every loaded answer, so reopening the screen restores the
+     * highlighted arrow and a single tap can remove an existing vote.
+     */
+    private void syncVoteRegistrations(List<Answer> answers) {
+        if (uid == null) {
+            clearVoteRegistrations();
+            myVotes.setValue(new HashMap<>());
+            return;
+        }
+        Set<String> currentIds = new HashSet<>();
+        for (Answer answer : answers) {
+            if (answer.getId() != null) {
+                currentIds.add(answer.getId());
+            }
+        }
+        Iterator<Map.Entry<String, ListenerRegistration>> iterator =
+                voteRegistrations.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, ListenerRegistration> entry = iterator.next();
+            if (!currentIds.contains(entry.getKey())) {
+                entry.getValue().remove();
+                iterator.remove();
+            }
+        }
+        for (final String answerId : currentIds) {
+            if (voteRegistrations.containsKey(answerId)) {
+                continue;
+            }
+            ListenerRegistration registration = voteRepository.observeMyVote(
+                    questionId, answerId, uid, new Callback<Integer>() {
+                        @Override
+                        public void onSuccess(Integer value) {
+                            mergeVote(answerId, value != null ? value : 0);
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            // A failed vote read leaves the arrow unhighlighted; voting still works.
+                        }
+                    });
+            if (registration != null) {
+                voteRegistrations.put(answerId, registration);
+            }
+        }
+    }
+
+    private void mergeVote(String answerId, int value) {
+        Map<String, Integer> current = myVotes.getValue();
+        Map<String, Integer> updated = current != null
+                ? new HashMap<>(current) : new HashMap<>();
+        if (value == 0) {
+            updated.remove(answerId);
+        } else {
+            updated.put(answerId, value);
+        }
+        myVotes.setValue(updated);
+    }
+
+    private void clearVoteRegistrations() {
+        for (ListenerRegistration registration : voteRegistrations.values()) {
+            registration.remove();
+        }
+        voteRegistrations.clear();
+    }
+
     /** Looks up the author of an answer currently loaded in the list. */
     private String authorIdOf(String answerId) {
         UiState<List<Answer>> state = answers.getValue();
@@ -211,6 +331,7 @@ public class QuestionDetailViewModel extends ViewModel {
 
     private void attach() {
         question.setValue(UiState.<Question>loading());
+        media.setValue(new ArrayList<>());
         questionRegistration = questionRepository.observeQuestion(questionId, new Callback<Question>() {
             @Override
             public void onSuccess(Question result) {
@@ -230,16 +351,28 @@ public class QuestionDetailViewModel extends ViewModel {
                 new Callback<List<Answer>>() {
                     @Override
                     public void onSuccess(List<Answer> result) {
+                        syncVoteRegistrations(result);
                         if (result.isEmpty()) {
                             answers.setValue(UiState.<List<Answer>>empty());
                         } else {
-                            answers.setValue(UiState.success(result));
+                            answers.setValue(UiState.success(AnswerRanking.sort(result)));
                         }
                     }
 
                     @Override
                     public void onError(Exception e) {
                         answers.setValue(UiState.<List<Answer>>error(RepoErrors.message(e)));
+                    }
+                });
+        mediaRegistration = mediaRepository.observeMedia(questionId,
+                new Callback<List<StoredMedia>>() {                    @Override
+                    public void onSuccess(List<StoredMedia> result) {
+                        media.setValue(result);
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        media.setValue(new ArrayList<>());
                     }
                 });
     }
@@ -260,7 +393,7 @@ public class QuestionDetailViewModel extends ViewModel {
         notificationRepository.create(notification, null);
     }
 
-    private void notifyAnswerAuthor(String answerId, String title, String body) {
+    private void notifyAnswerAuthor(String answerId, String type, String title, String body) {
         UiState<List<Answer>> state = answers.getValue();
         if (state == null || state.getData() == null) {
             return;
@@ -271,7 +404,7 @@ public class QuestionDetailViewModel extends ViewModel {
                 notification.setRecipientId(answer.getAuthorId());
                 notification.setActorId(uid);
                 notification.setActorName(null);
-                notification.setType(AppNotification.TYPE_ACCEPTED);
+                notification.setType(type);
                 notification.setQuestionId(questionId);
                 notification.setAnswerId(answerId);
                 notification.setTitle(title);

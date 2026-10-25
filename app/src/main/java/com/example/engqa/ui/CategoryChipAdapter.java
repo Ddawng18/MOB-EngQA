@@ -81,9 +81,9 @@ public class CategoryChipAdapter extends ListAdapter<Category, CategoryChipAdapt
                     ? selectedId == null
                     : category.getId().equals(selectedId);
             chip.setBackgroundResource(active
-                    ? R.drawable.bg_button_primary : R.drawable.bg_chip);
+                    ? R.drawable.bg_chip_active : R.drawable.bg_chip);
             chip.setTextColor(ContextCompat.getColor(itemView.getContext(),
-                    active ? R.color.white : R.color.text_secondary));
+                    active ? R.color.accent_orange : R.color.text_secondary));
             chip.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onCategoryClick(category);

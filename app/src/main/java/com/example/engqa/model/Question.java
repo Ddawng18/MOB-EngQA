@@ -29,6 +29,9 @@ public class Question {
     private String type;
     private List<String> imageUrls = new ArrayList<>();
     private String audioUrl;
+    private String thumbBase64;
+    private long imageCount;
+    private boolean hasAudio;
     private String passageText;
     private List<String> searchKeywords = new ArrayList<>();
     private long answerCount;
@@ -137,6 +140,33 @@ public class Question {
 
     public void setAudioUrl(String audioUrl) {
         this.audioUrl = audioUrl;
+    }
+
+    /** Small Base64 thumbnail (Firestore-only media mode) used by the feed card. */
+    public String getThumbBase64() {
+        return thumbBase64;
+    }
+
+    public void setThumbBase64(String thumbBase64) {
+        this.thumbBase64 = thumbBase64;
+    }
+
+    public long getImageCount() {
+        return imageCount;
+    }
+
+    public void setImageCount(long imageCount) {
+        this.imageCount = imageCount;
+    }
+
+    @PropertyName("hasAudio")
+    public boolean isHasAudio() {
+        return hasAudio;
+    }
+
+    @PropertyName("hasAudio")
+    public void setHasAudio(boolean hasAudio) {
+        this.hasAudio = hasAudio;
     }
 
     public String getPassageText() {

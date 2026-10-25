@@ -23,6 +23,10 @@ public class AudioRecorder {
         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        // Firestore-only media budget: mono AAC at 24 kbps keeps 2 minutes under 450 KB.
+        recorder.setAudioChannels(1);
+        recorder.setAudioSamplingRate(22050);
+        recorder.setAudioEncodingBitRate(24000);
         recorder.setOutputFile(outputFile.getAbsolutePath());
         recorder.prepare();
         recorder.start();
