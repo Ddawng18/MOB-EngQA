@@ -1,8 +1,6 @@
 package com.example.engqa.notification;
 
-import android.content.Intent;
 
-import com.example.engqa.AdminActivity;
 import com.example.engqa.EngQAApp;
 import com.example.engqa.data.FirestoreRefs;
 import com.example.engqa.model.AppNotification;
@@ -60,27 +58,14 @@ public final class NotificationWatcher {
                         if (notification == null) {
                             continue;
                         }
-                        show(notification);
+                        NotificationHelper.show(
+                                EngQAApp.getContext(),
+                                (int) (System.currentTimeMillis() & 0x7FFFFFFF),
+                                notification.getTitle(),
+                                notification.getBody(),
+                                notification.getQuestionId());
                     }
                 });
-    }
-
-    private static void show(AppNotification notification) {
-        int id = (int) (System.currentTimeMillis() & 0x7FFFFFFF);
-        String type = notification.getType();
-        if (type != null && type.startsWith("moderation_")) {
-            // Admin queue entries open the moderation console, not a question.
-            Intent intent = new Intent(EngQAApp.getContext(), AdminActivity.class);
-            NotificationHelper.show(EngQAApp.getContext(), id,
-                    notification.getTitle(), notification.getBody(), intent);
-            return;
-        }
-        NotificationHelper.show(
-                EngQAApp.getContext(),
-                id,
-                notification.getTitle(),
-                notification.getBody(),
-                notification.getQuestionId());
     }
 
     public static void stop() {

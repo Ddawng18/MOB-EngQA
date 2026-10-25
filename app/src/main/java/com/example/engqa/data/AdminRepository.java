@@ -155,12 +155,8 @@ public class AdminRepository {
             batch.update(db.collection(FirestoreRefs.USERS).document(center.getOwnerUid()),
                     "role", User.ROLE_CENTER,
                     FirestoreRefs.FIELD_CENTER_ID, center.getId());
-            notify(batch, center.getOwnerUid(), "center_approved",
-                    "Trung tâm đã được duyệt",
-                    center.getName() + " đã được xác minh. Bạn có thể đăng bài quảng bá.");
         }
         audit(batch, "CENTER_APPROVED", "centers/" + center.getId(), null);
-        deleteModerationNotification(batch, "center", center.getId(), adminUid);
         commit(batch, callback);
     }
 
@@ -176,15 +172,7 @@ public class AdminRepository {
                 FIELD_REVIEW_NOTE, note,
                 FIELD_REVIEWED_BY, adminUid,
                 FIELD_REVIEWED_AT, FieldValue.serverTimestamp());
-        if (center.getOwnerUid() != null) {
-            notify(batch, center.getOwnerUid(), "center_rejected",
-                    "Đơn trung tâm bị từ chối",
-                    note == null || note.isEmpty()
-                            ? "Đơn đăng ký trung tâm của bạn chưa được duyệt."
-                            : note);
-        }
         audit(batch, "CENTER_REJECTED", "centers/" + center.getId(), note);
-        deleteModerationNotification(batch, "center", center.getId(), adminUid);
         commit(batch, callback);
     }
 
@@ -199,11 +187,7 @@ public class AdminRepository {
                 FirestoreRefs.FIELD_STATUS, Promo.STATUS_APPROVED,
                 FIELD_REVIEWED_BY, adminUid,
                 FIELD_REVIEWED_AT, FieldValue.serverTimestamp());
-        notify(batch, promo.getAuthorUid(), "promo_approved",
-                "Bài quảng bá đã được duyệt",
-                promo.getTitle() + " hiện đã xuất hiện trên bảng tin.");
         audit(batch, "PROMO_APPROVED", "promos/" + promo.getPromoId(), null);
-        deleteModerationNotification(batch, "promo", promo.getPromoId(), adminUid);
         commit(batch, callback);
     }
 
@@ -219,13 +203,7 @@ public class AdminRepository {
                 FIELD_REVIEW_NOTE, note,
                 FIELD_REVIEWED_BY, adminUid,
                 FIELD_REVIEWED_AT, FieldValue.serverTimestamp());
-        notify(batch, promo.getAuthorUid(), "promo_rejected",
-                "Bài quảng bá bị từ chối",
-                note == null || note.isEmpty()
-                        ? "Bài quảng bá của bạn chưa được duyệt."
-                        : note);
         audit(batch, "PROMO_REJECTED", "promos/" + promo.getPromoId(), note);
-        deleteModerationNotification(batch, "promo", promo.getPromoId(), adminUid);
         commit(batch, callback);
     }
 
@@ -291,18 +269,9 @@ public class AdminRepository {
                 duplicateUpdate.put(FIELD_RESOLVED_BY, adminUid);
                 duplicateUpdate.put(FIELD_RESOLVED_AT, FieldValue.serverTimestamp());
                 transaction.update(reportRef, duplicateUpdate);
-                if (delete && !authorUid.equals(adminUid)) {
-                    transaction.set(db.collection(FirestoreRefs.NOTIFICATIONS).document(),
-                            notificationData(authorUid, "moderation_deleted",
-                                    "Bài viết đã bị xoá",
-                                    "Bài viết của bạn đã bị xoá do vi phạm.", adminUid));
-                }
                 transaction.set(db.collection(AUDIT_LOGS).document(),
                         auditData(adminUid, delete ? "REPORT_DELETED" : "REPORT_WARN_DUPLICATE",
                                 report.getTargetPath(), "Đã cảnh cáo trước đó"));
-                transaction.delete(db.collection(FirestoreRefs.NOTIFICATIONS)
-                        .document(AdminNotifier.notificationId("report", report.getId(),
-                                adminUid)));
                 return null;
             }
 
@@ -393,35 +362,9 @@ public class AdminRepository {
             reportUpdate.put(FIELD_RESOLVED_AT, FieldValue.serverTimestamp());
             transaction.update(reportRef, reportUpdate);
 
-            if (!authorUid.equals(adminUid)) {
-                String title;
-                String body;
-                if (deleted) {
-                    title = "Tài khoản đã bị xoá";
-                    body = "Tài khoản của bạn đã bị xoá sau 3 lần tạm khoá.";
-                } else if (timeout) {
-                    title = "Tài khoản bị tạm khoá 1 ngày";
-                    body = "Bạn đã nhận đủ 3 cảnh cáo. Tài khoản bị tạm khoá 24 giờ.";
-                } else if (revokeCenter) {
-                    title = "Quyền trung tâm bị thu hồi";
-                    body = "Bài quảng bá bị cảnh cáo 3 lần nên tài khoản không còn quyền trung tâm.";
-                } else if (delete) {
-                    title = "Bài viết đã bị xoá";
-                    body = "Bài viết của bạn đã bị xoá và tính 1 cảnh cáo ("
-                            + warnings + "/" + User.WARNINGS_PER_TIMEOUT + ").";
-                } else {
-                    title = "Bài viết bị cảnh cáo";
-                    body = "Bạn đã nhận " + warnings + "/" + User.WARNINGS_PER_TIMEOUT
-                            + " cảnh cáo. Đủ 3 cảnh cáo sẽ bị tạm khoá 1 ngày.";
-                }
-                transaction.set(db.collection(FirestoreRefs.NOTIFICATIONS).document(),
-                        notificationData(authorUid, "moderation_warning", title, body, adminUid));
-            }
             transaction.set(db.collection(AUDIT_LOGS).document(),
                     auditData(adminUid, delete ? "REPORT_DELETED" : "REPORT_WARNED",
                             report.getTargetPath(), delete ? "Xoá nội dung" : "Cảnh cáo"));
-            transaction.delete(db.collection(FirestoreRefs.NOTIFICATIONS)
-                    .document(AdminNotifier.notificationId("report", report.getId(), adminUid)));
             return null;
         }).addOnSuccessListener(unused -> {
             if (!delete) {
@@ -452,20 +395,10 @@ public class AdminRepository {
                 FIELD_RESOLVED_BY, adminUid,
                 FIELD_RESOLVED_AT, FieldValue.serverTimestamp());
         audit(batch, "REPORT_DISMISSED", report.getTargetPath(), note);
-        deleteModerationNotification(batch, "report", report.getId(), adminUid);
         commit(batch, callback);
     }
 
     // ------------------------------------------------------------- helpers
-
-    private void deleteModerationNotification(WriteBatch batch, String kind, String targetId,
-                                              String adminUid) {
-        if (targetId == null) {
-            return;
-        }
-        batch.delete(db.collection(FirestoreRefs.NOTIFICATIONS)
-                .document(AdminNotifier.notificationId(kind, targetId, adminUid)));
-    }
 
     /** A report target: a question ({@code authorId}) or a promo ({@code authorUid}). */
     private static final class Target {
@@ -504,30 +437,6 @@ public class AdminRepository {
         return value != null ? value : 0L;
     }
 
-    private void addNotification(WriteBatch batch, String recipientId, String type,
-                                 String title, String body, String actorId) {        if (recipientId == null || recipientId.equals(actorId)) {
-            return;
-        }
-        batch.set(db.collection(FirestoreRefs.NOTIFICATIONS).document(),
-                notificationData(recipientId, type, title, body, actorId));
-    }
-
-    private Map<String, Object> notificationData(String recipientId, String type,
-                                                 String title, String body, String actorId) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("recipientId", recipientId);
-        data.put("actorId", actorId);
-        data.put("actorName", "Ban quản trị");
-        data.put("type", type);
-        data.put("questionId", null);
-        data.put("answerId", null);
-        data.put("title", title);
-        data.put("body", body);
-        data.put("read", false);
-        data.put("createdAt", FieldValue.serverTimestamp());
-        return data;
-    }
-
     private void addAudit(WriteBatch batch, String actorId, String action,
                           String targetPath, String note) {
         batch.set(db.collection(AUDIT_LOGS).document(),
@@ -554,26 +463,6 @@ public class AdminRepository {
         data.put(FIELD_RESOLVED_BY, adminUid);
         data.put(FIELD_RESOLVED_AT, FieldValue.serverTimestamp());
         batch.update(db.collection(FirestoreRefs.REPORTS).document(report.getId()), data);
-    }
-
-    private void notify(WriteBatch batch, String recipientId, String type,
-                        String title, String body) {
-        String adminUid = adminUid();
-        if (recipientId == null || recipientId.equals(adminUid)) {
-            return;
-        }
-        Map<String, Object> data = new HashMap<>();
-        data.put("recipientId", recipientId);
-        data.put("actorId", adminUid);
-        data.put("actorName", "Ban quản trị");
-        data.put("type", type);
-        data.put("questionId", null);
-        data.put("answerId", null);
-        data.put("title", title);
-        data.put("body", body);
-        data.put("read", false);
-        data.put("createdAt", FieldValue.serverTimestamp());
-        batch.set(db.collection(FirestoreRefs.NOTIFICATIONS).document(), data);
     }
 
     private void audit(WriteBatch batch, String action, String targetPath, String note) {

@@ -24,7 +24,6 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
-import com.example.engqa.data.AdminNotifier;
 import com.example.engqa.media.ImageUtils;
 import com.example.engqa.model.Center;
 import com.example.engqa.model.Promo;
@@ -306,9 +305,6 @@ public class CreatePromoActivity extends AppCompatActivity
                 case SUCCESS:
                     progress.setVisibility(View.GONE);
                     btnSubmit.setEnabled(true);
-                    AdminNotifier.notifyAdmins("promo", state.getData(),
-                            getString(R.string.moderation_promo_title),
-                            getString(R.string.moderation_promo_body));
                     Toast.makeText(this, R.string.promo_submitted, Toast.LENGTH_LONG).show();
                     setResult(RESULT_OK);
                     finish();

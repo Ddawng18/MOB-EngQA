@@ -12,7 +12,7 @@ public class ReportRepository {
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-    public void report(Report report, Callback<String> callback) {
+    public void report(Report report, Callback<Void> callback) {
         Map<String, Object> data = new HashMap<>();
         data.put("targetPath", report.getTargetPath());
         data.put("reporterId", report.getReporterId());
@@ -22,7 +22,7 @@ public class ReportRepository {
         data.put("createdAt", FieldValue.serverTimestamp());
 
         db.collection(FirestoreRefs.REPORTS).add(data)
-                .addOnSuccessListener(ref -> callback.onSuccess(ref.getId()))
+                .addOnSuccessListener(ref -> callback.onSuccess(null))
                 .addOnFailureListener(callback::onError);
     }
 }

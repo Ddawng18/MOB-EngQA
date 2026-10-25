@@ -14,7 +14,6 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.engqa.model.Center;
 import com.example.engqa.model.UiState;
-import com.example.engqa.data.AdminNotifier;
 import com.example.engqa.viewmodel.CenterViewModel;
 
 import java.util.Collections;
@@ -67,9 +66,6 @@ public class CenterRequestActivity extends AppCompatActivity {
                 return;
             }
             if (state.getStatus() == UiState.Status.SUCCESS) {
-                AdminNotifier.notifyAdmins("center", state.getData(),
-                        getString(R.string.moderation_center_title),
-                        getString(R.string.moderation_center_body));
                 Toast.makeText(this, R.string.center_request_sent, Toast.LENGTH_LONG).show();
                 finish();
             } else if (state.getStatus() == UiState.Status.ERROR) {

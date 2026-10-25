@@ -4,7 +4,6 @@ import android.content.Context;
 
 import androidx.work.WorkManager;
 
-import com.example.engqa.notification.ModerationBackfill;
 import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.util.PrefsHelper;
 import com.google.firebase.auth.FirebaseAuth;
@@ -44,7 +43,6 @@ public class SessionManager {
         if (PrefsHelper.areNotificationsEnabled(appContext)) {
             NotificationWatcher.start(uid);
         }
-        ModerationBackfill.run(appContext, uid);
     }
 
     public void logout() {
