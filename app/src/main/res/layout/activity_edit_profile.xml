@@ -128,6 +128,29 @@
                 android:text="@string/btn_change_password"
                 android:textColor="@color/accent_orange"
                 android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvPasswordManaged"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/btnGoogleSecurity"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_button_outline"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="@string/open_google_security"
+                android:textColor="@color/accent_orange"
+                android:textSize="15sp"
+                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

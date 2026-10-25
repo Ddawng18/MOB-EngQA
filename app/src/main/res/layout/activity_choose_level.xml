@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="48dp"
         android:gravity="center"
-        android:text="Chọn trình độ của bạn"
+        android:text="@string/choose_level_title"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
         android:textStyle="bold" />
@@ -24,7 +24,7 @@
         android:layout_marginTop="8dp"
         android:layout_marginBottom="32dp"
         android:gravity="center"
-        android:text="Hãy chọn mức độ phù hợp để bắt đầu hành trình của bạn"
+        android:text="@string/choose_level_subtitle"
         android:textColor="#E0E0E0"
         android:textSize="14sp" />
 
@@ -78,7 +78,7 @@
         android:drawableEnd="@drawable/ic_arrow_right"
         android:paddingStart="32dp"
         android:paddingEnd="32dp"
-        android:text="Tiếp tục"
+        android:text="@string/btn_continue"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
         android:textSize="16sp"

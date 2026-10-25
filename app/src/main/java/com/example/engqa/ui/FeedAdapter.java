@@ -1,5 +1,7 @@
 package com.example.engqa.ui;
 
+import java.util.Locale;
+
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -85,7 +87,8 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
                     return a.getAnswerCount() == b.getAnswerCount()
                             && a.getScore() == b.getScore()
                             && a.isSolved() == b.isSolved()
-                            && eq(a.getTitle(), b.getTitle());
+                            && eq(a.getTitle(), b.getTitle())
+                            && eq(a.getAuthorName(), b.getAuthorName());
                 }
 
                 private boolean eq(String a, String b) {
@@ -175,7 +178,7 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
                 return;
             }
             String name = question.getAuthorName() != null ? question.getAuthorName() : "user";
-            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
             user.setText(name);
             time.setText(UiUtils.relativeTime(question.getCreatedAt()));
             tag.setText(question.getCategoryName() != null
@@ -259,7 +262,7 @@ public class FeedAdapter extends ListAdapter<FeedItem, RecyclerView.ViewHolder> 
                 return;
             }
             String name = promo.getCenterName() != null ? promo.getCenterName() : "Center";
-            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
             center.setText(name);
             verified.setVisibility(promo.isCenterVerified() ? View.VISIBLE : View.GONE);
             time.setText(UiUtils.relativeTime(promo.getCreatedAt()));

@@ -1,5 +1,7 @@
 package com.example.engqa.ui;
 
+import java.util.Locale;
+
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -41,7 +43,8 @@ public class QuestionAdapter extends ListAdapter<Question, QuestionAdapter.Quest
                     return oldItem.getAnswerCount() == newItem.getAnswerCount()
                             && oldItem.getScore() == newItem.getScore()
                             && oldItem.isSolved() == newItem.isSolved()
-                            && eq(oldItem.getTitle(), newItem.getTitle());
+                            && eq(oldItem.getTitle(), newItem.getTitle())
+                            && eq(oldItem.getAuthorName(), newItem.getAuthorName());
                 }
 
                 private boolean eq(String a, String b) {
@@ -102,7 +105,7 @@ public class QuestionAdapter extends ListAdapter<Question, QuestionAdapter.Quest
 
         void bind(Question question, OnQuestionClickListener listener) {
             String name = question.getAuthorName() != null ? question.getAuthorName() : "user";
-            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
             user.setText(name);
             time.setText(TimeUtils.relative(question.getCreatedAt()));
             tag.setText(question.getCategoryName() != null

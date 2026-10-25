@@ -26,7 +26,8 @@ public final class RepoErrors {
             return "Đã xảy ra lỗi không xác định";
         }
         if (e instanceof UserRepository.UsernameTakenException
-                || e instanceof UserRepository.ProfileSetupException) {
+                || e instanceof UserRepository.ProfileSetupException
+                || e instanceof UserRepository.AuthorSyncException) {
             return e.getMessage();
         }
         if (e instanceof FirebaseAuthException) {

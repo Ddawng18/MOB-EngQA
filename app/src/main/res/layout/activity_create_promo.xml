@@ -146,6 +146,7 @@
                 style="@style/FormInput"
                 android:layout_height="46dp"
                 android:hint="@string/promo_field_level"
+                android:inputType="textCapWords"
                 android:maxLines="1" />
 
             <TextView
@@ -158,6 +159,7 @@
                 style="@style/FormInput"
                 android:layout_height="46dp"
                 android:hint="@string/promo_field_fee"
+                android:inputType="textCapSentences"
                 android:maxLines="1" />
 
             <TextView
@@ -170,6 +172,7 @@
                 style="@style/FormInput"
                 android:layout_height="46dp"
                 android:hint="@string/promo_field_schedule"
+                android:inputType="textCapSentences"
                 android:maxLines="1" />
 
             <TextView

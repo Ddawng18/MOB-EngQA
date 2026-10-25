@@ -1,5 +1,10 @@
 package com.example.engqa;
 
+import java.util.Locale;
+
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,9 +30,14 @@ import com.example.engqa.viewmodel.ProfileViewModel;
 /** Edits the display name and level of the signed-in user. */
 public class EditProfileActivity extends AppCompatActivity {
 
+    private static final String GOOGLE_SECURITY_URL = "https://myaccount.google.com/security";
+
     private ProfileViewModel viewModel;
     private EditText etUsername;
     private Spinner spinnerLevel;
+    private TextView btnChangePassword;
+    private TextView tvPasswordManaged;
+    private TextView btnGoogleSecurity;
     private String uid;
     private User currentUser;
 
@@ -54,6 +64,9 @@ public class EditProfileActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this).get(ProfileViewModel.class);
         etUsername = findViewById(R.id.etUsername);
         spinnerLevel = findViewById(R.id.spinnerLevel);
+        btnChangePassword = findViewById(R.id.btnChangePassword);
+        tvPasswordManaged = findViewById(R.id.tvPasswordManaged);
+        btnGoogleSecurity = findViewById(R.id.btnGoogleSecurity);
 
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item, getResources().getStringArray(R.array.levels)) {
@@ -70,7 +83,9 @@ public class EditProfileActivity extends AppCompatActivity {
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         findViewById(R.id.btnSaveProfile).setOnClickListener(v -> save());
-        findViewById(R.id.btnChangePassword).setOnClickListener(v -> showChangePasswordDialog());
+        btnChangePassword.setOnClickListener(v -> showChangePasswordDialog());
+        btnGoogleSecurity.setOnClickListener(v -> openGoogleSecurity());
+        configurePasswordControls();
 
         viewModel.getUser().observe(this, state -> {
             if (state != null && state.getStatus() == UiState.Status.SUCCESS) {
@@ -94,8 +109,37 @@ public class EditProfileActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * A Google-only account has no application password. Hide the unusable form and offer the
+     * official Google security page instead; linked/email accounts keep the existing flow.
+     */
+    private void configurePasswordControls() {
+        boolean hasPassword = viewModel.hasPasswordProvider();
+        boolean hasGoogle = viewModel.hasGoogleProvider();
+        btnChangePassword.setVisibility(hasPassword ? View.VISIBLE : View.GONE);
+        tvPasswordManaged.setVisibility(hasPassword ? View.GONE : View.VISIBLE);
+        btnGoogleSecurity.setVisibility(!hasPassword && hasGoogle ? View.VISIBLE : View.GONE);
+        if (!hasPassword) {
+            tvPasswordManaged.setText(hasGoogle
+                    ? R.string.password_managed_by_google
+                    : R.string.password_change_unavailable);
+        }
+    }
+
+    private void openGoogleSecurity() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(GOOGLE_SECURITY_URL)));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.google_security_unavailable, Toast.LENGTH_LONG).show();
+        }
+    }
+
     /** Three-field dialog: current password, new password, confirmation. */
     private void showChangePasswordDialog() {
+        if (!viewModel.hasPasswordProvider()) {
+            configurePasswordControls();
+            return;
+        }
         int padding = (int) (20 * getResources().getDisplayMetrics().density);
         androidx.appcompat.widget.LinearLayoutCompat container =
                 new androidx.appcompat.widget.LinearLayoutCompat(this);
@@ -149,7 +193,7 @@ public class EditProfileActivity extends AppCompatActivity {
         etUsername.setText(user.getUsername());
         ((TextView) findViewById(R.id.tvAvatarLarge)).setText(
                 user.getUsername() != null && !user.getUsername().isEmpty()
-                        ? String.valueOf(user.getUsername().charAt(0)).toUpperCase() : "?");
+                        ? String.valueOf(user.getUsername().charAt(0)).toUpperCase(Locale.getDefault()) : "?");
         if (user.getLevel() != null) {
             String[] levels = getResources().getStringArray(R.array.levels);
             for (int i = 0; i < levels.length; i++) {

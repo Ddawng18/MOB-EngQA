@@ -1,5 +1,7 @@
 package com.example.engqa;
 
+import java.util.Locale;
+
 import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -242,7 +244,7 @@ public class HomeActivity extends BaseNavActivity {
         String name = user != null && user.getUsername() != null ? user.getUsername() : "";
         profileButton.setText(name.isEmpty()
                 ? getString(R.string.avatar_placeholder)
-                : String.valueOf(name.charAt(0)).toUpperCase());
+                : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
     }
 
     // ------------------------------------------------------------------ feed

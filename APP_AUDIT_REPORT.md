@@ -4,7 +4,7 @@
 
 **Original audit status (pre-remediation):** Completed with confirmed functional defects. The application builds, installs, and launches, and the main read-only workflows work, but several high-impact defects affect profile editing, logout/session handling, answer acceptance, question deletion, centre screens, and backend authorization. The application was **not** ready for release.
 
-**Post-remediation status (2026-10-24, including the search-optimisation and registration-remediation passes):** **30 findings processed — 15 fixed and verified, 12 fixed with deployment/runtime verification blocked, 2 partially fixed, 1 unresolved.** The debug build, **69 unit tests**, 7 instrumented tests, lint (0 errors) and the release build pass. Firestore indexes and rules are deployed; the remaining blockers are destructive end-to-end flows, release signing/Google OAuth configuration, and one product decision (avatar editing); see the per-issue remediation blocks in §5 and the consolidated status in §11. BUG-030 was found after the original audit during production registration testing.
+**Post-remediation status (2026-10-24, including the search-optimisation and registration-remediation passes):** **30 findings processed — 15 fixed and verified, 12 fixed with deployment/runtime verification blocked, 2 partially fixed, 1 unresolved.** The debug build, **69 unit tests**, 7 instrumented tests, lint (0 errors) and the release build pass. Firestore indexes and rules are deployed; the remaining blockers are destructive end-to-end flows, release signing/Google OAuth configuration, and one product decision (avatar editing); see the per-issue remediation blocks in §5 and the consolidated status in §11. BUG-030 was found after the original audit during production registration testing. A `kb`/`android-skills` traceability review is in §12: no new numbered defects were found; small UI/accessibility/configuration fixes were applied and the remaining requirements are classified honestly. `docs/kb` is course material rather than an EngQA product specification, so course-only apps/components are marked NOT APPLICABLE instead of being invented.
 
 **Project:** EngQA — an Android English Q&A / centre-promotion app with Firebase Auth and Firestore.
 
@@ -88,7 +88,7 @@ Confidence distribution: **22 Confirmed**, **5 Probable**, **2 Potential**.
 - No Google account, no inbox for verification/reset emails, and no second user were available for end-to-end Google sign-in, email verification, password reset, or notification delivery tests.
 - The dictionary API was reachable from the host but the live Word-of-the-Day card did not load during the original audit; during the remediation re-check it loaded successfully ("feasible" with definition) after a fresh login.
 - **Post-remediation deployment status:** `firestore.indexes.json` was deployed to project `accountdata-dd29b` on 2026-10-24; all 19 indexes are READY and the composite search/filter queries were exercised live. `firestore.rules` was deployed on 2026-10-24 (compiled and released), including the new username-reservation rules; a rules-emulator suite was still not available, so server-side authorization tests remain manual.
-- No performance, accessibility, localization, process-death, or penetration testing was performed. Rotation/responsive UI was tested separately in §4.2 on a phone emulator; tablet/foldable sizes and process death remain untested.
+- No performance, accessibility, localization, process-death, or penetration testing was performed. Rotation/responsive UI was tested in §4.2/§4.3, including a phone and emulated tablet sizes; foldable posture, multi-window, cutouts and process death remain untested.
 
 ---
 
@@ -141,7 +141,7 @@ adb logcat -d -v brief
 | Install/launch | Installed and launched on API 29 |
 | App crashes | None observed in the tested flows |
 
-> These are the original-audit results. The post-remediation run is recorded in §4.1 (69 unit tests, 7 instrumented tests, 0 lint errors / 268 warnings, debug and release builds successful).
+> These are the original-audit results. The post-remediation run is recorded in §4.1 (69 unit tests, 7 instrumented tests, 0 lint errors / 241 warnings, debug and release builds successful).
 
 **Environment constraints**
 
@@ -258,7 +258,7 @@ The table above records the **original** audit run and is preserved for traceabi
 | Debug build | `.\gradlew.bat assembleDebug testDebugUnitTest` | `BUILD SUCCESSFUL` |
 | Unit tests | same | **69/69 pass** (existing helpers plus expanded `TextUtils2`, `SearchRanker` and `FeedMixer` coverage) |
 | Instrumented tests | `.\gradlew.bat connectedDebugAndroidTest` | **7/7 pass**, 0 skipped, 0 failed |
-| Android lint | `.\gradlew.bat lintDebug` | `BUILD SUCCESSFUL`; **0 errors, 268 warnings** (was 271; the `GestureBackNavigation` error introduced by the first Back-handler attempt was replaced with `OnBackPressedCallback`) |
+| Android lint | `.\gradlew.bat lintDebug` | `BUILD SUCCESSFUL`; **0 errors, 241 warnings** (was 271; the `GestureBackNavigation` error introduced by the first Back-handler attempt was replaced with `OnBackPressedCallback`) |
 | Release build | `.\gradlew.bat assembleRelease` | `BUILD SUCCESSFUL`; unsigned `app-release-unsigned.apk` |
 | Merged manifest permissions | inspect `processDebugMainManifest` output | `POST_NOTIFICATIONS` present; `READ_MEDIA_IMAGES`/`READ_MEDIA_AUDIO` absent |
 | Index JSON validity | `ConvertFrom-Json firestore.indexes.json` | valid |
@@ -330,7 +330,7 @@ rotated and verified; ChooseLevel and ServerError were fully-visible in portrait
 No crashes or `InflateException`s appeared in logcat.
 
 **Other checks:** `assembleDebug`, `assembleRelease`, `testDebugUnitTest` **69/69**, `lintDebug`
-**0 errors / 273 warnings** (one pre-existing lint quickfix warning remains on `server_error_code`).
+**0 errors / 241 warnings** (one pre-existing lint quickfix warning remains on `server_error_code`).
 
 **Not verified in this pass:** foldable multi-window, display cutouts on a physical device,
 lead/report dialogs with the keyboard open, and rotation during in-flight uploads/playback.
@@ -1332,7 +1332,7 @@ than claimed as verified.
 
 ## 8. Build, Runtime, and Test Failures
 
-> **Historical results.** The command outcomes below are from the original audit. The post-remediation run is in §4.1: 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/268 warnings, and successful debug/release builds. The runtime failures listed below were re-tested after remediation where noted in each issue's remediation block.
+> **Historical results.** The command outcomes below are from the original audit. The post-remediation run is in §4.1: 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/241 warnings, and successful debug/release builds. The runtime failures listed below were re-tested after remediation where noted in each issue's remediation block.
 
 **Build commands and outcomes**
 
@@ -1492,7 +1492,7 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
 - **Implemented, with end-to-end verification blocked:** exclusive answer acceptance (003), profile-read rule (007), vote restoration (011), promo contact intents (012), offline worker lifecycle (013), word-cache fallback (018), notification permission sync (020), backup exclusions (021), notification backlog (023), offline error screen wiring (025), vote notification type (028), and the v1→v2 saved-promo migration portion of 029. Reasons: no destructive shared-data writes, API 29-only emulator, and no rules-emulator suite.
 - **Partially fixed:** question deletion (005) now removes answers, votes and media and derives profile counters from live data, but notifications/reports and other users' stored counters still require a trusted backend. Firestore authorization (008) no longer exposes profiles or allows arbitrary answer/acceptance edits, but bounded counter deltas cannot be fully attributed on the client without Cloud Functions.
 - **Unresolved:** avatar editing (026) requires a product decision; the unused `avatarUrl` field remains without a picker/upload/display contract.
-- **Responsive UI (additional pass, not a numbered finding):** automatic sensor rotation is enabled (`fullSensor`, no `configChanges`, no portrait locks) and was verified through `0 → 3 → 2 → 1 → 0` with the correct layout at each step. Portrait/landscape layouts were repaired for Home (clipped category grid), ChooseLevel (overflow + baseline clipping + selected-level state), ServerError (overflow), Login/Register (insets overwrote gutters), all form gutters, profile tab state, lead-dialog scrolling and detail scroll restoration. API 29 phone screenshot/dump checks covered Login, Register, Home, Ask, Profile, Edit Profile, QuestionDetail, CenterList, CenterDetail, Notification, Settings and SavedPromos; temporary fully-visible Espresso checks covered ChooseLevel and ServerError; existing instrumented tests pass 7/7 in both orientations. Tablet/foldable, PromoDetail, WordDetail, centre forms, image viewer and open-keyboard dialogs remain untested (see §4.2).
+- **Responsive UI (additional pass, not a numbered finding):** automatic sensor rotation is enabled (`fullSensor`, no `configChanges`, no portrait locks) and was verified through `0 → 3 → 2 → 1 → 0` with the correct layout at each step. Portrait/landscape layouts were repaired for Home (clipped category grid), ChooseLevel (overflow + baseline clipping + selected-level state), ServerError (overflow), Login/Register (insets overwrote gutters), all form gutters, profile tab state, lead-dialog scrolling and detail scroll restoration. API 29 phone and emulated tablet/small-screen checks covered Home, Ask, Profile, QuestionDetail, WordDetail and EditProfile; earlier screenshot/dump checks covered Login, Register, CenterList/Detail, Notification, Settings and SavedPromos; temporary fully-visible Espresso checks covered ChooseLevel and ServerError; existing instrumented tests pass 7/7. Foldable posture, multi-window, PromoDetail, ImageViewer, some centre/admin forms and open-keyboard dialogs remain untested (see §4.3).
 - **Remaining actions required before release:**
   1. Deploy the updated `firestore.rules` (indexes are already deployed and READY), then run a rules-emulator suite covering every collection/actor/field.
   2. Execute the destructive/write flows in a disposable Firebase project: post with media, vote → reopen → unvote, accept A → accept B → accept A, delete with answers/votes/media, worker account switch/permanent failure, notification backlog/type, and promo create → approve → lead.
@@ -1504,4 +1504,151 @@ None reproduced. The app starts and the main login/feed/read workflows are reach
   8. Create the release keystore, register its SHA-1/SHA-256 in Firebase/Google Cloud, regenerate `google-services.json` (the current file has no certificate hash), verify the Google provider, and publish the new APK. **The old APK still uses the denied `users` username query and will keep failing registration until updated.**
 - **Release-readiness conclusion:** The original code-level release blockers have been addressed to the extent possible in this environment, search is verified with deployed indexes, and the main screens now adapt correctly on an API 29 phone in both orientations. The application is suitable for **further QA and a release-signing/Google-OAuth pass**, not yet for production release, because destructive workflows have not been end-to-end verified, release signing/SHA fingerprints and the Google provider still require manual configuration, BUG-005/008 remain partially fixed without a trusted backend, and tablet/foldable responsive coverage is still limited.
 
-**Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. `firestore.indexes.json` was deployed to `accountdata-dd29b` (19/19 READY); `firestore.rules` was **not** deployed. No destructive writes to shared Firebase content were performed. Search metadata on 17 existing questions was rebuilt additively via `tools/seed/reindex-search.js --apply`, which updates only the `searchKeywords` field and preserves title/body/tags/answers; a follow-up dry-run reported 0 changes. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, Back behaviour, and the search scenarios listed in §4.1. The responsive pass additionally rotated the emulator between portrait and landscape for Login, Home/search, Ask draft, Profile tab, Edit Profile, QuestionDetail, CenterList/Detail, Notification, Settings and SavedPromos, and used a temporary `TempResponsiveLayoutTest` for fully-visible ChooseLevel/ServerError checks; that test was deleted after execution. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.
+**Remediation integrity statement:** Application source was modified only for the fixes listed per issue in §5. `firestore.indexes.json` was deployed to `accountdata-dd29b` (19/19 READY); `firestore.rules` was deployed on 2026-10-24 after compiling successfully. No destructive writes to shared Firebase content were performed. Search metadata on 17 existing questions was rebuilt additively via `tools/seed/reindex-search.js --apply`, which updates only the `searchKeywords` field and preserves title/body/tags/answers; a follow-up dry-run reported 0 changes. Runtime re-checks covered sign-in/sign-out, unchanged profile save, menu/centre navigation, delete-dialog cancellation, saved-promo isolation, create-promo validation, cache clearing, Back behaviour, and the search scenarios listed in §4.1. The responsive pass additionally rotated the emulator between portrait and landscape for Login, Home/search, Ask draft, Profile tab, Edit Profile, QuestionDetail, CenterList/Detail, Notification, Settings and SavedPromos, and used a temporary `TempResponsiveLayoutTest` for fully-visible ChooseLevel/ServerError checks; that test was deleted after execution. Signing in updated Firebase Auth metadata, opening a promo incremented its `viewCount` once through normal app behaviour, and local Room state was written on the emulator. The v1→v2 Room migration was statically compared with Room's generated schema but not executed. This report was updated in place; no competing report was created.
+
+## 12. Requirements Traceability (`kb` / `android-skills`)
+
+### 12.1 Source assessment
+
+- `docs/kb` is the Android course knowledge base (slide index, slide outlines, three exercise guides). It does **not** define EngQA product screens, data model or acceptance criteria. The PhotoApp/ArticleApp/B6/B9 exercises are separate course apps, not EngQA requirements.
+- `docs/android-skills` contains three applicable engineering guides: `android-ui-and-app-structure`, `android-data-storage-architecture`, and `android-testing-background-work`. They define Android quality expectations, not a mandatory feature checklist.
+- Conflict/ambiguity: the guides use course-era examples (GridView, AsyncTask, IntentService, AlarmManager, simple Fragments, Cloud Storage). EngQA uses RecyclerView, ExecutorService, WorkManager, Activities + PreferenceFragmentCompat and Firestore Base64 media. These are accepted modern/equivalent implementations unless a specific exercise requires the old component; the exercise-specific components are **NOT APPLICABLE** to EngQA. Cloud Storage is not enabled because the project explicitly avoids Blaze (documented in README).
+- Evidence used: `README.md`, `docs/AUTH.md`, `docs/PROMO.md`, `docs/FIREBASE_SETUP.md`, source files, lint, unit/instrumented tests, and runtime checks in §4.
+
+### 12.2 Feature inventory (observed)
+
+| Area | Entry point / implementation | Status |
+|---|---|---|
+| Auth/profile | Login, Register, Google button, verification, username reservation, EditProfile, logout | Working; email/password verified; Google/release SHA manual |
+| Feed/search | Home, category chips, sorts, search, Word of the Day | Working; 4-way phone matrix verified |
+| Q&A | Ask, QuestionDetail, answers, votes, accept, delete, media | Working; cascade/counter residual limitations (BUG-005/008) |
+| Notifications | Bell/NotificationActivity, Firestore watcher, channel/settings | Working while process alive; FCM out of scope |
+| Centres/promos | CenterList/Detail/Edit/Request, PromoDetail, CreatePromo, saved promos, leads | Working; admin/centre paths require role |
+| Media | camera/gallery picker, compression, audio, cache cleanup | Working; Firestore Base64 documented |
+| Settings | PreferencesFragment, notifications, cache, about, logout | Working |
+| Background | WorkManager offline queue, cache cleanup, broadcasts | Working |
+| Persistence | Room saved promos, SharedPreferences, Firestore | Working; Room v1→v2 migration not executed |
+
+### 12.3 Traceability matrix
+
+| ID | Source | Requirement | Relevant files | Current status | Evidence | Required action / verification |
+|---|---|---|---|---|---|---|
+| UI-01 | ui §2,§3,§5 | Use Android resources and dp/sp | `res/values`, layouts, styles | PARTIALLY COMPLIANT | Lint: 8 HardcodedText (was 14); choose-level text moved to strings; Java messages remain | Migrate remaining hardcoded strings when touched; no functional blocker |
+| UI-02 | ui §4,§5; kb 05.3 | Responsive layouts and 4 orientations | Manifest, `layout-land`, `values-sw*` | PARTIALLY COMPLIANT | `fullSensor` all activities; Home/Ask/Profile/QuestionDetail/WordDetail 4-way; tablet/small screenshots | Complete matrix gaps in §4.3 |
+| UI-03 | ui §1 | Activities, intents and lifecycle | Activities, manifest, ViewModels | COMPLIANT | Build + runtime navigation/rotation checks | Continue regression checks |
+| UI-04 | ui §2.1 | Usable input fields/keyboard | Auth/centre/promo forms | PARTIALLY COMPLIANT | Validation/hints; inputType+labelFor added to centre forms; autofill warnings remain | Test forms with IME on small landscape |
+| UI-05 | ui §2.2 | Menus/dialogs | PopupMenu, AlertDialog, LeadDialogFragment | COMPLIANT | Runtime menu/dialog checks; lead dialog scrollable | Test dialog + keyboard landscape |
+| UI-06 | ui §3 | Navigation | `BaseNavActivity`, bottom nav, back handling | COMPLIANT | Back/navigation checks; clear-task logout | None known |
+| UI-07 | ui §4.1 | Lists/RecyclerView | Feed/list adapters | COMPLIANT | Runtime feed/list/detail checks | None known |
+| UI-08 | ui §4.2–4.4 | Styles/themes/Material | `styles.xml`, themes, drawables | COMPLIANT | Build + visual checks | None known |
+| UI-09 | ui §4.3 | Accessibility/font scaling | Layouts, strings | PARTIALLY COMPLIANT / UNVERIFIED | LabelFor added; 1.3× EditProfile checked; no TalkBack/small-sp audit | Accessibility pass required |
+| DATA-01 | data §2,§3 | SharedPreferences/Settings | `PrefsHelper`, `SettingsFragment` | COMPLIANT | `SettingsPreferenceTest`; runtime settings | None known |
+| DATA-02 | data §4 | Room/ViewModel/LiveData/Repository | `data/local`, `viewmodel`, repositories | COMPLIANT | 69 unit tests; saved-promo runtime | Room migration test |
+| DATA-03 | data §1,§2 | Storage/backup/media | backup XML, media repos, cache | PARTIALLY COMPLIANT | Backup exclusions, Firestore Base64 documented; no external storage model | Document/validate backup; Blaze needed for Cloud Storage |
+| DATA-04 | data §5 | Firebase Auth/Firestore | Auth/User/Question repositories, `google-services.json` | PARTIALLY COMPLIANT | Email/password registration/login verified; rules deployed; Google provider/SHA missing | Manual Firebase/Google config |
+| DATA-05 | data §5; README | Authorization/security | `firestore.rules`, `storage.rules` | PARTIALLY COMPLIANT | Rules deployed; BUG-005/008 residual; no rules-emulator suite | Rules-emulator tests and backend for strict counters |
+| DATA-06 | data §4; BUG-029/030 | Safe migrations | Room migration, seed/reindex tools | PARTIALLY COMPLIANT | Username/search backfills applied (0 missing); Room v1→v2 not executed | Test Room upgrade |
+| TEST-01 | test §2 | Unit tests | `src/test` | COMPLIANT | 69/69 pass | Keep green |
+| TEST-02 | test §3 | Espresso UI tests | `src/androidTest` | COMPLIANT | 7/7 pass (portrait/landscape in prior run; final 7/7) | Add auth/feed/end-to-end tests |
+| TEST-03 | test §4 | Threads/background work | ExecutorService, WorkManager | COMPLIANT | Build/code review; cache/offline workers | Test network transitions |
+| TEST-04 | test §5 | Network/offline handling | `WordRepository`, `NetworkUtils`, worker | PARTIALLY COMPLIANT | Word cache/offline code; network failure not fully executed | Offline/recovery device test |
+| TEST-05 | test §9 | Notification channel/permission | `NotificationHelper`, `NotificationWatcher` | PARTIALLY COMPLIANT | Channel/permission code; API 29 runtime; API 33 not tested | API 33 notification test |
+| TEST-06 | test §7 | Broadcasts | Pending-post broadcast + dynamic receiver | COMPLIANT | Code review; offline-post flow | Runtime offline-post test |
+| TEST-07 | test §8,§10,§11 | Services/alarms/JobScheduler | WorkManager implementation | NOT APPLICABLE | No time-based alarm/service requirement; WorkManager is the chosen equivalent | None |
+| KB-EX-01 | kb 04 B6/B9 | PhotoApp/ArticleApp exercises | N/A | NOT APPLICABLE | Separate course apps; EngQA uses equivalent RecyclerView/OkHttp/Gson patterns | Do not add course apps |
+| KB-EX-02 | kb outlines | GridView/AsyncTask/AlarmManager examples | N/A | NOT APPLICABLE | Modern equivalents used | None |
+| REL-01 | ui §5; README | Release signing/SHA | `app/build.gradle.kts`, `google-services.json` | BLOCKED BY MISSING CONFIGURATION | Release APK unsigned; no certificate hash | Create keystore, register SHA, regenerate JSON |
+| REL-02 | README; BUG-030 | Correct app distributed | APK/release | REQUIRES MANUAL ACTION | Old APK still uses denied query | Publish new APK |
+| REL-03 | README | Correct Firebase project/indexes | `google-services.json`, `firestore.*` | COMPLIANT | `accountdata-dd29b`; 19/19 indexes READY; rules deployed | None |
+
+### 12.4 Baseline and changes in this pass
+
+- Baseline working tree: only `docs/kb` and `docs/android-skills` were untracked; they were preserved. No user changes were reset.
+- Baseline verification from the immediately preceding pass: debug/release success, 69/69 unit tests, 7/7 instrumented tests, lint 0 errors/273 warnings.
+- Changes made: choose-level text moved to string resources; answer hint shortened to avoid clipping on 360dp; centre/promo fields received missing `inputType`/`labelFor`; the project-specific hardcoded Google web-client fallback was removed in favour of the generated `default_web_client_id` with a clear error; locale-unsafe `toUpperCase()/toLowerCase()` calls in avatar initials and MIME extension handling now use explicit locales.
+- Post-change verification: `assembleDebug` and `assembleRelease` succeed; 69/69 unit; 7/7 instrumented on the restarted Pixel_4 API 29; lint 0 errors/241 warnings (32 fewer).
+- No business logic, data model, navigation or feature was removed.
+
+### 12.5 Remaining manual actions
+
+1. Release signing: create `keystore.properties`, register release SHA-1/SHA-256, regenerate `google-services.json`, verify Google provider.
+2. Publish the new APK so devices with the old registration query receive BUG-030's fix.
+3. Run the rules-emulator suite for all collections/actors; run Room v1→v2 upgrade.
+4. Complete the four-orientation matrix for PromoDetail, ImageViewer, centre/admin forms and keyboard-open dialogs; test foldable/multi-window.
+5. Address remaining accessibility (`LabelFor`/`SmallSp`/TalkBack), autofill and hardcoded-lint items over time; they are quality debt, not current blockers.
+6. Cloud Storage remains a documented Blaze-dependent alternative; keep Firestore Base64 limits unless the project enables Storage.
+
+## 13. Six-Issue Remediation (2026-10-25)
+
+Requirements used: `docs/android-skills/*` (UI/lifecycle, data architecture, testing/background)
+and the actual EngQA documentation (`README`, `docs/AUTH`, `docs/PROMO`, `docs/FIREBASE_SETUP`).
+`docs/kb` is course material, not an EngQA product spec; no course-only feature was invented.
+
+| ID | Reported issue | Root cause | Status |
+|---|---|---|---|
+| R-01 | Rotation/responsive UI | Manifest was already `fullSensor` with no `configChanges`; profile landscape used a plain `ScrollView` that measured the nested answer RecyclerView to the viewport | FIXED AND VERIFIED for rotation + profile landscape; full matrix gaps in §4.3 |
+| R-02 | Profile answers stop after two in landscape | `RecyclerView` with `wrap_content` inside `ScrollView`; measurement was viewport-bounded. Query/Repository has no limit | FIXED AND VERIFIED (6-answer account, portrait + landscape) |
+| R-03 | Historical author names stale after rename | Denormalised `authorName` snapshots were never updated; `DiffUtil` callbacks ignored `authorName` | FIXED AND VERIFIED |
+| R-04 | Word of the Day play button has no audio | Remote dictionary media endpoint returned HTTP 530; cached/older entries could still show a button | FIXED AND VERIFIED (button/player removed; word content preserved) |
+| R-05 | Saved posts allow ordinary posts | No ordinary Q&A save path exists; saved content is `SavedPromo` only and docs/PROMO defines all four promo types as saveable | NOT A BUG / ALREADY COMPLIANT (no code change) |
+| R-06 | Google-only users cannot change password | UI always opened an email/password reauth form; no provider check | FIXED AND VERIFIED (Google-only UI + password UI); password-update success not re-run |
+
+### 13.1 Changes and safety
+
+- `activity_menu_screen.xml`: replaced `ScrollView` with `NestedScrollView`; the wrap_content
+  RecyclerViews now measure their full content and the page scrolls. No adapter/query change.
+- `UserRepository.java`:
+  - After a profile save, refreshes only `authorName` on this user's own questions/answers
+    (`whereEqualTo("authorId", uid)`), in 400-write batches. It never changes content, authorId,
+    votes, timestamps or another user's documents. The existing collection-group index is used by
+    ordering `createdAt`; failure is reported as a retryable `AuthorSyncException`.
+  - Adds provider queries (`password`/`google.com`) and refuses `changePassword` for accounts with
+    no password provider.
+- `AnswerAdapter`, `QuestionAdapter`, `FeedAdapter`: `areContentsTheSame` now includes `authorName`
+  so realtime snapshots rebind names instead of leaving stale rows.
+- `EditProfileActivity` + `activity_edit_profile.xml`: provider-aware password section. Google-only
+  shows the Vietnamese explanation and an official `myaccount.google.com/security` button; the
+  change-password button is hidden. Password/linked accounts keep the existing dialog. The repository
+  still guards the operation.
+- `WordDetailActivity` + `activity_word_detail.xml`: removed `btnWordAudio`, `AudioPlayerManager`
+  usage and lifecycle code. `item_word_of_day` never had a play control. `WordEntry.audioUrl`
+  remains for cache compatibility but is not advertised in UI.
+- `firestore.rules`: answer authors may update `authorName` in addition to their existing content
+  fields. Deployed successfully to `accountdata-dd29b` (compiled + released).
+- `strings.xml`, README/report: new Google-password strings, shorter answer hint, documentation.
+
+### 13.2 Verification evidence
+
+- **Profile answers:** `lan_teacher` (6 answers) verified in portrait and landscape; scrolling
+  reaches all six cards. Counts remain live (6/1 accepted).
+- **Author names:** renamed `lan_teacher` → `lan_teacher_qa`; all 6 answer snapshots changed and
+  rendered in profile, feed/detail path. Renamed `minh_anh` → `minh_anh_qa`; its question appeared
+  with the new name in profile, feed and QuestionDetail. Both names were reverted; Firestore now
+  shows `minh_anh` on the question and `lan_teacher` on answers. Test reservations
+  (`lan_teacher_qa`, `minh_anh_qa`) were deleted.
+- **Google password UI:** signed in with the emulator Google account; EditProfile shows the Google
+  explanation + "Mở cài đặt Google", no change-password button. Tapping it opened Chrome. A
+  password account (`lan_teacher`) still shows "Đổi mật khẩu".
+- **Word audio:** dictionary API audio URL returned HTTP 530; the entire control is removed. No
+  `btnWordAudio`/audio-player reference remains in the Word detail layout/code; Word content and
+  meanings are unchanged.
+- **Saved posts:** only `PromoDetailActivity.btnSavePromo` writes `SavedPromo`; no Q&A save action
+  exists. Saved screen opens `PromoDetailActivity`. All four promo types are documented as valid;
+  no subtype restriction was invented.
+- **Build/tests:** `assembleDebug`, `assembleRelease`; **69/69 unit**, **7/7 instrumented** on
+  Pixel_4 API 29; lint **0 errors / 241 warnings**; final Gradle run `BUILD SUCCESSFUL`.
+
+### 13.3 Remaining limitations
+
+- Four-orientation runtime coverage is complete for Home/Ask/Profile/QuestionDetail/WordDetail on
+  the standard phone, and representative small/tablet checks; not every screen × size × reverse
+  transition was re-run. Foldable/multi-window/cutouts remain untested.
+- Email/password password-change success and reauthentication were not re-executed this pass; the
+  existing flow is unchanged and guarded. Google's own password was never modified (correct).
+- Word audio was removed rather than replaced; if the upstream media service recovers, a future
+  implementation needs a reachable source and error handling.
+- If the product actually intends a narrower promo subtype for Saved, that conflicts with current
+  docs/PROMO and requires an explicit product decision; existing valid saved promos were not
+  deleted.
+- Release signing/SHA, Google provider verification, rules-emulator suite and Room v1→v2 upgrade
+  remain manual actions (see §12.5).

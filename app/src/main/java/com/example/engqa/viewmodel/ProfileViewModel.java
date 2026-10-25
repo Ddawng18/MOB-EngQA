@@ -58,6 +58,16 @@ public class ProfileViewModel extends ViewModel {
         return actionState;
     }
 
+    /** Email/password provider is linked, so the in-app change-password form is valid. */
+    public boolean hasPasswordProvider() {
+        return userRepository.hasPasswordProvider();
+    }
+
+    /** Google provider is linked; a Google-only account has no app password. */
+    public boolean hasGoogleProvider() {
+        return userRepository.hasGoogleProvider();
+    }
+
     public void start(String uid) {
         if (uid == null) {
             stop();

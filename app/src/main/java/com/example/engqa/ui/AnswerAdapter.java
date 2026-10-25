@@ -1,5 +1,7 @@
 package com.example.engqa.ui;
 
+import java.util.Locale;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -45,7 +47,8 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
                     && oldItem.getDownCount() == newItem.getDownCount()
                     && oldItem.isAccepted() == newItem.isAccepted()
                     && eq(oldItem.getBody(), newItem.getBody())
-                    && eq(oldItem.getQuestionTitle(), newItem.getQuestionTitle());
+                    && eq(oldItem.getQuestionTitle(), newItem.getQuestionTitle())
+                    && eq(oldItem.getAuthorName(), newItem.getAuthorName());
         }
 
         private boolean eq(String a, String b) {
@@ -134,7 +137,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
                   String currentUid, boolean votingEnabled, OnAnswerActionListener listener,
                   boolean showQuestionTitle, OnAnswerOpenListener openListener) {
             String name = answer.getAuthorName() != null ? answer.getAuthorName() : "user";
-            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+            avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
             username.setText(name);
             time.setText(TimeUtils.relative(answer.getCreatedAt()));
             body.setText(answer.getBody());

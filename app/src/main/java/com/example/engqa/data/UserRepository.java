@@ -8,6 +8,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserInfo;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -15,9 +16,14 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.Transaction;
+import com.google.firebase.firestore.WriteBatch;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -45,6 +51,13 @@ public class UserRepository {
     /** Auth succeeded but the Firestore profile could not be completed yet. */
     public static final class ProfileSetupException extends Exception {
         public ProfileSetupException(String message) {
+            super(message);
+        }
+    }
+
+    /** The profile name changed but historical post snapshots could not all be refreshed. */
+    public static final class AuthorSyncException extends Exception {
+        public AuthorSyncException(String message) {
             super(message);
         }
     }
@@ -460,11 +473,79 @@ public class UserRepository {
             return name;
         }).addOnSuccessListener(finalName -> {
             updateAuthDisplayName(auth.getCurrentUser(), finalName);
-            callback.onSuccess(null);
+            // Questions/answers denormalise authorName so their lists need one read. Refresh only
+            // this author's documents, only the authorName field. Running this on every profile
+            // save also gives a failed previous sync a retry path.
+            syncAuthorNames(uid, finalName, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    callback.onSuccess(null);
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    logSafe("updateProfile/authorSync", e);
+                    callback.onError(new AuthorSyncException(
+                            "Hồ sơ đã cập nhật nhưng chưa đồng bộ được tên trên một số bài viết cũ. "
+                                    + "Vui lòng bấm Lưu lại để thử lại."));
+                }
+            });
         }).addOnFailureListener(e -> {
             logSafe("updateProfile", e);
             callback.onError(e);
         });
+    }
+
+    /**
+     * Updates only {@code authorName} on this user's historical questions/answers. It never touches
+     * content, authorId, votes, timestamps or another user's documents. Batches are idempotent and
+     * chunked to Firestore's 500-write limit; a retry re-reads and updates only differing names.
+     */
+    private void syncAuthorNames(String uid, String name, Callback<Void> callback) {
+        db.collection(FirestoreRefs.QUESTIONS).whereEqualTo("authorId", uid).get()
+                .addOnSuccessListener(questions ->
+                        db.collectionGroup(FirestoreRefs.ANSWERS)
+                                .whereEqualTo("authorId", uid)
+                                // The existing collection-group index is (authorId, createdAt);
+                                // adding the orderBy uses it instead of requiring a new exemption.
+                                .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
+                                .get()
+                                .addOnSuccessListener(answers -> {
+                                    List<DocumentReference> refs = new ArrayList<>();
+                                    collectNameUpdates(questions, name, refs);
+                                    collectNameUpdates(answers, name, refs);
+                                    commitAuthorNameUpdates(refs, name, 0, callback);
+                                })
+                                .addOnFailureListener(callback::onError))
+                .addOnFailureListener(callback::onError);
+    }
+
+    private static void collectNameUpdates(QuerySnapshot snapshots, String name,
+                                           List<DocumentReference> refs) {
+        if (snapshots == null) {
+            return;
+        }
+        for (DocumentSnapshot document : snapshots.getDocuments()) {
+            if (!name.equals(document.getString("authorName"))) {
+                refs.add(document.getReference());
+            }
+        }
+    }
+
+    private void commitAuthorNameUpdates(List<DocumentReference> refs, String name, int start,
+                                         Callback<Void> callback) {
+        if (start >= refs.size()) {
+            callback.onSuccess(null);
+            return;
+        }
+        int end = Math.min(start + 400, refs.size());
+        WriteBatch batch = db.batch();
+        for (int i = start; i < end; i++) {
+            batch.update(refs.get(i), "authorName", name);
+        }
+        batch.commit()
+                .addOnSuccessListener(aVoid -> commitAuthorNameUpdates(refs, name, end, callback))
+                .addOnFailureListener(callback::onError);
     }
 
     private void applyProfileUpdate(String uid, String username, String avatarUrl, String level,
@@ -531,12 +612,38 @@ public class UserRepository {
         });
     }
 
+    public boolean hasPasswordProvider() {
+        return hasProvider(com.google.firebase.auth.EmailAuthProvider.PROVIDER_ID);
+    }
+
+    public boolean hasGoogleProvider() {
+        return hasProvider(com.google.firebase.auth.GoogleAuthProvider.PROVIDER_ID);
+    }
+
+    private boolean hasProvider(String providerId) {
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            return false;
+        }
+        for (UserInfo info : user.getProviderData()) {
+            if (providerId.equals(info.getProviderId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Changes the password of the signed-in user after re-authenticating with the current one. */
     public void changePassword(String currentPassword, String newPassword,
                                Callback<Void> callback) {
         FirebaseUser user = auth.getCurrentUser();
         if (user == null || user.getEmail() == null) {
             callback.onError(new IllegalStateException("Chưa đăng nhập"));
+            return;
+        }
+        if (!hasPasswordProvider()) {
+            callback.onError(new IllegalStateException(
+                    "Tài khoản đăng nhập bằng Google; mật khẩu được quản lý bởi Google."));
             return;
         }
         com.google.firebase.auth.AuthCredential credential =

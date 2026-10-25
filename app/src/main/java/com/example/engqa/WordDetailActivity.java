@@ -1,8 +1,6 @@
 package com.example.engqa;
 
 import android.os.Bundle;
-import android.view.View;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -15,7 +13,6 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.engqa.media.AudioPlayerManager;
 import com.example.engqa.model.UiState;
 import com.example.engqa.model.WordEntry;
 import com.example.engqa.ui.StateView;
@@ -29,8 +26,6 @@ public class WordDetailActivity extends AppCompatActivity {
 
     private WordOfDayViewModel viewModel;
     private WordMeaningAdapter adapter;
-    private AudioPlayerManager player;
-    private ImageView audioButton;
     private StateView stateView;
     private String word;
 
@@ -55,7 +50,6 @@ public class WordDetailActivity extends AppCompatActivity {
 
         viewModel = new ViewModelProvider(this).get(WordOfDayViewModel.class);
         stateView = findViewById(R.id.stateView);
-        audioButton = findViewById(R.id.btnWordAudio);
 
         adapter = new WordMeaningAdapter();
         RecyclerView recycler = findViewById(R.id.recyclerMeanings);
@@ -63,23 +57,11 @@ public class WordDetailActivity extends AppCompatActivity {
         recycler.setAdapter(adapter);
         recycler.setNestedScrollingEnabled(false);
 
-        player = new AudioPlayerManager();
-        player.setListener((playing, positionMs, durationMs) ->
-                audioButton.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play));
-
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         stateView.setOnRetryListener(v -> viewModel.loadWord(word, true));
 
         viewModel.getWord().observe(this, this::render);
         viewModel.loadWord(word, false);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (player != null) {
-            player.release();
-        }
     }
 
     private void render(UiState<WordEntry> state) {
@@ -109,11 +91,5 @@ public class WordDetailActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.tvDetailPhonetic)).setText(
                 entry.getPhonetic() != null ? entry.getPhonetic() : "");
         adapter.submitList(entry.getMeanings());
-
-        boolean hasAudio = entry.getAudioUrl() != null && !entry.getAudioUrl().isEmpty();
-        audioButton.setVisibility(hasAudio ? View.VISIBLE : View.GONE);
-        if (hasAudio) {
-            audioButton.setOnClickListener(v -> player.toggle(entry.getAudioUrl()));
-        }
     }
 }

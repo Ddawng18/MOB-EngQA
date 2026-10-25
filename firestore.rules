@@ -176,7 +176,7 @@ service cloud.firestore {
         allow update: if isSignedIn()
             && (isAdmin()
                 || (resource.data.authorId == request.auth.uid
-                    && changedKeys().hasOnly(['body', 'questionTitle']))
+                    && changedKeys().hasOnly(['body', 'questionTitle', 'authorName']))
                 || onlyUpdatesVoteCounters()
                 || (questionAuthor(questionId) == request.auth.uid
                     && changedKeys().hasOnly(['isAccepted'])));

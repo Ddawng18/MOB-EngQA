@@ -56,7 +56,7 @@
     <string name="attachment_placeholder">Ảnh đính kèm (chạm để phóng to)</string>
     <string name="answers_header">Lời giải (%1$d)</string>
     <string name="answers_header_zero">Lời giải</string>
-    <string name="hint_answer">Nhập câu trả lời của bạn...</string>
+    <string name="hint_answer">Nhập câu trả lời...</string>
     <string name="btn_send">Gửi</string>
     <string name="accepted_badge">Đã chấp nhận</string>
     <string name="btn_accept">Chấp nhận</string>
@@ -93,6 +93,9 @@
     <string name="hint_confirm_password">Xác nhận mật khẩu</string>
     <string name="btn_login">Đăng nhập</string>
     <string name="btn_register">Tiếp tục</string>
+    <string name="btn_continue">Tiếp tục</string>
+    <string name="choose_level_title">Chọn trình độ của bạn</string>
+    <string name="choose_level_subtitle">Hãy chọn mức độ phù hợp để bắt đầu hành trình của bạn</string>
     <string name="or">Hoặc</string>
     <string name="btn_google">Tiếp tục với Google</string>
     <string name="terms_text">Bằng việc tiếp tục, bạn đồng ý với &lt;a href=\"terms\">Thỏa thuận người dùng&lt;/a> của chúng tôi, đồng thời xác nhận rằng bạn hiểu rõ &lt;a href=\"privacy\">Chính sách quyền riêng tư&lt;/a> của chúng tôi.</string>
@@ -202,6 +205,10 @@
     <string name="hint_current_password">Mật khẩu hiện tại</string>
     <string name="hint_new_password">Mật khẩu mới</string>
     <string name="password_changed">Đã đổi mật khẩu</string>
+    <string name="password_managed_by_google">Tài khoản này đăng nhập bằng Google. Mật khẩu được quản lý bởi Google.</string>
+    <string name="password_change_unavailable">Tài khoản này không hỗ trợ đổi mật khẩu trực tiếp trong ứng dụng.</string>
+    <string name="open_google_security">Mở cài đặt Google</string>
+    <string name="google_security_unavailable">Không tìm thấy trình duyệt để mở cài đặt Google</string>
 
     <string name="default_web_client_id">13331358113-nm4e03pl63r0q0sa2abdppg3ld9rov02.apps.googleusercontent.com</string>
 

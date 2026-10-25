@@ -51,17 +51,20 @@
 
             <TextView
                 style="@style/FormLabel"
+                android:labelFor="@id/etCenterName"
                 android:text="@string/center_name" />
 
             <EditText
                 android:id="@+id/etCenterName"
                 style="@style/FormInput"
                 android:layout_height="46dp"
+                android:inputType="textCapWords"
                 android:maxLines="1" />
 
             <TextView
                 style="@style/FormLabel"
                 android:layout_marginTop="14dp"
+                android:labelFor="@id/etCenterDescription"
                 android:text="@string/center_description" />
 
             <EditText
@@ -75,17 +78,20 @@
             <TextView
                 style="@style/FormLabel"
                 android:layout_marginTop="14dp"
+                android:labelFor="@id/etCenterAddress"
                 android:text="@string/center_address" />
 
             <EditText
                 android:id="@+id/etCenterAddress"
                 style="@style/FormInput"
                 android:layout_height="46dp"
+                android:inputType="textCapWords"
                 android:maxLines="1" />
 
             <TextView
                 style="@style/FormLabel"
                 android:layout_marginTop="14dp"
+                android:labelFor="@id/etCenterPhone"
                 android:text="@string/center_phone" />
 
             <EditText
@@ -98,6 +104,7 @@
             <TextView
                 style="@style/FormLabel"
                 android:layout_marginTop="14dp"
+                android:labelFor="@id/etCenterEmail"
                 android:text="@string/center_email" />
 
             <EditText

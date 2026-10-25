@@ -228,6 +228,9 @@ admins/{uid}
 Email/password sign-up and sign-in are fully implemented: unique display names, per-field
 validation, password visibility toggles, loading states, specific Vietnamese error messages,
 password reset, email verification (non-blocking, with resend), change-password and logout.
+A Google-only account is detected from Firebase provider data: the app explains that Google manages
+its password and links to `myaccount.google.com/security` instead of showing an unusable password
+form. Linked email/password accounts keep the normal change-password flow.
 Registration atomically reserves `usernames/{exactDisplayName}` and creates `users/{uid}` in one
 Firestore transaction. If the profile write fails transiently, the Auth account is kept so the next
 login can complete it; it is rolled back only when the chosen username was already taken. Existing
@@ -289,8 +292,10 @@ Home, Ask, Profile.
   `POST_NOTIFICATIONS`), clear cache, about and logout. Values live in `SharedPreferences`.
 - **Word of the Day**: a third feed view type (`FeedItem.TYPE_WORD`). `WordRepository` requests
   `dictionaryapi.dev` with OkHttp, parses JSON with Gson, caches today's entry in
-  `SharedPreferences`, and `WordDetailActivity` renders all meanings, examples and pronunciation
-  audio (cache-first, so it still works offline after the first fetch).
+  `SharedPreferences`, and `WordDetailActivity` renders the word, phonetic text, meanings and
+  examples (cache-first, so it still works offline after the first fetch). The pronunciation-audio
+  control was removed because the upstream media endpoint was unavailable (HTTP 530); the word
+  content itself is unchanged.
 - **Offline posts** (`WorkManager`): when the device is offline, the question and its media are
   copied into internal storage and queued with a `NetworkType.CONNECTED` constraint. On reconnect
   the worker uploads the files, writes the question, posts a notification and sends an in-app

@@ -47,7 +47,9 @@
     </LinearLayout>
 
     <!-- Scrollable Content -->
-    <ScrollView
+    <!-- NestedScrollView measures the wrap_content RecyclerViews at full content height; a plain
+         ScrollView could stop after the visible viewport (e.g. two answers in landscape). -->
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollProfile"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -286,7 +288,7 @@
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <include
         android:id="@+id/bottomNav"

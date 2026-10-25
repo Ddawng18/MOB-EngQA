@@ -1,5 +1,7 @@
 package com.example.engqa;
 
+import java.util.Locale;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -221,7 +223,7 @@ public class MenuScreenActivity extends BaseNavActivity {
         ((TextView) findViewById(R.id.tvUsername)).setText(name);
         ((TextView) findViewById(R.id.tvEmail)).setText(user.getEmail());
         ((TextView) findViewById(R.id.tvAvatar)).setText(
-                name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+                name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
         TextView level = findViewById(R.id.tvLevelBadge);
         if (user.getLevel() != null && !user.getLevel().isEmpty()) {
             level.setText(user.getLevel());

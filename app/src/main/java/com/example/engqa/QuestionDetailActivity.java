@@ -1,5 +1,7 @@
 package com.example.engqa;
 
+import java.util.Locale;
+
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -225,7 +227,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
         currentQuestion = question;
         String name = question.getAuthorName() != null ? question.getAuthorName() : "user";
         ((TextView) findViewById(R.id.tvQuestionAvatar)).setText(
-                name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase());
+                name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
         ((TextView) findViewById(R.id.tvQuestionUser)).setText(name);
         ((TextView) findViewById(R.id.tvQuestionTime)).setText(
                 TimeUtils.relative(question.getCreatedAt()));
