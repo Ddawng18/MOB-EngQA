@@ -210,7 +210,8 @@ public class HomeActivity extends BaseNavActivity {
             unregisterReceiver(pendingPostedReceiver);
             pendingReceiverRegistered = false;
         }
-        viewModel.stop();
+        // Keep the feed listeners/ViewModel state so returning from a detail screen or a
+        // configuration change does not restart the first page. onCleared() detaches them.
         notificationViewModel.stop();
     }
 
@@ -392,7 +393,7 @@ public class HomeActivity extends BaseNavActivity {
     }
 
     private void setupSortChips() {
-        sortAdapter = new CategoryChipAdapter(QuestionRepository.SORT_NEWEST, category -> {
+        sortAdapter = new CategoryChipAdapter(viewModel.getSort(), category -> {
             viewModel.setSort(category.getId());
             sortAdapter.setSelectedId(category.getId());
         });

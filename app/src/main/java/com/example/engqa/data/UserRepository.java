@@ -359,6 +359,16 @@ public class UserRepository {
      * Loads the profile, creating a minimal one when the Auth account exists without a document
      * (for example an account created from the Firebase Console).
      */
+    /** Repairs an Auth session that has no profile document (partial signup, console account). */
+    public void ensureCurrentProfile(Callback<User> callback) {
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            callback.onError(new IllegalStateException("Ch?a ??ng nh?p"));
+            return;
+        }
+        ensureProfile(user, callback);
+    }
+
     private void ensureProfile(FirebaseUser firebaseUser, Callback<User> callback) {
         String uid = firebaseUser.getUid();
         db.collection(FirestoreRefs.USERS).document(uid).get()

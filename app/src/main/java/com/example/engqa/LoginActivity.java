@@ -24,7 +24,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.engqa.data.Callback;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.AuthViewModel;
 import com.google.android.material.button.MaterialButton;
@@ -57,7 +59,18 @@ public class LoginActivity extends AppCompatActivity {
 
         viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
         if (viewModel.isLoggedIn()) {
-            goHome();
+            // Repair an Auth session with no profile document before entering Home.
+            viewModel.ensureCurrentProfile(new Callback<User>() {
+                @Override
+                public void onSuccess(User user) {
+                    goHome();
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    goHome();
+                }
+            });
             return;
         }
 

@@ -158,6 +158,7 @@ public class CreatePromoActivity extends AppCompatActivity
                 case LOADING:
                     uploadingImage = true;
                     btnPickPromoImage.setEnabled(false);
+                    btnRemovePromoImage.setVisibility(View.GONE);
                     tvPromoImageStatus.setTextColor(getColor(R.color.text_secondary));
                     tvPromoImageStatus.setText(R.string.promo_image_uploading);
                     tvPromoImageStatus.setVisibility(View.VISIBLE);
@@ -177,6 +178,8 @@ public class CreatePromoActivity extends AppCompatActivity
                 default:
                     uploadingImage = false;
                     btnPickPromoImage.setEnabled(true);
+                    btnRemovePromoImage.setVisibility(promoImageUrl != null
+                            ? View.VISIBLE : View.GONE);
                     tvPromoImageStatus.setTextColor(getColor(R.color.error_red));
                     tvPromoImageStatus.setText(state.getMessage());
                     tvPromoImageStatus.setVisibility(View.VISIBLE);
@@ -200,6 +203,9 @@ public class CreatePromoActivity extends AppCompatActivity
     }
 
     private void removeImage() {
+        if (uploadingImage) {
+            return;
+        }
         promoImageUrl = null;
         btnRemovePromoImage.setVisibility(View.GONE);
         ivPromoImagePreview.setVisibility(View.GONE);
@@ -321,6 +327,10 @@ public class CreatePromoActivity extends AppCompatActivity
 
     private void submit() {
         hideError();
+        if (uploadingImage) {
+            showError(getString(R.string.promo_image_wait));
+            return;
+        }
         String title = etTitle.getText().toString();
         String body = etBody.getText().toString();
         String phone = etPhone.getText().toString();
