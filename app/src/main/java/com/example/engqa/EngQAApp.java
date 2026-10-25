@@ -3,6 +3,7 @@ package com.example.engqa;
 import android.app.Application;
 import android.content.Context;
 
+import com.example.engqa.notification.ModerationBackfill;
 import com.example.engqa.notification.NotificationHelper;
 import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.worker.WorkScheduler;
@@ -41,6 +42,7 @@ public class EngQAApp extends Application {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
             NotificationWatcher.start(user.getUid());
+            ModerationBackfill.run(this, user.getUid());
         }
     }
 }

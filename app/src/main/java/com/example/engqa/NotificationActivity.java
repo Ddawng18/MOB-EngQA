@@ -116,6 +116,12 @@ public class NotificationActivity extends BaseNavActivity {
 
     private void openNotification(AppNotification notification) {
         viewModel.markRead(notification);
+        String type = notification.getType();
+        if (type != null && type.startsWith("moderation_")) {
+            // Admin moderation entry: jump straight to the review console.
+            startActivity(new Intent(this, AdminActivity.class));
+            return;
+        }
         if (notification.getQuestionId() != null) {
             Intent intent = new Intent(this, QuestionDetailActivity.class);
             intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, notification.getQuestionId());

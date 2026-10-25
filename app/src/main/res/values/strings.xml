@@ -73,6 +73,16 @@
     <string name="blocked_deleted_title">Tài khoản đã bị xoá</string>
     <string name="blocked_deleted_message">Tài khoản này đã bị xóa</string>
     <string name="blocked_retry">Thử lại</string>
+    <string name="moderation_new_title">Kiểm duyệt nội dung</string>
+    <string name="moderation_new_center">Có đơn đăng ký trung tâm mới chờ duyệt</string>
+    <string name="moderation_new_promo">Có bài quảng bá mới chờ duyệt</string>
+    <string name="moderation_new_report">Có báo cáo mới cần xử lý</string>
+    <string name="moderation_center_title">Yêu cầu duyệt trung tâm</string>
+    <string name="moderation_center_body">Có đơn đăng ký trung tâm mới chờ duyệt.</string>
+    <string name="moderation_promo_title">Yêu cầu duyệt quảng bá</string>
+    <string name="moderation_promo_body">Có bài quảng bá mới chờ duyệt.</string>
+    <string name="moderation_report_title">Báo cáo mới</string>
+    <string name="moderation_report_body">Có báo cáo mới cần xử lý.</string>
     <string name="answer_deleted">Đã xoá</string>
     <string name="delete_question_title">Xoá câu hỏi?</string>
     <string name="delete_question_message">Câu hỏi \"%1$s\" cùng toàn bộ câu trả lời, bình chọn và tệp đính kèm sẽ bị xoá vĩnh viễn. Bạn có chắc không?</string>
@@ -391,6 +401,7 @@
     <string name="promo_status_approved">Đã duyệt</string>
     <string name="promo_status_rejected">Bị từ chối</string>
     <string name="promo_status_hidden">Đã ẩn</string>
+    <string name="promo_status_expired">Đã hết hạn</string>
     <string name="settings_logout">Đăng xuất</string>
     <string name="settings_logout_confirm_title">Đăng xuất?</string>
     <string name="settings_logout_confirm_message">Bạn có chắc muốn đăng xuất khỏi EngQA?</string>

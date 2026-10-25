@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.engqa.data.AdminNotifier;
 import com.example.engqa.model.UiState;
 import com.example.engqa.viewmodel.ReportViewModel;
 
@@ -68,6 +69,9 @@ public class ReportDialogFragment extends DialogFragment {
             if (state.getStatus() == UiState.Status.LOADING) {
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
             } else if (state.getStatus() == UiState.Status.SUCCESS) {
+                AdminNotifier.notifyAdmins("report", state.getData(),
+                        getString(R.string.moderation_report_title),
+                        getString(R.string.moderation_report_body));
                 Toast.makeText(requireContext(), R.string.report_sent, Toast.LENGTH_SHORT).show();
                 dismiss();
             } else if (state.getStatus() == UiState.Status.ERROR) {

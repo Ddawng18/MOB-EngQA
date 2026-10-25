@@ -73,14 +73,20 @@ public class MyPromoAdapter extends ListAdapter<Promo, MyPromoAdapter.PromoViewH
             body.setVisibility(promo.getBody() == null || promo.getBody().isEmpty()
                     ? View.GONE : View.VISIBLE);
             time.setText(TimeUtils.relative(promo.getCreatedAt()));
-            bindStatus(promo.getStatus());
+            bindStatus(promo);
         }
 
-        private void bindStatus(String status) {
+        private void bindStatus(Promo promo) {
+            String status = promo.getStatus();
             int text;
             int background;
             int color;
-            if (Promo.STATUS_APPROVED.equals(status)) {
+            if (Promo.STATUS_APPROVED.equals(status)
+                    && promo.isExpired(System.currentTimeMillis())) {
+                text = R.string.promo_status_expired;
+                background = R.drawable.bg_chip;
+                color = R.color.warning_amber;
+            } else if (Promo.STATUS_APPROVED.equals(status)) {
                 text = R.string.promo_status_approved;
                 background = R.drawable.bg_chip_success;
                 color = R.color.accepted_green;

@@ -60,10 +60,10 @@ public class ReportViewModel extends AndroidViewModel {
 
     private void send(String targetPath, String reason, String uid, String name) {
         Report report = new Report(targetPath, uid, name, reason);
-        reportRepository.report(report, new Callback<Void>() {
+        reportRepository.report(report, new Callback<String>() {
             @Override
-            public void onSuccess(Void result) {
-                reportState.setValue(UiState.success("reported"));
+            public void onSuccess(String reportId) {
+                reportState.setValue(UiState.success(reportId));
             }
 
             @Override

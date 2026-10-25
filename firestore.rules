@@ -238,7 +238,7 @@ service cloud.firestore {
           && resource.data.recipientId == request.auth.uid;
       allow create: if isSignedIn()
           && request.resource.data.actorId == request.auth.uid
-          && request.resource.data.recipientId != request.auth.uid;
+          && (request.resource.data.recipientId != request.auth.uid || isAdmin());
       allow update: if isSignedIn()
           && resource.data.recipientId == request.auth.uid;
       allow delete: if isSignedIn()
@@ -345,8 +345,10 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------------- admins
+    // Signed-in users may list the admin directory so a request can drop a notification into every
+    // admin's bell. Only uids are exposed; nobody can create or modify an admin document.
     match /admins/{adminId} {
-      allow read: if isSelf(adminId);
+      allow read: if isSignedIn();
       allow write: if false;
     }
   }

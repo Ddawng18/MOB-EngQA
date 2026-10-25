@@ -40,11 +40,16 @@ public final class NotificationHelper {
     }
 
     public static void show(Context context, int id, String title, String body, String questionId) {
+        Intent intent = new Intent(context, QuestionDetailActivity.class);
+        intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, questionId);
+        show(context, id, title, body, intent);
+    }
+
+    /** Same as above but with an explicit destination (used by the moderation watcher). */
+    public static void show(Context context, int id, String title, String body, Intent intent) {
         if (!PrefsHelper.areNotificationsEnabled(context)) {
             return;
         }
-        Intent intent = new Intent(context, QuestionDetailActivity.class);
-        intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, questionId);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

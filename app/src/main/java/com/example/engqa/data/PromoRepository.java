@@ -42,9 +42,10 @@ public class PromoRepository {
     // ------------------------------------------------------------------ reads
 
     public ListenerRegistration observeApproved(Callback<List<Promo>> callback) {
+        // No orderBy: documents without createdAt would silently disappear from the feed. Sort
+        // client-side instead so every approved promo is visible.
         return db.collection(FirestoreRefs.PROMOS)
                 .whereEqualTo(FirestoreRefs.FIELD_STATUS, Promo.STATUS_APPROVED)
-                .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
                 .limit(FEED_LIMIT)
                 .addSnapshotListener((snapshots, error) -> {
                     if (error != null) {

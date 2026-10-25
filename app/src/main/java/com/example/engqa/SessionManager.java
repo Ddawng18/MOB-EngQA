@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.work.WorkManager;
 
+import com.example.engqa.notification.ModerationBackfill;
 import com.example.engqa.notification.NotificationWatcher;
 import com.example.engqa.util.PrefsHelper;
 import com.google.firebase.auth.FirebaseAuth;
@@ -37,9 +38,13 @@ public class SessionManager {
     /** Call after a successful sign-in so notifications start arriving immediately. */
     public void onLoginSuccess() {
         String uid = getUserId();
-        if (uid != null && PrefsHelper.areNotificationsEnabled(appContext)) {
+        if (uid == null) {
+            return;
+        }
+        if (PrefsHelper.areNotificationsEnabled(appContext)) {
             NotificationWatcher.start(uid);
         }
+        ModerationBackfill.run(appContext, uid);
     }
 
     public void logout() {
