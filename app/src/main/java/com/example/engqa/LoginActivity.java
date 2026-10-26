@@ -24,7 +24,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.engqa.data.Callback;
 import com.example.engqa.model.UiState;
+import com.example.engqa.model.User;
 import com.example.engqa.util.Validators;
 import com.example.engqa.viewmodel.AuthViewModel;
 import com.google.android.material.button.MaterialButton;
@@ -57,7 +59,18 @@ public class LoginActivity extends AppCompatActivity {
 
         viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
         if (viewModel.isLoggedIn()) {
-            goHome();
+            // Repair an Auth session with no profile document before entering Home.
+            viewModel.ensureCurrentProfile(new Callback<User>() {
+                @Override
+                public void onSuccess(User user) {
+                    goHome();
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    goHome();
+                }
+            });
             return;
         }
 
@@ -84,10 +97,17 @@ public class LoginActivity extends AppCompatActivity {
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_login);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.loginRoot), (v, insets) -> {
+        View loginRoot = findViewById(R.id.loginRoot);
+        int baseStart = loginRoot.getPaddingStart();
+        int baseTop = loginRoot.getPaddingTop();
+        int baseEnd = loginRoot.getPaddingEnd();
+        int baseBottom = loginRoot.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(loginRoot, (v, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                     | WindowInsetsCompat.Type.ime());
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            // Keep the XML landscape gutters instead of replacing them with the bar insets.
+            v.setPaddingRelative(baseStart + bars.left, baseTop + bars.top,
+                    baseEnd + bars.right, baseBottom + bars.bottom);
             return insets;
         });
 
@@ -103,6 +123,8 @@ public class LoginActivity extends AppCompatActivity {
         progressAuth = findViewById(R.id.progressAuth);
         tvAuthError = findViewById(R.id.tvAuthError);
         verifyBox = findViewById(R.id.verifyBox);
+        // Only signed-in, unverified accounts see this box.
+        verifyBox.setVisibility(View.GONE);
         btnTogglePassword = findViewById(R.id.btnTogglePassword);
 
         TextView tvTerms = findViewById(R.id.tvTerms);
@@ -111,7 +133,8 @@ public class LoginActivity extends AppCompatActivity {
 
         TextView tvGoRegister = findViewById(R.id.tvGoRegister);
         tvGoRegister.setText(Html.fromHtml(
-                "Chưa có tài khoản? <font color='#1E90FF'><b>Đăng ký</b></font>",
+                getString(R.string.auth_switch_register,
+                        String.format("#%06X", 0xFFFFFF & getColor(R.color.accent_orange))),
                 Html.FROM_HTML_MODE_LEGACY));
     }
 
@@ -135,23 +158,7 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.tvResendVerification).setOnClickListener(
                 v -> viewModel.resendVerificationEmail());
         findViewById(R.id.tvVerifyNow).setOnClickListener(v -> viewModel.refreshEmailVerified());
-        findViewById(R.id.btnPhone).setOnClickListener(v -> startPhoneSignIn());
         findViewById(R.id.btnGoogle).setOnClickListener(v -> startGoogleSignIn());
-    }
-
-    private void startPhoneSignIn() {
-        PhoneAuthHelper phoneAuthHelper = new PhoneAuthHelper(this, new PhoneAuthHelper.PhoneAuthCallback() {
-            @Override
-            public void onSuccess(com.google.firebase.auth.AuthCredential credential) {
-                viewModel.loginWithCredential(credential);
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                showError(errorMessage);
-            }
-        });
-        phoneAuthHelper.show();
     }
 
     private void startGoogleSignIn() {
@@ -192,8 +199,9 @@ public class LoginActivity extends AppCompatActivity {
         });
 
         viewModel.getEmailVerified().observe(this, verified -> {
+            boolean signedIn = new SessionManager(this).isLoggedIn();
             boolean ok = Boolean.TRUE.equals(verified);
-            verifyBox.setVisibility(ok ? View.GONE : View.VISIBLE);
+            verifyBox.setVisibility(signedIn && !ok ? View.VISIBLE : View.GONE);
         });
 
         viewModel.getAuthState().observe(this, state -> {
@@ -241,12 +249,12 @@ public class LoginActivity extends AppCompatActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle(R.string.forgot_password)
-                .setMessage("Nhập email để nhận liên kết đặt lại mật khẩu.")
+                .setMessage(R.string.reset_password_message)
                 .setView(input)
                 .setPositiveButton(R.string.ok, (dialog, which) -> {
                     String email = input.getText().toString().trim();
                     if (!Validators.isValidEmail(email)) {
-                        showError("Email không hợp lệ");
+                        showError(getString(R.string.err_invalid_email));
                         return;
                     }
                     viewModel.sendPasswordReset(email);

@@ -4,9 +4,12 @@
     android:id="@+id/registerRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D1117"
+    android:background="@color/bg_screen"
     android:fillViewport="true"
-    android:padding="24dp">
+    android:paddingStart="@dimen/auth_horizontal_padding"
+    android:paddingTop="24dp"
+    android:paddingEnd="@dimen/auth_horizontal_padding"
+    android:paddingBottom="24dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,129 +17,134 @@
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
-        <!-- Title -->
+        <!-- Brand mark -->
+        <TextView
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="@dimen/auth_title_top_margin"
+            android:background="@drawable/bg_logo"
+            android:gravity="center"
+            android:text="@string/brand_letter"
+            android:textColor="@color/on_primary"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="48dp"
+            android:layout_marginTop="20dp"
             android:gravity="center"
             android:text="@string/register_title"
-            android:textColor="@android:color/white"
-            android:textSize="32sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.EngQA.Display"
+            android:textSize="30sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="@string/register_subtitle"
+            android:textAppearance="@style/TextAppearance.EngQA.Caption"
+            android:textSize="14sp" />
 
         <!-- Display name -->
         <EditText
             android:id="@+id/edtUsername"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="40dp"
+            style="@style/FormInput"
+            android:layout_height="54dp"
+            android:layout_marginTop="@dimen/auth_field_top_margin"
             android:autofillHints="username"
-            android:background="@drawable/bg_auth_input"
+            android:drawableStart="@drawable/ic_person"
+            android:drawableTint="@color/text_hint"
             android:hint="@string/hint_username"
             android:imeOptions="actionNext"
             android:inputType="textCapWords"
             android:maxLength="24"
-            android:maxLines="1"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:textColor="@android:color/white"
-            android:textColorHint="#CCCCCC"
-            android:textSize="13sp" />
+            android:maxLines="1" />
 
         <TextView
             android:id="@+id/tvUsernameHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:text="@string/username_rules"
-            android:textColor="#888888"
-            android:textSize="11sp" />
+            android:textColor="@color/text_hint"
+            android:textSize="12sp" />
 
         <!-- Email -->
         <EditText
             android:id="@+id/edtEmail"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
+            style="@style/FormInput"
+            android:layout_height="54dp"
             android:layout_marginTop="12dp"
             android:autofillHints="emailAddress"
-            android:background="@drawable/bg_auth_input"
+            android:drawableStart="@drawable/ic_mail"
+            android:drawableTint="@color/text_hint"
             android:hint="@string/hint_email"
             android:imeOptions="actionNext"
             android:inputType="textEmailAddress"
-            android:maxLines="1"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:textColor="@android:color/white"
-            android:textColorHint="#CCCCCC"
-            android:textSize="13sp" />
+            android:maxLines="1" />
 
         <!-- Password -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="54dp"
             android:layout_marginTop="12dp">
 
             <EditText
                 android:id="@+id/edtPassword"
-                android:layout_width="match_parent"
+                style="@style/FormInput"
                 android:layout_height="match_parent"
                 android:autofillHints="newPassword"
-                android:background="@drawable/bg_auth_input"
+                android:drawableStart="@drawable/ic_lock"
+                android:drawableTint="@color/text_hint"
                 android:hint="@string/hint_password"
                 android:imeOptions="actionNext"
                 android:inputType="textPassword"
                 android:maxLines="1"
-                android:paddingStart="12dp"
-                android:paddingEnd="44dp"
-                android:textColor="@android:color/white"
-                android:textColorHint="#CCCCCC"
-                android:textSize="13sp" />
+                android:paddingEnd="48dp" />
 
             <ImageView
                 android:id="@+id/btnTogglePassword"
-                android:layout_width="40dp"
+                android:layout_width="44dp"
                 android:layout_height="match_parent"
                 android:layout_gravity="end"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/toggle_password"
-                android:padding="10dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_visibility_off"
-                android:tint="#AAAAAA" />
+                app:tint="@color/text_secondary" />
         </FrameLayout>
 
         <!-- Confirm password -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="54dp"
             android:layout_marginTop="12dp">
 
             <EditText
                 android:id="@+id/edtConfirmPassword"
-                android:layout_width="match_parent"
+                style="@style/FormInput"
                 android:layout_height="match_parent"
                 android:autofillHints="newPassword"
-                android:background="@drawable/bg_auth_input"
+                android:drawableStart="@drawable/ic_lock"
+                android:drawableTint="@color/text_hint"
                 android:hint="@string/hint_confirm_password"
                 android:imeOptions="actionDone"
                 android:inputType="textPassword"
                 android:maxLines="1"
-                android:paddingStart="12dp"
-                android:paddingEnd="44dp"
-                android:textColor="@android:color/white"
-                android:textColorHint="#CCCCCC"
-                android:textSize="13sp" />
+                android:paddingEnd="48dp" />
 
             <ImageView
                 android:id="@+id/btnToggleConfirmPassword"
-                android:layout_width="40dp"
+                android:layout_width="44dp"
                 android:layout_height="match_parent"
                 android:layout_gravity="end"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/toggle_password"
-                android:padding="10dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_visibility_off"
-                android:tint="#AAAAAA" />
+                app:tint="@color/text_secondary" />
         </FrameLayout>
 
         <!-- Inline error -->
@@ -145,8 +153,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textColor="#FF6B6B"
-            android:textSize="12sp"
+            android:textColor="@color/error_red"
+            android:textSize="13sp"
             android:visibility="gone" />
 
         <!-- Register button + progress -->
@@ -157,22 +165,18 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnRegister"
+                style="@style/Widget.EngQA.Button"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:text="@string/btn_register"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                app:backgroundTint="#FF4500"
-                app:cornerRadius="8dp" />
+                android:layout_height="52dp"
+                android:text="@string/btn_register" />
 
             <ProgressBar
                 android:id="@+id/progressAuth"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:layout_gravity="center_vertical|end"
-                android:layout_marginEnd="12dp"
-                android:indeterminateTint="@android:color/white"
+                android:layout_marginEnd="16dp"
+                android:indeterminateTint="@color/on_primary"
                 android:visibility="gone" />
         </FrameLayout>
 
@@ -188,7 +192,7 @@
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1"
-                android:background="#888888" />
+                android:background="@color/divider" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -196,39 +200,29 @@
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
                 android:text="@string/or"
-                android:textColor="@android:color/white"
-                android:textSize="11sp" />
+                android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
 
             <View
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1"
-                android:background="#888888" />
+                android:background="@color/divider" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPhone"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="20dp"
-            android:text="@string/btn_phone"
-            android:textAllCaps="false"
-            android:textColor="#222222"
-            android:textSize="12sp"
-            app:backgroundTint="#F5F5F5"
-            app:cornerRadius="8dp" />
-
-        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGoogle"
+            style="@style/Widget.EngQA.Button"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="12dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="20dp"
             android:text="@string/btn_google"
-            android:textAllCaps="false"
-            android:textColor="#222222"
-            android:textSize="12sp"
-            app:backgroundTint="#F5F5F5"
-            app:cornerRadius="8dp" />
+            android:textColor="#1F1F1F"
+            app:backgroundTint="#FFFFFFFF"
+            app:cornerRadius="@dimen/radius_m"
+            app:icon="@drawable/ic_google"
+            app:iconGravity="textStart"
+            app:iconPadding="10dp"
+            app:iconTint="@null" />
 
         <TextView
             android:id="@+id/tvTerms"
@@ -237,8 +231,8 @@
             android:layout_marginTop="24dp"
             android:gravity="center"
             android:text="@string/terms_text"
-            android:textColor="@android:color/white"
-            android:textColorLink="#1E90FF"
+            android:textColor="@color/text_hint"
+            android:textColorLink="@color/link_blue"
             android:textSize="11sp" />
 
         <TextView
@@ -248,10 +242,10 @@
             android:layout_marginTop="24dp"
             android:layout_marginBottom="24dp"
             android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="@string/have_account"
-            android:textColor="@android:color/white"
-            android:textSize="12sp" />
-
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
     </LinearLayout>
-
 </ScrollView>

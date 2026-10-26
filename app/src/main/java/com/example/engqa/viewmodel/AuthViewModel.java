@@ -81,6 +81,10 @@ public class AuthViewModel extends ViewModel {
         return infoEvent;
     }
 
+    public void ensureCurrentProfile(Callback<User> callback) {
+        userRepository.ensureCurrentProfile(callback);
+    }
+
     public boolean isLoggedIn() {
         return userRepository.isLoggedIn();
     }

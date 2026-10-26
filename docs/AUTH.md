@@ -7,15 +7,16 @@ Tài liệu này mô tả luồng xác thực đã triển khai, các file liên
 
 | Chức năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Đăng ký email/mật khẩu | ✅ | Tạo Auth account + `users/{uid}`; rollback nếu ghi profile lỗi |
-| Tên hiển thị duy nhất | ✅ | Kiểm tra trùng trước khi ghi profile |
+| Đăng ký email/mật khẩu | ✅ | Auth + `users/{uid}` + `usernames/{name}` trong một transaction; lỗi tạm thời giữ Auth để đăng nhập hoàn tất |
+| Tên hiển thị duy nhất | ✅ | Reservation document `usernames/{name}`, không dùng collection query trên `users` |
 | Đăng nhập email/mật khẩu | ✅ | Tự tạo profile nếu Auth account có mà document thiếu |
 | Duy trì đăng nhập | ✅ | Firebase Auth persistence (mặc định LOCAL) |
 | Quên mật khẩu | ✅ | `sendPasswordResetEmail` |
 | Xác minh email | ✅ (không bắt buộc) | Gửi sau đăng ký; có "Gửi lại" và "Kiểm tra lại" |
 | Đổi mật khẩu | ✅ | Re-authenticate rồi `updatePassword` |
 | Đăng xuất | ✅ | `SessionManager.logout()` + dừng watcher thông báo |
-| Google / Số điện thoại | ⛔ | Chưa cấu hình (`oauth_client: []`); nút báo "sẽ sớm được hỗ trợ" |
+| Google | ✅ (cần cấu hình SHA) | Credential Manager + GoogleSignInClient fallback; cần web client ID và SHA-1/SHA-256 của bản release |
+| Số điện thoại | ⛔ | Chưa triển khai |
 
 ## 2. Luồng
 
@@ -26,13 +27,17 @@ RegisterActivity
   └─ AuthViewModel.validateRegisterForm()        // tên hiển thị, email, mật khẩu, xác nhận
      └─ UserRepository.register()
         ├─ FirebaseAuth.createUserWithEmailAndPassword()
-        ├─ isUsernameTaken(username)             // truy vấn users (đã đăng nhập nên được phép)
-        │    └─ trùng? → xoá Auth account vừa tạo → UsernameTakenException
-        ├─ users/{uid}.set({username, email, level:null, counters=0, createdAt})
-        │    └─ lỗi? → xoá Auth account (rollback)
+        ├─ transaction:
+        │    ├─ get users/{uid}                  // nếu đã có (retry) thì dùng lại profile
+        │    ├─ get usernames/{name}              // chỉ đọc document cụ thể
+        │    │    └─ thuộc uid khác? → UsernameTakenException (xoá Auth vừa tạo)
+        │    ├─ set users/{uid}                   // username, email, level:null, counters=0
+        │    └─ set usernames/{name}              // {uid, username, createdAt}
         ├─ Auth displayName = username
-        └─ user.sendEmailVerification()          // best effort
+        └─ user.sendEmailVerification()           // best effort
   └─ thành công → SessionManager.onLoginSuccess() → ChooseLevelActivity
+  └─ lỗi Firestore tạm thời → giữ Auth, báo "đăng nhập để hoàn tất"; lần đăng nhập sau
+     ensureProfile() sẽ tạo profile bằng displayName đã đặt trước đó.
 ```
 
 ### Đăng nhập
@@ -89,24 +94,40 @@ Nguyên tắc: **Activity không gọi Firebase SDK**; chỉ quan sát `LiveData
 | `ERROR_OPERATION_NOT_ALLOWED` | Phương thức đăng nhập này chưa được bật |
 | `ERROR_NETWORK_REQUEST_FAILED` | Không có kết nối mạng |
 | `PERMISSION_DENIED` (Firestore) | Bạn không có quyền thực hiện thao tác này |
+| `UsernameTakenException` | Tên hiển thị này đã được sử dụng |
+| `ProfileSetupException` | Tài khoản đã được tạo nhưng chưa lưu được hồ sơ. Vui lòng thử lại hoặc đăng nhập để hoàn tất. |
 
-## 6. Phụ thuộc Security Rules ⚠️
+## 6. Phụ thuộc Security Rules
 
-Đăng ký **chỉ chạy được khi `firestore.rules` đã được deploy**. Rules cũ yêu cầu document
-`users/{uid}` chứa field `uid` (code không ghi field này vì id document đã là uid), nên create sẽ
-bị `PERMISSION_DENIED` và tài khoản vừa tạo bị rollback.
+Đăng ký cần rules mới nhất đã deploy. Nguyên nhân lỗi `Bạn không có quyền thực hiện thao tác này`
+trên máy khác là code cũ chạy `users.whereEqualTo("username", …)` trong khi `users` chỉ cho phép
+đọc chính mình; Firestore không cho phép một collection query như vậy. Code hiện tại đọc
+`usernames/{name}` (một document cụ thể) và ghi `users/{uid}` + `usernames/{name}` trong một
+transaction.
 
 ```powershell
-cd C:\Users\LENOVO\AndroidStudioProjects\MOB-EngQA
 firebase deploy --only firestore:rules --project accountdata-dd29b
 ```
 
-Rules hiện tại (bản mới) đã:
+Rules hiện tại đã:
 
-- Bỏ yêu cầu field `uid` khi tạo profile; chặn ghi field đặc quyền (`isAdmin`/`role`).
-- Cho phép người trả lời cập nhật **chỉ** `answerCount` (±1) trên câu hỏi của người khác.
-- Cho phép người bình chọn cập nhật **chỉ** `upCount`/`downCount` (±1) và `score` (±2).
-- Cho phép cộng **+1** vào `acceptedCount` của tác giả câu trả lời khi chủ câu hỏi chấp nhận.
+- `users/{uid}`: chỉ chủ sở hữu hoặc admin đọc; chủ sở hữu chỉ sửa các field profile/counter được
+  phép, không tự cấp quyền.
+- `usernames/{name}`: người đã đăng nhập được đọc; chỉ được tạo/cập nhật reservation với `uid`
+  của chính mình; không xoá (tên cũ vẫn được giữ chỗ).
+- Các collection câu hỏi/answer/vote/promo giữ nguyên giới hạn quyền hiện có.
+
+Migration cho dữ liệu cũ (additive, không sửa `users`):
+
+```powershell
+cd tools\seed
+node backfill-usernames.js --dry-run
+node backfill-usernames.js --apply
+```
+
+Đã deploy rules ngày 2026-10-24 và tạo 13 reservation cho dữ liệu hiện có; dry-run sau đó = 0.
+Các profile có username cũ không hợp lệ (`Mr Crow`, `PhúNguyễn`, `N Ddawng`) được bỏ qua và vẫn
+đăng nhập được, nhưng không được bảo vệ bởi username index cho tới khi đổi tên.
 
 ## 7. Kiểm thử thủ công
 

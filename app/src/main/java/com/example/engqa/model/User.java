@@ -16,6 +16,16 @@ public class User {
     public static final String ROLE_CENTER = "CENTER";
     public static final String ROLE_ADMIN = "ADMIN";
 
+    /** Moderation state. DELETED is a soft delete: the profile stays as a tombstone. */
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_TIMEOUT = "TIMEOUT";
+    public static final String STATUS_DELETED = "DELETED";
+
+    public static final long WARNINGS_PER_TIMEOUT = 3;
+    public static final long TIMEOUTS_BEFORE_DELETE = 3;
+    public static final long PROMO_WARNINGS_BEFORE_CENTER_REVOKE = 3;
+    public static final long TIMEOUT_DURATION_MS = 24L * 60 * 60 * 1000;
+
     @DocumentId
     private String uid;
     private String username;
@@ -27,6 +37,11 @@ public class User {
     private long questionCount;
     private long answerCount;
     private long acceptedCount;
+    private long warningCount;
+    private long timeoutCount;
+    private long promoWarningCount;
+    private String status = STATUS_ACTIVE;
+    private Date timeoutUntil;
     @ServerTimestamp
     private Date createdAt;
 
@@ -134,6 +149,57 @@ public class User {
 
     public void setAcceptedCount(long acceptedCount) {
         this.acceptedCount = acceptedCount;
+    }
+
+    public long getWarningCount() {
+        return warningCount;
+    }
+
+    public void setWarningCount(long warningCount) {
+        this.warningCount = warningCount;
+    }
+
+    public long getTimeoutCount() {
+        return timeoutCount;
+    }
+
+    public void setTimeoutCount(long timeoutCount) {
+        this.timeoutCount = timeoutCount;
+    }
+
+    public long getPromoWarningCount() {
+        return promoWarningCount;
+    }
+
+    public void setPromoWarningCount(long promoWarningCount) {
+        this.promoWarningCount = promoWarningCount;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Date getTimeoutUntil() {
+        return timeoutUntil;
+    }
+
+    public void setTimeoutUntil(Date timeoutUntil) {
+        this.timeoutUntil = timeoutUntil;
+    }
+
+    @Exclude
+    public boolean isDeleted() {
+        return STATUS_DELETED.equals(status);
+    }
+
+    /** True while the moderation timeout is still in the future. */
+    @Exclude
+    public boolean isTimedOut() {
+        return timeoutUntil != null && timeoutUntil.after(new Date());
     }
 
     public Date getCreatedAt() {

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Central hub: profile, security and saved content live here, not on the profile screen. -->
+    <PreferenceCategory android:title="@string/settings_account">
+        <Preference
+            android:icon="@drawable/ic_edit"
+            android:key="edit_profile"
+            android:summary="@string/settings_edit_profile_summary"
+            android:title="@string/settings_edit_profile" />
+
+        <Preference
+            android:icon="@drawable/ic_shield"
+            android:key="account_security"
+            android:summary="@string/settings_security_summary_password"
+            android:title="@string/settings_security" />
+
+        <Preference
+            android:icon="@drawable/ic_bookmark"
+            android:key="saved_promos"
+            android:summary="@string/settings_saved_promos_summary"
+            android:title="@string/settings_saved_promos" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_general">
+        <androidx.preference.SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="notifications_enabled"
+            android:summary="@string/settings_notifications_summary"
+            android:title="@string/settings_notifications" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_data">
+        <Preference
+            android:key="clear_cache"
+            android:summary="@string/settings_clear_cache_summary"
+            android:title="@string/settings_clear_cache" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_about_category">
+        <Preference
+            android:key="about"
+            android:summary="@string/settings_about_summary"
+            android:title="@string/settings_about" />
+    </PreferenceCategory>
+
+    <!-- Hidden until the signed-in account has an admins/{uid} document. -->
+    <PreferenceCategory
+        android:key="admin_section"
+        android:title="@string/settings_admin_category"
+        android:visible="false">
+        <Preference
+            android:icon="@drawable/ic_shield"
+            android:key="admin_moderation"
+            android:summary="@string/settings_admin_moderation_summary"
+            android:title="@string/settings_admin_moderation" />
+    </PreferenceCategory>
+
+    <Preference
+        android:key="logout"
+        android:title="@string/settings_logout" />
+</PreferenceScreen>
