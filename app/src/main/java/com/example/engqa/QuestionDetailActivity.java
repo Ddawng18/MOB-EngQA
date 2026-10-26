@@ -101,6 +101,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
         adminViewModel.checkAdmin();
         stateView = findViewById(R.id.stateView);
         audioPlayer = findViewById(R.id.audioPlayer);
+        audioPlayer.setQuestionId(questionId);
         tvAnswersHeader = findViewById(R.id.tvAnswersHeader);
         etAnswer = findViewById(R.id.etAnswer);
 

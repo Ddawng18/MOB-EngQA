@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -15,9 +18,8 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
-    <!-- Every activity follows the device sensor (fullSensor) and no activity declares
-         configChanges, so physical rotation recreates the screen and loads layout-land where
-         provided. Do not lock individual screens to portrait/landscape. -->
+    <!-- Rotation is left to the system (no screenOrientation lock); screens provide
+         layout-land/sw600dp variants where useful. -->
     <application
         android:name=".EngQAApp"
         android:allowBackup="true"
@@ -33,7 +35,6 @@
         <activity
             android:name=".LoginActivity"
             android:exported="true"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -45,124 +46,125 @@
         <activity
             android:name=".RegisterActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ChooseLevelActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".HomeActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".QuestionDetailActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ImageViewerActivity"
-            android:exported="false"
-            android:screenOrientation="fullSensor" />
+            android:exported="false" />
         <activity
             android:name=".ServerErrorActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".MenuScreenActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".EditProfileActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".AccountSecurityActivity"
             android:exported="false"
             android:parentActivityName=".HomeActivity"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".AccountBlockedActivity"
-            android:exported="false"
-            android:screenOrientation="fullSensor" />
+            android:exported="false" />
         <activity
             android:name=".MyPromosActivity"
             android:exported="false"
-            android:parentActivityName=".HomeActivity"
-            android:screenOrientation="fullSensor" />
+            android:parentActivityName=".HomeActivity" />
         <activity
             android:name=".AdminActivity"
             android:exported="false"
-            android:parentActivityName=".SettingsActivity"
-            android:screenOrientation="fullSensor" />
+            android:parentActivityName=".SettingsActivity" />
         <activity
             android:name=".NotificationActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".CenterListActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CenterDetailActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CenterEditActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CenterRequestActivity"
             android:exported="false"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".PromoDetailActivity"
             android:exported="false"
             android:parentActivityName=".HomeActivity"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".WordDetailActivity"
             android:exported="false"
-            android:parentActivityName=".HomeActivity"
-            android:screenOrientation="fullSensor" />
+            android:parentActivityName=".HomeActivity" />
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:parentActivityName=".MenuScreenActivity"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CreatePromoActivity"
             android:exported="false"
             android:parentActivityName=".HomeActivity"
-            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".SavedPromosActivity"
             android:exported="false"
-            android:parentActivityName=".HomeActivity"
-            android:screenOrientation="fullSensor" />
+            android:parentActivityName=".HomeActivity" />
+
+        <service
+            android:name=".job.CacheCleanupJobService"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".media.AudioPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".alarm.PromoReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".alarm.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

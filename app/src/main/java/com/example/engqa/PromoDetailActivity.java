@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
+import com.example.engqa.alarm.PromoReminderScheduler;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.UiState;
 import com.example.engqa.ui.StateView;
@@ -171,6 +172,10 @@ public class PromoDetailActivity extends AppCompatActivity {
         boolean expired = promo.isExpired(System.currentTimeMillis());
         findViewById(R.id.tvPromoExpired).setVisibility(expired ? View.VISIBLE : View.GONE);
         findViewById(R.id.btnRegisterLead).setVisibility(expired ? View.GONE : View.VISIBLE);
+        // Schedule an inexact reminder for an approved promo; BootReceiver restores it after reboot.
+        if (!expired && Promo.STATUS_APPROVED.equals(promo.getStatus())) {
+            PromoReminderScheduler.schedule(this, promo);
+        }
         findViewById(R.id.btnWebsite).setVisibility(
                 promo.getLinkUrl() != null && !promo.getLinkUrl().isEmpty()
                         ? View.VISIBLE : View.GONE);

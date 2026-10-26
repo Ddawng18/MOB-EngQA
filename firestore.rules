@@ -29,6 +29,36 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    /**
+     * The caller's profile, used to enforce moderation status on the server. The client also
+     * gates the UI, but these rules are the trust boundary: a modified client cannot write (or
+     * read private content) while it is timed out or soft-deleted.
+     */
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isDeleted() {
+      return ('status' in profile().data) && profile().data.status == 'DELETED';
+    }
+
+    function isTimedOut() {
+      return ('status' in profile().data)
+          && profile().data.status == 'TIMEOUT'
+          && (!('timeoutUntil' in profile().data)
+              || profile().data.timeoutUntil == null
+              || profile().data.timeoutUntil > request.time);
+    }
+
+    /** Active accounts (including a timeout whose deadline has passed) may participate. */
+    function isActive() {
+      return isSignedIn() && !isDeleted() && !isTimedOut();
+    }
+
+    function canParticipate() {
+      return isAdmin() || isActive();
+    }
+
     function changedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -53,8 +83,49 @@ service cloud.firestore {
           && (request.resource.data.downCount - resource.data.downCount) <= 1;
     }
 
+    /** Profile counters are denormalised, so allow only the exact +/-1 owned by the write. */
+    function onlyUpdatesQuestionCount() {
+      return changedKeys().hasOnly(['questionCount'])
+          && ((request.resource.data.questionCount == resource.data.questionCount + 1)
+              || (request.resource.data.questionCount == resource.data.questionCount - 1));
+    }
+
+    function onlyUpdatesProfileAnswerCount() {
+      return changedKeys().hasOnly(['answerCount'])
+          && ((request.resource.data.answerCount == resource.data.answerCount + 1)
+              || (request.resource.data.answerCount == resource.data.answerCount - 1));
+    }
+
     function questionAuthor(questionId) {
       return get(/databases/$(database)/documents/questions/$(questionId)).data.authorId;
+    }
+
+    function onlyUpdatesQuestionContent() {
+      return changedKeys().hasOnly(
+          ['title', 'body', 'categoryId', 'categoryName', 'tags', 'level', 'type',
+           'passageText', 'searchKeywords', 'imageUrls', 'audioUrl', 'thumbBase64',
+           'imageCount', 'hasAudio', 'updatedAt']);
+    }
+
+    function onlyUpdatesAcceptState() {
+      return changedKeys().hasOnly(['isSolved', 'acceptedAnswerId', 'updatedAt'])
+          && request.resource.data.isSolved is bool
+          && (!('acceptedAnswerId' in request.resource.data)
+              || request.resource.data.acceptedAnswerId == null
+              || request.resource.data.acceptedAnswerId is string);
+    }
+
+    function answerAuthor(questionId, answerId) {
+      return get(/databases/$(database)/documents/questions/$(questionId)/answers/$(answerId)).data.authorId;
+    }
+
+    function acceptedAnswerId(questionId) {
+      return get(/databases/$(database)/documents/questions/$(questionId)).data.acceptedAnswerId;
+    }
+
+    function hasUpvote(questionId, answerId, uid) {
+      return exists(/databases/$(database)/documents/questions/$(questionId)/answers/$(answerId)/votes/$(uid))
+          && get(/databases/$(database)/documents/questions/$(questionId)/answers/$(answerId)/votes/$(uid)).data.value == 1;
     }
 
     function isCenterManager(centerId) {
@@ -120,8 +191,10 @@ service cloud.firestore {
       // Owners may edit their profile and their own question/answer counters, but not privileges.
       // The accepted-answer statistic is derived from the author's answers, so it is read-only.
       allow update: if isAdmin()
-          || (isSelf(uid) && changedKeys().hasOnly(
-              ['username', 'avatarUrl', 'level', 'questionCount', 'answerCount']));
+          || (isSelf(uid) && (changedKeys().hasOnly(
+              ['username', 'avatarUrl', 'level'])
+              || onlyUpdatesQuestionCount()
+              || onlyUpdatesProfileAnswerCount()));
 
       allow delete: if isSelf(uid) || isAdmin();
     }
@@ -158,60 +231,63 @@ service cloud.firestore {
     // questions/{qid} only authorize direct document access; a collection-group read also needs a
     // path-agnostic rule that ends with the collection-group name.
     match /{path=**}/answers/{answerId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (isActive() || isAdmin());
     }
 
     // ------------------------------------------------------------ questions
     match /questions/{questionId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn()
+      allow read: if isSignedIn() && (isActive() || isAdmin());
+      allow create: if canParticipate()
           && request.resource.data.authorId == request.auth.uid;
-      allow update: if isSignedIn()
-          && (resource.data.authorId == request.auth.uid
-              || isAdmin()
+      allow update: if canParticipate()
+          && (isAdmin()
+              || (resource.data.authorId == request.auth.uid
+                  && (onlyUpdatesQuestionContent()
+                      || onlyUpdatesAcceptState()))
               || onlyUpdatesAnswerCount()
               || onlyUpdatesScore());
-      allow delete: if isSignedIn()
+      allow delete: if canParticipate()
           && (resource.data.authorId == request.auth.uid || isAdmin());
 
       // ------------------------------------------------------------- answers
       match /answers/{answerId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn()
+        allow read: if isSignedIn() && (isActive() || isAdmin());
+        allow create: if canParticipate()
             && request.resource.data.authorId == request.auth.uid
             && request.resource.data.upCount == 0
             && request.resource.data.downCount == 0
             && request.resource.data.isAccepted == false;
         // The answer author may edit content but never the counters or acceptance flag; the question
         // owner may only change isAccepted (used by the accept/change-accepted transaction).
-        allow update: if isSignedIn()
+        allow update: if canParticipate()
             && (isAdmin()
                 || (resource.data.authorId == request.auth.uid
                     && changedKeys().hasOnly(['body', 'questionTitle', 'authorName']))
                 || onlyUpdatesVoteCounters()
                 || (questionAuthor(questionId) == request.auth.uid
                     && changedKeys().hasOnly(['isAccepted'])));
-        allow delete: if isSignedIn()
+        allow delete: if canParticipate()
             && (resource.data.authorId == request.auth.uid
                 || questionAuthor(questionId) == request.auth.uid
                 || isAdmin());
 
         match /votes/{voterId} {
-          allow read: if isSignedIn();
-          allow create, update: if isSignedIn()
+          allow read: if isSignedIn() && (isActive() || isAdmin());
+          allow create, update: if canParticipate()
               && voterId == request.auth.uid
               && (request.resource.data.value == 1 || request.resource.data.value == -1);
           // The question owner may clean up votes together with a deleted answer.
-          allow delete: if isSelf(voterId)
-              || questionAuthor(questionId) == request.auth.uid
-              || isAdmin();
+          allow delete: if canParticipate()
+              && (isSelf(voterId)
+                  || questionAuthor(questionId) == request.auth.uid
+                  || isAdmin());
         }
       }
 
       // Firestore-only media: one document per image/audio, Base64 capped below the 1 MiB limit.
       match /media/{mediaId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn()
+        allow read: if isSignedIn() && (isActive() || isAdmin());
+        allow create: if canParticipate()
             && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
                 == request.auth.uid
             && request.resource.data.data is string
@@ -219,29 +295,32 @@ service cloud.firestore {
             && request.resource.data.mime in
                 ['image/jpeg', 'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac',
                  'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/3gpp'];
-        allow update: if (isAdmin()
-            || (isSignedIn()
-                && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
-                    == request.auth.uid))
+        allow update: if canParticipate()
+            && (isAdmin()
+                || (isSignedIn()
+                    && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
+                        == request.auth.uid))
             && request.resource.data.data is string
             && request.resource.data.data.size() <= 600000
             && request.resource.data.mime in
                 ['image/jpeg', 'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac',
                  'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/3gpp'];
-        allow delete: if isAdmin()
-            || (isSignedIn()
-                && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
-                    == request.auth.uid);
+        allow delete: if canParticipate()
+            && (isAdmin()
+                || (isSignedIn()
+                    && get(/databases/$(database)/documents/questions/$(questionId)).data.authorId
+                        == request.auth.uid));
       }
     }
 
     // -------------------------------------------------------- notifications
     match /notifications/{notificationId} {
       allow read: if isSignedIn()
-          && resource.data.recipientId == request.auth.uid;
-      // Interaction notifications (answer/vote/accepted) still require a question. Moderation
-      // outcomes are admin-only and may target a center or promo instead of a question.
-      allow create: if isSignedIn()
+          && resource.data.recipientId == request.auth.uid
+          && (isActive() || isAdmin());
+      // Interaction notifications must be backed by the real relationship: the actor answered,
+      // placed the vote, or accepted the answer; the recipient is derived from the target.
+      allow create: if canParticipate()
           && request.resource.data.actorId == request.auth.uid
           && request.resource.data.recipientId != request.auth.uid
           && request.resource.data.title is string
@@ -250,9 +329,38 @@ service cloud.firestore {
           && request.resource.data.body is string
           && request.resource.data.body.size() <= 300
           && (
-              (request.resource.data.type in ['answer', 'vote', 'accepted']
+              (request.resource.data.type == 'answer'
                   && request.resource.data.questionId is string
-                  && request.resource.data.questionId.size() > 0)
+                  && request.resource.data.questionId.size() > 0
+                  && request.resource.data.answerId is string
+                  && request.resource.data.answerId.size() > 0
+                  && request.resource.data.recipientId
+                      == questionAuthor(request.resource.data.questionId)
+                  && answerAuthor(request.resource.data.questionId,
+                      request.resource.data.answerId) == request.auth.uid)
+              ||
+              (request.resource.data.type == 'vote'
+                  && request.resource.data.questionId is string
+                  && request.resource.data.questionId.size() > 0
+                  && request.resource.data.answerId is string
+                  && request.resource.data.answerId.size() > 0
+                  && request.resource.data.recipientId
+                      == answerAuthor(request.resource.data.questionId,
+                          request.resource.data.answerId)
+                  && hasUpvote(request.resource.data.questionId,
+                      request.resource.data.answerId, request.auth.uid))
+              ||
+              (request.resource.data.type == 'accepted'
+                  && request.resource.data.questionId is string
+                  && request.resource.data.questionId.size() > 0
+                  && request.resource.data.answerId is string
+                  && request.resource.data.answerId.size() > 0
+                  && questionAuthor(request.resource.data.questionId) == request.auth.uid
+                  && request.resource.data.recipientId
+                      == answerAuthor(request.resource.data.questionId,
+                          request.resource.data.answerId)
+                  && acceptedAnswerId(request.resource.data.questionId)
+                      == request.resource.data.answerId)
               ||
               (isAdmin()
                   && request.resource.data.type in ['moderation_warning', 'moderation_deleted',
@@ -277,42 +385,52 @@ service cloud.firestore {
           && request.resource.data.read == false;
       allow update: if isSignedIn()
           && resource.data.recipientId == request.auth.uid
+          && (isActive() || isAdmin())
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
           && request.resource.data.read is bool;
       allow delete: if isSignedIn()
-          && resource.data.recipientId == request.auth.uid;
+          && resource.data.recipientId == request.auth.uid
+          && (isActive() || isAdmin());
     }
 
     // --------------------------------------------------------------- centers
     match /centers/{centerId} {
       // Public only after approval; a pending centre is visible to its owner/managers and admins.
-      allow read: if resource.data.status == 'APPROVED'
+      allow read: if (resource.data.status == 'APPROVED'
+              && (!isSignedIn() || isActive() || isAdmin()))
           || isAdmin()
           || (isSignedIn()
               && (resource.data.ownerUid == request.auth.uid
                   || request.auth.uid in resource.data.managerUids));
-      allow create: if isSignedIn()
+      allow create: if canParticipate()
+          && !exists(/databases/$(database)/documents/centerRequests/$(request.auth.uid))
           && request.resource.data.status == 'PENDING'
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.managerUids == [request.auth.uid]
           && (!('verified' in request.resource.data) || request.resource.data.verified == false);
       // Managers may edit the profile but cannot approve themselves.
       allow update: if isAdmin()
-          || (isSignedIn()
+          || (canParticipate()
               && centerId in resource.data.managerUids
               && resource.data.status == 'APPROVED'
               && !changedKeys().hasAny(['status', 'verified', 'ownerUid']));
       allow delete: if isAdmin();
 
       match /courses/{courseId} {
-        allow read: if true;
-        allow write: if isCenterManager(centerId);
+        allow read: if (get(/databases/$(database)/documents/centers/$(centerId)).data.status
+                == 'APPROVED'
+            && (!isSignedIn() || isActive() || isAdmin()))
+            || isCenterManager(centerId);
+        allow write: if canParticipate() && isCenterManager(centerId);
         allow delete: if isAdmin();
       }
 
       match /posts/{postId} {
-        allow read: if true;
-        allow write: if isCenterManager(centerId);
+        allow read: if (get(/databases/$(database)/documents/centers/$(centerId)).data.status
+                == 'APPROVED'
+            && (!isSignedIn() || isActive() || isAdmin()))
+            || isCenterManager(centerId);
+        allow write: if canParticipate() && isCenterManager(centerId);
         allow delete: if isAdmin();
       }
     }
@@ -320,11 +438,12 @@ service cloud.firestore {
     // ----------------------------------------------------------------- promos
     match /promos/{promoId} {
       // Approved promos are public; a pending/rejected one is only visible to its author/admin.
-      allow read: if resource.data.status == 'APPROVED'
+      allow read: if (resource.data.status == 'APPROVED'
+              && (!isSignedIn() || isActive() || isAdmin()))
           || (isSignedIn()
               && (resource.data.authorUid == request.auth.uid || isAdmin()));
 
-      allow create: if isSignedIn()
+      allow create: if canParticipate()
           && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.status == 'PENDING'
           && request.resource.data.viewCount == 0
@@ -337,32 +456,34 @@ service cloud.firestore {
           && (!('body' in request.resource.data)
               || request.resource.data.body.size() <= 5000);
 
-      allow update: if isSignedIn()
+      allow update: if canParticipate()
           && (isAdmin()
               || (resource.data.authorUid == request.auth.uid
                   && changedKeys().hasOnly(['title', 'body', 'type', 'level', 'fee',
                       'schedule', 'contactPhone', 'linkUrl', 'imageUrl', 'endAt']))
               || onlyBumpsPromoCounter());
 
-      allow delete: if isSignedIn()
+      allow delete: if canParticipate()
           && (resource.data.authorUid == request.auth.uid || isAdmin());
 
       // One lead document per learner per promo (document id = uid).
       match /leads/{leadUid} {
         allow read: if isSignedIn()
+            && (isActive() || isAdmin())
             && (leadUid == request.auth.uid || isPromoOwner(promoId) || isAdmin());
-        allow create: if isSignedIn()
+        allow create: if canParticipate()
             && leadUid == request.auth.uid
             && request.resource.data.userUid == request.auth.uid
             && request.resource.data.status == 'NEW';
-        allow update: if isSignedIn() && (isPromoOwner(promoId) || isAdmin());
+        allow update: if canParticipate() && (isPromoOwner(promoId) || isAdmin());
         allow delete: if isAdmin();
       }
     }
 
     // --------------------------------------------------------------- reports
     match /reports/{reportId} {
-      allow create: if isSignedIn()
+      allow create: if canParticipate()
+          && reportId.matches(request.auth.uid + '_.+')
           && request.resource.data.reporterId == request.auth.uid
           && request.resource.data.status == 'pending'
           && request.resource.data.targetPath is string
@@ -371,7 +492,9 @@ service cloud.firestore {
           && request.resource.data.reason is string
           && request.resource.data.reason.size() > 0
           && request.resource.data.reason.size() <= 500;
-      allow read, update, delete: if isAdmin();
+      allow read: if isAdmin()
+          || (isSignedIn() && resource.data.reporterId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     // ------------------------------------------------------------ audit logs
@@ -391,6 +514,7 @@ service cloud.firestore {
     match /centerRequests/{uid} {
       allow read: if isSelf(uid) || isAdmin();
       allow create: if isSelf(uid)
+          && canParticipate()
           && request.resource.data.status == 'PENDING'
           && request.resource.data.centerId is string;
       allow update: if isAdmin();

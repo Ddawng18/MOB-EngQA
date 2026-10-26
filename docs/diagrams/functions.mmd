@@ -1,0 +1,30 @@
+flowchart TB
+    APP[EngQA] --> AUTH[Nhóm 1: Tài khoản & Hồ sơ]
+    APP --> CONTENT[Nhóm 2: Nội dung Q&A]
+    APP --> PROMO[Nhóm 3: Trung tâm & Quảng bá]
+    APP --> PLATFORM[Nhóm 4: Nền tảng & Kiểm duyệt]
+
+    AUTH --> A1[Đăng ký email]
+    AUTH --> A2[Đăng nhập email/Google]
+    AUTH --> A3[Quên/đổi mật khẩu]
+    AUTH --> A4[Hồ sơ, trình độ, avatar]
+    AUTH --> A5[Timeout / soft-delete]
+
+    CONTENT --> C1[Feed realtime]
+    CONTENT --> C2[Tìm kiếm / lọc / sort]
+    CONTENT --> C3[Đặt câu hỏi ảnh/audio]
+    CONTENT --> C4[Chi tiết + trả lời]
+    CONTENT --> C5[Vote / accept]
+    CONTENT --> C6[Báo cáo nội dung]
+
+    PROMO --> P1[Danh sách trung tâm]
+    PROMO --> P2[Chi tiết trung tâm]
+    PROMO --> P3[Promo + lead]
+    PROMO --> P4[Quản lý trung tâm]
+
+    PLATFORM --> S1[Notification]
+    PLATFORM --> S2[Admin moderation]
+    PLATFORM --> S3[Rules + indexes]
+    PLATFORM --> S4[Offline Room cache]
+    PLATFORM --> S5[WorkManager / JobScheduler / Alarm]
+    PLATFORM --> S6[Test + CI]

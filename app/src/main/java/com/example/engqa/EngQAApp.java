@@ -3,9 +3,9 @@ package com.example.engqa;
 import android.app.Application;
 import android.content.Context;
 
+import com.example.engqa.job.CacheCleanupJobService;
 import com.example.engqa.notification.NotificationHelper;
 import com.example.engqa.notification.NotificationWatcher;
-import com.example.engqa.worker.WorkScheduler;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -36,7 +36,9 @@ public class EngQAApp extends Application {
         firestore.setFirestoreSettings(settings);
 
         NotificationHelper.createChannel(this);
-        WorkScheduler.scheduleCacheCleanup(this);
+        // JobScheduler handles the repeating maintenance; WorkManager still handles the one-shot
+        // offline question upload in WorkScheduler.
+        CacheCleanupJobService.schedule(this);
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {

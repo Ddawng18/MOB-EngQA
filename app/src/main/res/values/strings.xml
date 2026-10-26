@@ -101,7 +101,6 @@
     <string name="login_title">Đăng Nhập</string>
     <string name="login_subtitle">Đăng nhập để tiếp tục học cùng cộng đồng EngQA</string>
     <string name="register_subtitle">Tạo tài khoản để đặt câu hỏi và nhận lời giải</string>
-    <string name="brand_letter">E</string>
     <string name="auth_switch_register">Chưa có tài khoản? &lt;font color=\"%1$s\"&gt;&lt;b&gt;Đăng ký&lt;/b&gt;&lt;/font&gt;</string>
     <string name="auth_switch_login">Đã có tài khoản? &lt;font color=\"%1$s\"&gt;&lt;b&gt;Đăng nhập&lt;/b&gt;&lt;/font&gt;</string>
     <string name="register_title">Đăng ký</string>
@@ -461,4 +460,18 @@
     <string name="pending_saved">Đã lưu, sẽ đăng khi có mạng</string>
     <string name="pending_posted_title">Bài viết đã đăng</string>
     <string name="pending_posted_body">Câu hỏi của bạn đã được đăng</string>
+    <string name="home_offline_banner">Đang xem dữ liệu ngoại tuyến. Nội dung có thể chưa được cập nhật.</string>
+    <string name="promo_reminder_title">Promo sắp hết hạn</string>
+    <string name="promo_reminder_body">Chương trình “%1$s” sẽ kết thúc trong vòng 24 giờ.</string>
+    <string name="promo_reminder_fallback">bạn đã lưu</string>
+    <string name="audio_background">Nền</string>
+    <string name="audio_background_started">Đang phát trong nền</string>
+    <string name="audio_preparing">Đang chuẩn bị âm thanh…</string>
+    <string name="audio_playing">Đang phát trong nền</string>
+    <string name="audio_paused">Đã tạm dừng</string>
+    <string name="audio_pause">Tạm dừng</string>
+    <string name="audio_play">Phát</string>
+    <string name="audio_stop">Dừng</string>
+    <string name="audio_channel">Phát âm thanh</string>
+    <string name="audio_channel_desc">Điều khiển âm thanh đang phát trong nền</string>
 </resources>

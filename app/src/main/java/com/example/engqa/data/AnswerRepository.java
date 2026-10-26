@@ -163,23 +163,47 @@ public class AnswerRepository {
     }
 
     /**
-     * Deletes the answer and optionally adds the moderation notification to the same batch, so the
-     * owner is never told that content was removed when the removal failed.
+     * Deletes the answer, its votes and optionally adds the moderation notification to the same
+     * batch. If the answer was the accepted one, the question's solved state is cleared too, so the
+     * UI never points at a missing answer.
      */
     public void delete(String questionId, String answerId, String answerAuthorId,
                        AppNotification notification, Callback<Void> callback) {
         DocumentReference questionRef = db.collection(FirestoreRefs.QUESTIONS).document(questionId);
         DocumentReference answerRef = questionRef.collection(FirestoreRefs.ANSWERS).document(answerId);
-        WriteBatch batch = db.batch();
-        batch.delete(answerRef);
-        batch.update(questionRef, FirestoreRefs.FIELD_ANSWER_COUNT, FieldValue.increment(-1));
-        if (answerAuthorId != null) {
-            batch.update(db.collection(FirestoreRefs.USERS).document(answerAuthorId),
-                    "answerCount", FieldValue.increment(-1));
-        }
-        NotificationRepository.addToBatch(batch, notification);
-        batch.commit()
-                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onError);
+        answerRef.get().addOnSuccessListener(answerSnapshot -> {
+            if (!answerSnapshot.exists()) {
+                callback.onSuccess(null);
+                return;
+            }
+            boolean wasAccepted = Boolean.TRUE.equals(answerSnapshot.getBoolean("isAccepted"));
+            answerRef.collection(FirestoreRefs.VOTES).get()
+                    .addOnSuccessListener(votes -> {
+                        WriteBatch batch = db.batch();
+                        for (DocumentSnapshot vote : votes.getDocuments()) {
+                            batch.delete(vote.getReference());
+                        }
+                        batch.delete(answerRef);
+                        batch.update(questionRef, FirestoreRefs.FIELD_ANSWER_COUNT,
+                                FieldValue.increment(-1));
+                        if (answerAuthorId != null) {
+                            batch.update(db.collection(FirestoreRefs.USERS)
+                                            .document(answerAuthorId),
+                                    "answerCount", FieldValue.increment(-1));
+                        }
+                        if (wasAccepted) {
+                            Map<String, Object> clear = new HashMap<>();
+                            clear.put("isSolved", false);
+                            clear.put("acceptedAnswerId", null);
+                            clear.put("updatedAt", FieldValue.serverTimestamp());
+                            batch.update(questionRef, clear);
+                        }
+                        NotificationRepository.addToBatch(batch, notification);
+                        batch.commit()
+                                .addOnSuccessListener(aVoid -> callback.onSuccess(null))
+                                .addOnFailureListener(callback::onError);
+                    })
+                    .addOnFailureListener(callback::onError);
+        }).addOnFailureListener(callback::onError);
     }
 }

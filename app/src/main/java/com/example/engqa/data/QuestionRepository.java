@@ -4,6 +4,8 @@ import com.example.engqa.model.Question;
 import com.example.engqa.model.AppNotification;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -63,20 +65,41 @@ public class QuestionRepository {
         Query query = buildQuery(categoryId, sort, limit);
         return query.addSnapshotListener((snapshots, error) -> {
             if (error != null) {
-                callback.onError(error);
+                cacheFallback(categoryId, sort, limit, callback, error);
                 return;
             }
-            callback.onSuccess(toPage(snapshots));
+            Page page = toPage(snapshots);
+            cache(page.questions);
+            callback.onSuccess(page);
         });
     }
 
     public ListenerRegistration observeQuestion(String questionId, Callback<Question> callback) {        return db.collection(FirestoreRefs.QUESTIONS).document(questionId)
                 .addSnapshotListener((snapshot, error) -> {
                     if (error != null) {
-                        callback.onError(error);
+                        OfflineCache.get().loadQuestion(currentUid(), questionId,
+                                new Callback<Question>() {
+                                    @Override
+                                    public void onSuccess(Question result) {
+                                        callback.onSuccess(result);
+                                    }
+
+                                    @Override
+                                    public void onError(Exception cacheError) {
+                                        callback.onError(error);
+                                    }
+                                });
                         return;
                     }
-                    callback.onSuccess(snapshot != null ? snapshot.toObject(Question.class) : null);
+                    Question question = snapshot != null
+                            ? snapshot.toObject(Question.class) : null;
+                    if (question != null && question.getId() == null) {
+                        question.setId(snapshot.getId());
+                    }
+                    if (question != null) {
+                        OfflineCache.get().cacheQuestion(currentUid(), question);
+                    }
+                    callback.onSuccess(question);
                 });
     }
 
@@ -318,11 +341,49 @@ public class QuestionRepository {
         Query query = buildSearchQuery(tokens, categoryId, sort, limit);
         return query.addSnapshotListener((snapshots, error) -> {
             if (error != null) {
-                callback.onError(error);
+                OfflineCache.get().loadSearch(currentUid(), categoryId, tokens, limit,
+                        new Callback<Page>() {
+                            @Override
+                            public void onSuccess(Page result) {
+                                callback.onSuccess(result);
+                            }
+
+                            @Override
+                            public void onError(Exception cacheError) {
+                                callback.onError(error);
+                            }
+                        });
                 return;
             }
-            callback.onSuccess(toPage(snapshots));
+            Page page = toPage(snapshots);
+            cache(page.questions);
+            callback.onSuccess(page);
         });
+    }
+
+    private static void cache(List<Question> questions) {
+        OfflineCache.get().cacheQuestions(currentUid(), questions);
+    }
+
+    private void cacheFallback(String categoryId, String sort, int limit,
+                               Callback<Page> callback, Exception original) {
+        OfflineCache.get().loadFeed(currentUid(), categoryId, sort, limit,
+                new Callback<Page>() {
+                    @Override
+                    public void onSuccess(Page result) {
+                        callback.onSuccess(result);
+                    }
+
+                    @Override
+                    public void onError(Exception cacheError) {
+                        callback.onError(original);
+                    }
+                });
+    }
+
+    private static String currentUid() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        return user != null ? user.getUid() : null;
     }
 
     private Query buildSearchQuery(List<String> tokens, String categoryId, String sort, int limit) {

@@ -101,9 +101,21 @@ public class NotificationRepository {
         return db.collection(FirestoreRefs.NOTIFICATIONS)
                 .whereEqualTo(FirestoreRefs.FIELD_RECIPIENT_ID, uid)
                 .orderBy(FirestoreRefs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
+                .limit(100)
                 .addSnapshotListener((snapshots, error) -> {
                     if (error != null) {
-                        callback.onError(error);
+                        OfflineCache.get().loadNotifications(uid,
+                                new Callback<List<AppNotification>>() {
+                                    @Override
+                                    public void onSuccess(List<AppNotification> result) {
+                                        callback.onSuccess(result);
+                                    }
+
+                                    @Override
+                                    public void onError(Exception cacheError) {
+                                        callback.onError(error);
+                                    }
+                                });
                         return;
                     }
                     List<AppNotification> notifications = new ArrayList<>();
@@ -118,6 +130,7 @@ public class NotificationRepository {
                             }
                         }
                     }
+                    OfflineCache.get().cacheNotifications(uid, notifications);
                     callback.onSuccess(notifications);
                 });
     }

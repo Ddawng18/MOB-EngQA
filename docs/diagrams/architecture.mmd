@@ -1,0 +1,15 @@
+flowchart LR
+    UI[Activity / Fragment / Adapter] -->|observe LiveData| VM[ViewModel]
+    VM -->|gọi| REPO[Repository]
+    REPO -->|nguồn chính| FS[(Firebase Firestore)]
+    REPO -->|cache đã xem| ROOM[(Room SQLite)]
+    REPO -->|JSON| API[Dictionary API]
+    FS -->|snapshot listener| REPO
+    ROOM -->|offline fallback| REPO
+    API -->|OkHttp + Gson| REPO
+    REPO -->|postValue| VM
+    VM -->|UiState| UI
+    WORK[WorkManager] -->|pending question| FS
+    JOB[JobScheduler] -->|cache cleanup| ROOM
+    ALARM[AlarmManager] -->|promo reminder| NOTI[Notification]
+    SERVICE[Foreground Service] -->|audio| NOTI

@@ -158,7 +158,8 @@ public class QuestionDetailViewModel extends ViewModel {
                 submittingAnswer = false;
                 actionState.setValue(UiState.success("answer_posted"));
                 notifyQuestionAuthor(AppNotification.TYPE_ANSWER, authorName,
-                        "Có câu trả lời mới", authorName + " đã trả lời câu hỏi của bạn");
+                        "Có câu trả lời mới", authorName + " đã trả lời câu hỏi của bạn",
+                        answerId);
             }
 
             @Override
@@ -377,7 +378,8 @@ public class QuestionDetailViewModel extends ViewModel {
                 });
     }
 
-    private void notifyQuestionAuthor(String type, String actorName, String title, String body) {
+    private void notifyQuestionAuthor(String type, String actorName, String title, String body,
+                                      String answerId) {
         Question current = question.getValue() != null ? question.getValue().getData() : null;
         if (current == null) {
             return;
@@ -388,6 +390,7 @@ public class QuestionDetailViewModel extends ViewModel {
         notification.setActorName(actorName);
         notification.setType(type);
         notification.setQuestionId(questionId);
+        notification.setAnswerId(answerId);
         notification.setTitle(title);
         notification.setBody(body);
         notificationRepository.create(notification, null);

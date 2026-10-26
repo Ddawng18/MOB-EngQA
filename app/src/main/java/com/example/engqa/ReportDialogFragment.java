@@ -2,7 +2,6 @@ package com.example.engqa;
 
 import android.app.Dialog;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -38,7 +37,7 @@ public class ReportDialogFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
-        View view = LayoutInflater.from(requireContext())
+        View view = getLayoutInflater()
                 .inflate(R.layout.dialog_report, null, false);
         EditText reason = view.findViewById(R.id.etReportReason);
 

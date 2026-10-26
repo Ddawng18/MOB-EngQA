@@ -2,7 +2,6 @@ package com.example.engqa;
 
 import android.app.Dialog;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 
@@ -37,7 +36,7 @@ public class LeadDialogFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
-        View view = LayoutInflater.from(requireContext())
+        View view = getLayoutInflater()
                 .inflate(R.layout.dialog_lead, null, false);
 
         EditText name = view.findViewById(R.id.etLeadName);

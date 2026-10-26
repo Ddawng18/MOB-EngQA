@@ -74,6 +74,18 @@ public final class NotificationHelper {
         show(context, id, notification.getTitle(), notification.getBody(), intent);
     }
 
+    /** Local reminder for a promo deadline (AlarmManager lab), independent of Firestore. */
+    public static void showPromoReminder(Context context, String promoId, String promoTitle) {
+        Intent intent = new Intent(context, PromoDetailActivity.class);
+        intent.putExtra(PromoDetailActivity.EXTRA_PROMO_ID, promoId);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        String title = context.getString(R.string.promo_reminder_title);
+        String body = context.getString(R.string.promo_reminder_body,
+                promoTitle == null || promoTitle.isEmpty()
+                        ? context.getString(R.string.promo_reminder_fallback) : promoTitle);
+        show(context, promoId.hashCode(), title, body, intent);
+    }
+
     private static void show(Context context, int id, String title, String body, Intent intent) {
         if (!PrefsHelper.areNotificationsEnabled(context)) {
             return;

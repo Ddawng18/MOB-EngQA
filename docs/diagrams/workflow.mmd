@@ -1,0 +1,28 @@
+flowchart TD
+    A[Mở app] --> B{Đã đăng nhập?}
+    B -- Chưa --> C[Đăng nhập / Đăng ký / Google]
+    C --> D[Chọn trình độ]
+    B -- Rồi --> E[Trang chủ Feed]
+    D --> E
+    E --> F[Tìm kiếm / lọc chủ đề / sắp xếp]
+    E --> G[Đặt câu hỏi]
+    G --> H{Có mạng?}
+    H -- Có --> I[Upload ảnh/audio + tạo question]
+    H -- Không --> J[Lưu nháp + WorkManager chờ mạng]
+    J --> I
+    I --> K[Chi tiết câu hỏi]
+    E --> K
+    K --> L[Trả lời]
+    L --> M[Thông báo cho tác giả]
+    K --> N[Upvote / Downvote]
+    N --> O[Thông báo cho người trả lời]
+    K --> P[Chấp nhận câu trả lời]
+    P --> Q[Cập nhật isSolved + acceptedAnswerId]
+    E --> R[Quảng bá / Trung tâm]
+    R --> S[Gửi lead / lưu promo]
+    R --> T[Admin duyệt / báo cáo]
+    T --> U[Cảnh cáo / Timeout / Xoá / Revoke center]
+    U --> V[Rules chặn tài khoản bị timeout/deleted]
+    E --> W[Mất mạng]
+    W --> X[Room cache + Firestore cache]
+    X --> Y[Banner ngoại tuyến]

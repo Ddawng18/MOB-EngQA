@@ -243,13 +243,177 @@ public class AdminRepository {
             callback.onError(new IllegalStateException("Thiếu thông tin báo cáo"));
             return;
         }
-        if (target.isPromo()) {
-            applyWarning(report, true, null, callback);
+        // Read the trusted facts before deleting, then delete first. The report/penalty transaction
+        // only runs after the content is actually gone, so a failed cascade never closes a report
+        // and never applies a penalty for content that still exists.
+        target.ref.get().addOnSuccessListener(snapshot -> {
+            if (!snapshot.exists()) {
+                // The content may have been deleted by a previous attempt whose penalty step
+                // failed. Close the report without applying a second penalty.
+                resolveDeletedDuplicate(report, callback);
+                return;
+            }
+            String authorUid = snapshot.getString(target.authorField);
+            if (authorUid == null) {
+                callback.onError(new IllegalStateException("Không xác định được tác giả"));
+                return;
+            }
+            DeletedTarget deleted = new DeletedTarget(target, authorUid,
+                    target.isPromo() ? snapshot.getString("title") : snapshot.getString("body"),
+                    target.isAnswer() ? target.questionId : null,
+                    null,
+                    null,
+                    target.isPromo() ? snapshot.getString(FirestoreRefs.FIELD_CENTER_ID) : null,
+                    Boolean.TRUE.equals(snapshot.getBoolean("warned")));
+            deleteTarget(target, authorUid, null, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    if (deleted.alreadyWarned) {
+                        resolveDeletedDuplicate(report, callback);
+                    } else {
+                        applyPenaltyAfterDelete(report, deleted, callback);
+                    }
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    callback.onError(e);
+                }
+            });
+        }).addOnFailureListener(callback::onError);
+    }
+
+    /**
+     * Applies the warning/timeout/centre-revocation penalty after the content deletion succeeded.
+     * The target document no longer exists, so the trusted facts captured before deletion are used
+     * and no write to the target is attempted.
+     */
+    private void applyPenaltyAfterDelete(Report report, DeletedTarget deleted,
+                                         Callback<Void> callback) {
+        String adminUid = adminUid();
+        if (adminUid == null || report == null || report.getId() == null) {
+            callback.onError(new IllegalStateException("Thiếu thông tin báo cáo"));
             return;
         }
-        target.ref.get().addOnSuccessListener(snapshot -> applyWarning(report, true,
-                        snapshot.exists() ? snapshot.getString(target.authorField) : null, callback))
-                .addOnFailureListener(callback::onError);
+        final DocumentReference reportRef = db.collection(FirestoreRefs.REPORTS)
+                .document(report.getId());
+        final String[] centerToDelete = {null};
+
+        db.runTransaction(transaction -> {
+            DocumentReference userRef = db.collection(FirestoreRefs.USERS)
+                    .document(deleted.authorUid);
+            DocumentSnapshot userSnapshot = transaction.get(userRef);
+            if (!userSnapshot.exists()) {
+                throw new IllegalStateException("Không tìm thấy tài khoản tác giả");
+            }
+
+            String role = userSnapshot.getString("role");
+            String centerId = userSnapshot.getString("centerId");
+            String status = userSnapshot.getString("status");
+            Date timeoutUntil = userSnapshot.getDate("timeoutUntil");
+
+            boolean wasDeleted = User.STATUS_DELETED.equals(status);
+            ModerationPolicy.Outcome outcome = ModerationPolicy.applyWarning(
+                    longValue(userSnapshot, "warningCount"),
+                    longValue(userSnapshot, "promoWarningCount"),
+                    longValue(userSnapshot, "timeoutCount"),
+                    wasDeleted, deleted.target.isPromo());
+            long warnings = outcome.getWarningCount();
+            long promoWarnings = outcome.getPromoWarningCount();
+            long timeouts = outcome.getTimeoutCount();
+
+            boolean revokeCenter = outcome.isCenterRevoked();
+            String managedCenterId = null;
+            if (revokeCenter) {
+                managedCenterId = deleted.centerId;
+                if (managedCenterId == null || managedCenterId.isEmpty()) {
+                    managedCenterId = centerId;
+                }
+                role = User.ROLE_USER;
+                centerId = null;
+            }
+
+            DocumentReference managedCenterRef = null;
+            if (revokeCenter && managedCenterId != null && !managedCenterId.isEmpty()) {
+                DocumentReference candidate = db.collection(FirestoreRefs.CENTERS)
+                        .document(managedCenterId);
+                if (transaction.get(candidate).exists()) {
+                    managedCenterRef = candidate;
+                }
+            }
+
+            if (outcome.isTimeoutApplied()) {
+                if (outcome.isAccountDeleted()) {
+                    status = User.STATUS_DELETED;
+                    timeoutUntil = null;
+                } else {
+                    status = User.STATUS_TIMEOUT;
+                    timeoutUntil = new Date(System.currentTimeMillis()
+                            + ModerationPolicy.TIMEOUT_DURATION_MS);
+                }
+            }
+
+            ContentKind contentKind = deleted.target.isPromo()
+                    ? ContentKind.PROMO
+                    : (deleted.target.isAnswer() ? ContentKind.ANSWER : ContentKind.QUESTION);
+            AppNotification notification = ModerationNotifications.reportAction(
+                    adminUid, report.getId(), deleted.authorUid, true, contentKind,
+                    deleted.label, null, null, null,
+                    revokeCenter ? null : deleted.centerId, report.getReason(), outcome);
+            NotificationRepository.set(transaction, notification);
+
+            Map<String, Object> userUpdate = new HashMap<>();
+            userUpdate.put("warningCount", warnings);
+            userUpdate.put("promoWarningCount", promoWarnings);
+            userUpdate.put("timeoutCount", timeouts);
+            if (revokeCenter) {
+                userUpdate.put("role", role);
+                userUpdate.put("centerId", centerId);
+            }
+            if (outcome.isTimeoutApplied()) {
+                userUpdate.put("status", status);
+                userUpdate.put("timeoutUntil", timeoutUntil);
+            }
+            transaction.update(userRef, userUpdate);
+
+            if (managedCenterRef != null) {
+                transaction.delete(managedCenterRef);
+                centerToDelete[0] = managedCenterId;
+            }
+
+            Map<String, Object> reportUpdate = new HashMap<>();
+            reportUpdate.put(FirestoreRefs.FIELD_STATUS, Report.STATUS_RESOLVED);
+            reportUpdate.put("resolutionAction", "delete");
+            reportUpdate.put(FIELD_RESOLUTION_NOTE, "Xoá nội dung");
+            reportUpdate.put(FIELD_RESOLVED_BY, adminUid);
+            reportUpdate.put(FIELD_RESOLVED_AT, FieldValue.serverTimestamp());
+            transaction.update(reportRef, reportUpdate);
+
+            transaction.set(db.collection(AUDIT_LOGS).document(),
+                    auditData(adminUid, "REPORT_DELETED", report.getTargetPath(),
+                            "Xoá nội dung" + (revokeCenter ? " · Xoá trung tâm" : "")));
+            return centerToDelete[0];
+        }).addOnSuccessListener(centerId -> {
+            if (centerId != null) {
+                cleanupRevokedCenter(centerId, () -> callback.onSuccess(null));
+            } else {
+                callback.onSuccess(null);
+            }
+        }).addOnFailureListener(callback::onError);
+    }
+
+    /** The content was already warned; deletion must not add another warning. */
+    private void resolveDeletedDuplicate(Report report, Callback<Void> callback) {
+        String adminUid = adminUid();
+        if (adminUid == null || report == null || report.getId() == null) {
+            callback.onError(new IllegalStateException("Thiếu thông tin báo cáo"));
+            return;
+        }
+        WriteBatch batch = db.batch();
+        addReportResolution(batch, report, "delete",
+                "Nội dung đã được xử lý trước đó", adminUid);
+        audit(batch, "REPORT_DELETED", report.getTargetPath(), "Đã cảnh cáo trước đó");
+        commit(batch, callback);
     }
 
     private void applyWarning(Report report, boolean delete, String targetAuthorId,
@@ -531,6 +695,30 @@ public class AdminRepository {
         }
         List<DocumentSnapshot> rest = new ArrayList<>(documents.subList(end, documents.size()));
         batch.commit().addOnCompleteListener(task -> deleteDocuments(rest, done));
+    }
+
+    /** Facts captured before the target is deleted, used by the post-delete penalty transaction. */
+    private static final class DeletedTarget {
+        final Target target;
+        final String authorUid;
+        final String label;
+        final String questionId;
+        final String answerId;
+        final String promoId;
+        final String centerId;
+        final boolean alreadyWarned;
+
+        DeletedTarget(Target target, String authorUid, String label, String questionId,
+                      String answerId, String promoId, String centerId, boolean alreadyWarned) {
+            this.target = target;
+            this.authorUid = authorUid;
+            this.label = label;
+            this.questionId = questionId;
+            this.answerId = answerId;
+            this.promoId = promoId;
+            this.centerId = centerId;
+            this.alreadyWarned = alreadyWarned;
+        }
     }
 
     /** A report target: a question/promo ({@code authorId}/{@code authorUid}) or an answer. */

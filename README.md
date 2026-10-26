@@ -1,4 +1,4 @@
-# EngQA
+﻿# EngQA
 
 EngQA is an English-language discussion forum (a Reddit-style Q&A app) where learners post
 questions, the community answers them, and answers can be voted on and accepted. This repository
@@ -400,3 +400,15 @@ applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA
   document capped at 600 000 chars (≤450 KB binary), audio is limited to ~120 s and 5 images per
   question. This keeps the free Spark plan but consumes Firestore's 1 GiB storage — see
   [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md).
+
+## Cải thiện sau audit (2026-10-26)
+
+- Rules P0: chặn tài khoản TIMEOUT/DELETED, whitelist field câu hỏi, kiểm tra notification theo quan hệ, report chống trùng, giới hạn counter.
+- Kiểm duyệt: xoá nội dung trước rồi mới áp penalty; xoá answer kéo theo vote và clear accepted.
+- Offline: Room cache cho feed/chi tiết/thông báo, banner ngoại tuyến, fallback khi Firestore lỗi.
+- Background: foreground service phát audio, AlarmManager nhắc promo + BootReceiver, JobScheduler dọn cache.
+- Responsive: bỏ `screenOrientation`, thêm layout-land cho home/detail/menu.
+- Kiểm thử: 86 unit test, 23 instrumentation test, 12 Firestore rules test, GitHub Actions.
+- Báo cáo: `docs/BAO_CAO_ENGQA.md` và `docs/BAO_CAO_ENGQA.pdf`.
+
+Luồng upload media hiện tại được giữ nguyên; các thay đổi media chỉ ở phát audio nền.

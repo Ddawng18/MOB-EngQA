@@ -61,3 +61,7 @@ keystore.properties
 # Seed tooling
 tools/seed/node_modules/
 tools/seed/package-lock.json
+
+# Firestore rules unit tests
+rules-test/node_modules/
+rules-test/*.log
