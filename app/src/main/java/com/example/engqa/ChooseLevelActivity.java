@@ -9,6 +9,7 @@ import android.text.Spanned;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -39,6 +40,7 @@ public class ChooseLevelActivity extends AppCompatActivity {
     private static final String LEVEL_BEGINNER = "Beginner";
     private static final String LEVEL_INTERMEDIATE = "Intermediate";
     private static final String LEVEL_ADVANCED = "Advanced";
+    private static final String STATE_SELECTED_LEVEL = "selected_level";
 
     private static final String DESC_BEGINNER = "Dành cho người mới bắt đầu.";
     private static final String DESC_INTERMEDIATE =
@@ -49,14 +51,20 @@ public class ChooseLevelActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        int barColor = Color.parseColor("#121417");
+        int barColor = getColor(R.color.bg_screen);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_choose_level);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.rootLayout), (v, insets) -> {
+        View rootLayout = findViewById(R.id.rootLayout);
+        int baseStart = rootLayout.getPaddingStart();
+        int baseTop = rootLayout.getPaddingTop();
+        int baseEnd = rootLayout.getPaddingEnd();
+        int baseBottom = rootLayout.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                     | WindowInsetsCompat.Type.ime());
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            v.setPaddingRelative(baseStart + bars.left, baseTop + bars.top,
+                    baseEnd + bars.right, baseBottom + bars.bottom);
             return insets;
         });
 
@@ -96,6 +104,19 @@ public class ChooseLevelActivity extends AppCompatActivity {
                 }
             });
         });
+
+        if (savedInstanceState != null) {
+            String restored = savedInstanceState.getString(STATE_SELECTED_LEVEL);
+            if (restored != null) {
+                selectLevel(restored);
+            }
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SELECTED_LEVEL, selectedLevel);
     }
 
     private void goHome() {
@@ -128,13 +149,15 @@ public class ChooseLevelActivity extends AppCompatActivity {
 
         ss.setSpan(new AbsoluteSizeSpan(16, true), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         ss.setSpan(new StyleSpan(Typeface.BOLD), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.WHITE : Color.parseColor("#333333")),
+        ss.setSpan(new ForegroundColorSpan(isSelected
+                        ? getColor(R.color.on_primary) : getColor(R.color.text_primary)),
                 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         ss.setSpan(new AbsoluteSizeSpan(13, true), title.length() + 1, fullText.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ss.setSpan(new ForegroundColorSpan(isSelected ? Color.parseColor("#E0E0E0")
-                        : Color.parseColor("#666666")), title.length() + 1, fullText.length(),
+        ss.setSpan(new ForegroundColorSpan(isSelected
+                        ? 0xCC240F05 : getColor(R.color.text_secondary)),
+                title.length() + 1, fullText.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         btn.setText(ss);

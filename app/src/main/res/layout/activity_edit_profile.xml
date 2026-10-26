@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/editProfileRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_screen"
@@ -7,32 +9,34 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="@color/bg_topbar"
+        android:layout_height="@dimen/topbar_height"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
 
         <ImageView
             android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="6dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/back"
-            android:padding="8dp"
-            android:src="@drawable/ic_arrow_back" />
+            android:padding="10dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/text_primary" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
             android:text="@string/edit_profile_title"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.EngQA.TitleLarge"
+            android:textSize="18sp" />
     </LinearLayout>
 
     <ScrollView
+        android:id="@+id/scrollEditProfile"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -43,7 +47,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingStart="@dimen/screen_padding"
+            android:paddingTop="8dp"
+            android:paddingEnd="@dimen/screen_padding"
+            android:paddingBottom="24dp">
 
             <TextView
                 android:id="@+id/tvAvatarLarge"
@@ -57,73 +64,73 @@
                 android:textStyle="bold" />
 
             <TextView
-                style="@style/FormLabel"
-                android:layout_marginTop="20dp"
-                android:text="@string/label_username" />
-
-            <EditText
-                android:id="@+id/etUsername"
-                style="@style/FormInput"
-                android:layout_height="46dp"
-                android:hint="@string/label_username"
-                android:inputType="textPersonName"
-                android:maxLines="1" />
-
-            <TextView
-                style="@style/FormLabel"
-                android:layout_marginTop="16dp"
-                android:text="@string/label_level" />
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:background="@drawable/bg_input">
-
-                <Spinner
-                    android:id="@+id/spinnerLevel"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@null"
-                    android:dropDownVerticalOffset="46dp"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="32dp"
-                    android:popupBackground="@color/bg_card" />
-
-                <ImageView
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="12dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_dropdown_arrow" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/btnSaveProfile"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginTop="28dp"
-                android:background="@drawable/bg_button_primary"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="@string/save"
-                android:textColor="@color/white"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/btnChangePassword"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginTop="10dp"
-                android:background="@drawable/bg_button_outline"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="@string/btn_change_password"
-                android:textColor="@color/accent_orange"
-                android:textSize="15sp" />
+                android:text="@string/profile_title"
+                android:textAppearance="@style/TextAppearance.EngQA.Label" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    style="@style/FormLabel"
+                    android:text="@string/label_username" />
+
+                <EditText
+                    android:id="@+id/etUsername"
+                    style="@style/FormInput"
+                    android:autofillHints="username"
+                    android:hint="@string/hint_username"
+                    android:imeOptions="actionNext"
+                    android:inputType="textPersonName"
+                    android:maxLength="24"
+                    android:maxLines="1" />
+
+                <TextView
+                    style="@style/FormLabel"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/label_level" />
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/input_height"
+                    android:background="@drawable/bg_input">
+
+                    <Spinner
+                        android:id="@+id/spinnerLevel"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@null"
+                        android:dropDownVerticalOffset="52dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="40dp"
+                        android:popupBackground="@color/bg_card" />
+
+                    <ImageView
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:layout_gravity="center_vertical|end"
+                        android:layout_marginEnd="16dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_dropdown_arrow"
+                        app:tint="@color/text_secondary" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveProfile"
+                style="@style/Widget.EngQA.Button"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="20dp"
+                android:text="@string/save" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

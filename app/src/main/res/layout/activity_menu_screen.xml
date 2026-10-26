@@ -1,53 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_screen"
     android:orientation="vertical">
 
-    <!-- Top Bar -->
+    <!-- Top bar: Settings is the only entry point for profile changes. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="58dp"
-        android:background="@color/bg_topbar"
+        android:layout_height="@dimen/topbar_height"
         android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
 
         <ImageView
             android:id="@+id/btnBack"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/back"
-            android:padding="4dp"
-            android:src="@drawable/ic_arrow_back" />
+            android:padding="10dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="@string/profile_title"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.EngQA.TitleLarge"
+            android:textSize="18sp" />
 
-        <TextView
-            android:id="@+id/btnEditProfile"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <ImageView
+            android:id="@+id/btnSettings"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="8dp"
-            android:text="@string/edit"
-            android:textColor="@color/accent_orange"
-            android:textSize="13sp" />
+            android:contentDescription="@string/settings_title"
+            android:padding="10dp"
+            android:src="@drawable/ic_settings"
+            app:tint="@color/text_body" />
     </LinearLayout>
 
-    <!-- Scrollable Content -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollProfile"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -58,15 +57,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingStart="@dimen/screen_padding"
+            android:paddingTop="4dp"
+            android:paddingEnd="@dimen/screen_padding"
+            android:paddingBottom="16dp">
 
-            <!-- Profile Header Card -->
+            <!-- Profile header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_card"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="20dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -76,13 +78,13 @@
 
                     <TextView
                         android:id="@+id/tvAvatar"
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
+                        android:layout_width="68dp"
+                        android:layout_height="68dp"
                         android:background="@drawable/bg_avatar"
                         android:gravity="center"
-                        android:text="N"
+                        android:text="@string/avatar_placeholder"
                         android:textColor="@color/accent_orange"
-                        android:textSize="24sp"
+                        android:textSize="26sp"
                         android:textStyle="bold" />
 
                     <LinearLayout
@@ -97,28 +99,26 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/label_username"
-                            android:textColor="@color/text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:textAppearance="@style/TextAppearance.EngQA.TitleLarge" />
 
                         <TextView
                             android:id="@+id/tvEmail"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="3dp"
+                            android:textAppearance="@style/TextAppearance.EngQA.Caption"
                             android:textSize="13sp" />
 
                         <TextView
                             android:id="@+id/tvLevelBadge"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="8dp"
                             android:background="@drawable/bg_chip"
-                            android:paddingStart="8dp"
-                            android:paddingTop="3dp"
-                            android:paddingEnd="8dp"
-                            android:paddingBottom="3dp"
+                            android:paddingStart="10dp"
+                            android:paddingTop="4dp"
+                            android:paddingEnd="10dp"
+                            android:paddingBottom="4dp"
                             android:textColor="@color/accent_orange"
                             android:textSize="11sp"
                             android:textStyle="bold" />
@@ -128,8 +128,8 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="12dp"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="16dp"
                     android:background="@color/divider" />
 
                 <LinearLayout
@@ -151,7 +151,7 @@
                             android:layout_height="wrap_content"
                             android:text="0"
                             android:textColor="@color/text_primary"
-                            android:textSize="18sp"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -159,13 +159,12 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/stat_asked"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
                     </LinearLayout>
 
                     <View
                         android:layout_width="1dp"
-                        android:layout_height="28dp"
+                        android:layout_height="30dp"
                         android:background="@color/divider" />
 
                     <LinearLayout
@@ -181,7 +180,7 @@
                             android:layout_height="wrap_content"
                             android:text="0"
                             android:textColor="@color/text_primary"
-                            android:textSize="18sp"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -189,13 +188,12 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/stat_answered"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
                     </LinearLayout>
 
                     <View
                         android:layout_width="1dp"
-                        android:layout_height="28dp"
+                        android:layout_height="30dp"
                         android:background="@color/divider" />
 
                     <LinearLayout
@@ -210,8 +208,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textColor="@color/accent_orange"
-                            android:textSize="18sp"
+                            android:textColor="@color/accepted_green"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -219,8 +217,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
                             android:text="@string/stat_accepted"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -229,7 +226,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -240,7 +237,6 @@
                 <TextView
                     android:id="@+id/btnMyAnswers"
                     style="@style/HomeFilterChip"
-                    android:layout_marginStart="8dp"
                     android:text="@string/my_answers" />
             </LinearLayout>
 
@@ -264,32 +260,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:paddingTop="24dp"
-                android:paddingBottom="24dp"
+                android:paddingTop="28dp"
+                android:paddingBottom="28dp"
                 android:text="@string/state_empty"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/btnLogout"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="16dp"
-                android:background="@drawable/bg_card"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="@string/logout"
-                android:textColor="@color/accent_orange"
-                android:textSize="14sp"
-                android:textStyle="bold" />
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <include
         android:id="@+id/bottomNav"
         layout="@layout/view_bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="68dp" />
+        android:layout_height="@dimen/bottom_nav_height" />
 </LinearLayout>

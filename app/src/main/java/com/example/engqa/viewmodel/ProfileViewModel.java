@@ -16,7 +16,11 @@ import com.example.engqa.model.User;
 import com.example.engqa.util.Validators;
 import com.google.firebase.firestore.ListenerRegistration;
 
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** Backs the profile screen: the user document plus their questions and answers. */
 public class ProfileViewModel extends ViewModel {
@@ -35,6 +39,8 @@ public class ProfileViewModel extends ViewModel {
     private ListenerRegistration answersRegistration;
 
     private String uid;
+    /** Guards against stale title lookups when a newer answer snapshot arrives. */
+    private int answersGeneration;
 
     public LiveData<UiState<User>> getUser() {
         return user;
@@ -52,10 +58,26 @@ public class ProfileViewModel extends ViewModel {
         return actionState;
     }
 
+    /** Email/password provider is linked, so the in-app change-password form is valid. */
+    public boolean hasPasswordProvider() {
+        return userRepository.hasPasswordProvider();
+    }
+
+    /** Google provider is linked; a Google-only account has no app password. */
+    public boolean hasGoogleProvider() {
+        return userRepository.hasGoogleProvider();
+    }
+
     public void start(String uid) {
+        if (uid == null) {
+            stop();
+            this.uid = null;
+            return;
+        }
         if (this.uid != null && this.uid.equals(uid) && userRegistration != null) {
             return;
         }
+        stop();
         this.uid = uid;
         attach();
     }
@@ -127,6 +149,27 @@ public class ProfileViewModel extends ViewModel {
         });
     }
 
+    /** Sends the recovery email for the signed-in account (native/password provider). */
+    public void sendPasswordReset() {
+        com.google.firebase.auth.FirebaseUser user = userRepository.currentUser();
+        String email = user != null ? user.getEmail() : null;
+        if (email == null || email.trim().isEmpty()) {
+            actionState.setValue(UiState.error("Không tìm thấy email của tài khoản"));
+            return;
+        }
+        userRepository.sendPasswordReset(email, new Callback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                actionState.setValue(UiState.success("password_reset_sent"));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                actionState.setValue(UiState.error(RepoErrors.message(e)));
+            }
+        });
+    }
+
     private void attach() {
         user.setValue(UiState.<User>loading());
         userRegistration = userRepository.observeUser(uid, new Callback<User>() {
@@ -161,9 +204,12 @@ public class ProfileViewModel extends ViewModel {
         answersRegistration = answerRepository.observeByAuthor(uid, new Callback<List<Answer>>() {
             @Override
             public void onSuccess(List<Answer> result) {
-                myAnswers.setValue(result.isEmpty()
-                        ? UiState.<List<Answer>>empty()
-                        : UiState.success(result));
+                int generation = ++answersGeneration;
+                if (result.isEmpty()) {
+                    myAnswers.setValue(UiState.<List<Answer>>empty());
+                    return;
+                }
+                enrichQuestionTitles(result, generation);
             }
 
             @Override
@@ -171,5 +217,68 @@ public class ProfileViewModel extends ViewModel {
                 myAnswers.setValue(UiState.<List<Answer>>error(RepoErrors.message(e)));
             }
         });
+    }
+
+    /**
+     * Answers created before {@code questionTitle} was denormalised do not have the title, so fetch
+     * it once per question and then publish the list. A generation counter drops stale results.
+     */
+    private void enrichQuestionTitles(List<Answer> answers, int generation) {
+        Set<String> missingIds = new LinkedHashSet<>();
+        for (Answer answer : answers) {
+            boolean missing = answer.getQuestionTitle() == null
+                    || answer.getQuestionTitle().trim().isEmpty();
+            if (missing && answer.getQuestionId() != null) {
+                missingIds.add(answer.getQuestionId());
+            }
+        }
+        if (missingIds.isEmpty()) {
+            publishAnswers(answers, generation);
+            return;
+        }
+
+        final Map<String, String> titles = new HashMap<>();
+        final int[] remaining = {missingIds.size()};
+        for (final String questionId : missingIds) {
+            questionRepository.getQuestionOnce(questionId, new Callback<Question>() {
+                @Override
+                public void onSuccess(Question question) {
+                    if (question != null && question.getTitle() != null) {
+                        titles.put(questionId, question.getTitle());
+                    }
+                    done();
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    done();
+                }
+
+                private void done() {
+                    remaining[0]--;
+                    if (remaining[0] > 0) {
+                        return;
+                    }
+                    for (Answer answer : answers) {
+                        boolean missing = answer.getQuestionTitle() == null
+                                || answer.getQuestionTitle().trim().isEmpty();
+                        if (missing && answer.getQuestionId() != null) {
+                            String title = titles.get(answer.getQuestionId());
+                            if (title != null) {
+                                answer.setQuestionTitle(title);
+                            }
+                        }
+                    }
+                    publishAnswers(answers, generation);
+                }
+            });
+        }
+    }
+
+    private void publishAnswers(List<Answer> answers, int generation) {
+        if (generation != answersGeneration) {
+            return;
+        }
+        myAnswers.setValue(UiState.success(answers));
     }
 }

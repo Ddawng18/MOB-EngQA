@@ -15,6 +15,8 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -23,6 +25,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.engqa.model.UiState;
 import com.example.engqa.viewmodel.AuthViewModel;
+import com.google.firebase.auth.AuthCredential;
 import com.google.android.material.button.MaterialButton;
 
 /**
@@ -45,23 +48,50 @@ public class RegisterActivity extends AppCompatActivity {
 
     private AuthViewModel viewModel;
     private boolean navigating;
+    private ActivityResultLauncher<Intent> googleSignInLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
+        googleSignInLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(), result -> {
+                    if (result.getData() == null) {
+                        progressAuth.setVisibility(View.GONE);
+                        return;
+                    }
+                    GoogleAuthHelper.handleActivityResult(result.getData(),
+                            new GoogleAuthHelper.GoogleAuthCallback() {
+                                @Override
+                                public void onSuccess(AuthCredential credential) {
+                                    viewModel.loginWithCredential(credential);
+                                }
+                                @Override
+                                public void onError(String errorMessage) {
+                                    // Inline error only: do not duplicate it in a Toast.
+                                    showError(errorMessage);
+                                }
+                            });
+                });
         int barColor = getColor(R.color.bg_topbar);
         EdgeToEdge.enable(this, SystemBarStyle.dark(barColor), SystemBarStyle.dark(barColor));
         setContentView(R.layout.activity_register);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.registerRoot),
+        View registerRoot = findViewById(R.id.registerRoot);
+        int baseStart = registerRoot.getPaddingStart();
+        int baseTop = registerRoot.getPaddingTop();
+        int baseEnd = registerRoot.getPaddingEnd();
+        int baseBottom = registerRoot.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(registerRoot,
                 (v, insets) -> {
                     Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                             | WindowInsetsCompat.Type.ime());
-                    v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                    // Keep the XML landscape gutters instead of replacing them with the bar insets.
+                    v.setPaddingRelative(baseStart + bars.left, baseTop + bars.top,
+                            baseEnd + bars.right, baseBottom + bars.bottom);
                     return insets;
                 });
 
-        viewModel = new ViewModelProvider(this).get(AuthViewModel.class);
         bindViews();
         bindActions();
         observe();
@@ -83,12 +113,25 @@ public class RegisterActivity extends AppCompatActivity {
 
         TextView tvGoLogin = findViewById(R.id.tvGoLogin);
         tvGoLogin.setText(Html.fromHtml(
-                "Đã có tài khoản? <font color='#1E90FF'><b>đăng nhập</b></font>",
+                getString(R.string.auth_switch_login,
+                        String.format("#%06X", 0xFFFFFF & getColor(R.color.accent_orange))),
                 Html.FROM_HTML_MODE_LEGACY));
     }
 
     private void bindActions() {
         btnRegister.setOnClickListener(v -> attemptRegister());
+        findViewById(R.id.btnGoogle).setOnClickListener(v ->
+                GoogleAuthHelper.startGoogleSignIn(this, googleSignInLauncher,
+                        new GoogleAuthHelper.GoogleAuthCallback() {
+                            @Override
+                            public void onSuccess(AuthCredential credential) {
+                                viewModel.loginWithCredential(credential);
+                            }
+                            @Override
+                            public void onError(String errorMessage) {
+                                showError(errorMessage);
+                            }
+                        }));
         edtUsername.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -116,10 +159,6 @@ public class RegisterActivity extends AppCompatActivity {
                 togglePasswordVisibility(edtConfirmPassword,
                         findViewById(R.id.btnToggleConfirmPassword)));
         findViewById(R.id.tvGoLogin).setOnClickListener(v -> finish());
-        findViewById(R.id.btnPhone).setOnClickListener(
-                v -> toast("Đăng ký bằng số điện thoại sẽ sớm được hỗ trợ"));
-        findViewById(R.id.btnGoogle).setOnClickListener(
-                v -> toast("Đăng ký bằng Google sẽ sớm được hỗ trợ"));
     }
 
     private void observe() {
@@ -127,6 +166,7 @@ public class RegisterActivity extends AppCompatActivity {
             boolean busy = Boolean.TRUE.equals(loading);
             progressAuth.setVisibility(busy ? View.VISIBLE : View.GONE);
             btnRegister.setEnabled(!busy);
+            findViewById(R.id.btnGoogle).setEnabled(!busy);
             btnRegister.setText(busy
                     ? getString(R.string.creating_account) : getString(R.string.btn_register));
             edtUsername.setEnabled(!busy);
@@ -138,7 +178,6 @@ public class RegisterActivity extends AppCompatActivity {
         viewModel.getErrorEvent().observe(this, message -> {
             if (message != null) {
                 showError(message);
-                toast(message);
             }
         });
 
@@ -154,7 +193,17 @@ public class RegisterActivity extends AppCompatActivity {
                 return;
             }
             new SessionManager(this).onLoginSuccess();
-            goToLevelSelection();
+            com.example.engqa.model.User user = state.getData();
+            if (user == null || user.getLevel() == null || user.getLevel().trim().isEmpty()) {
+                goToLevelSelection();
+            } else {
+                if (navigating) return;
+                navigating = true;
+                Intent intent = new Intent(this, HomeActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            }
         });
     }
 
@@ -162,15 +211,15 @@ public class RegisterActivity extends AppCompatActivity {
     private void updateUsernameHint(String username) {
         if (username.trim().isEmpty()) {
             tvUsernameHint.setText(R.string.username_rules);
-            tvUsernameHint.setTextColor(0xFF888888);
+            tvUsernameHint.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_hint));
             return;
         }
         if (com.example.engqa.util.Validators.isValidUsername(username)) {
             tvUsernameHint.setText(R.string.username_available);
-            tvUsernameHint.setTextColor(0xFF4CAF50);
+            tvUsernameHint.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.accepted_green));
         } else {
             tvUsernameHint.setText(com.example.engqa.util.Validators.usernameError(username));
-            tvUsernameHint.setTextColor(0xFFFF6B6B);
+            tvUsernameHint.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.error_red));
         }
     }
 

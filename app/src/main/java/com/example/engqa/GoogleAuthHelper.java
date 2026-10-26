@@ -36,6 +36,11 @@ public class GoogleAuthHelper {
 
     public static void startGoogleSignIn(Activity activity, ActivityResultLauncher<Intent> launcher, GoogleAuthCallback callback) {
         String webClientId = getWebClientId(activity);
+        if (webClientId == null || webClientId.isEmpty()) {
+            callback.onError("Chưa cấu hình Google Sign-In. "
+                    + "Hãy thêm SHA-1/SHA-256 và tạo lại google-services.json.");
+            return;
+        }
 
         GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
@@ -86,6 +91,9 @@ public class GoogleAuthHelper {
 
     public static void launchGoogleSignInClient(Activity activity, ActivityResultLauncher<Intent> launcher) {
         String webClientId = getWebClientId(activity);
+        if (webClientId == null || webClientId.isEmpty()) {
+            return;
+        }
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(webClientId)
                 .requestEmail()
@@ -125,7 +133,9 @@ public class GoogleAuthHelper {
         try {
             return context.getString(R.string.default_web_client_id);
         } catch (Exception e) {
-            return "13331358113-accountdata-dd29b.apps.googleusercontent.com";
+            // The generated resource is the only source of truth; never fall back to a
+            // project-specific client id that would silently break after a config change.
+            return null;
         }
     }
 }
