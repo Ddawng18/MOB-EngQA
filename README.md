@@ -1,4 +1,4 @@
-﻿# EngQA
+# EngQA
 
 EngQA is an English-language discussion forum (a Reddit-style Q&A app) where learners post
 questions, the community answers them, and answers can be voted on and accepted. This repository
@@ -13,7 +13,7 @@ contains the native Android client.
 | Architecture | `model` / `data` (Repository) / `viewmodel` (ViewModel + LiveData) / `ui` |
 | Backend    | Firebase Auth + Cloud Firestore (media also on Firestore, Base64)       |
 | Media      | Glide, `MediaPlayer`, `MediaRecorder`; client compression/Base64; OkHttp + Gson |
-| Background | `WorkManager` (offline posts, cache cleanup), `ExecutorService`          |
+| Background | `WorkManager` (offline posts), `JobScheduler` (cache cleanup), `AlarmManager` + `Service` |
 | Settings   | `PreferenceFragmentCompat` + `SharedPreferences`                        |
 | Build      | Gradle (Kotlin DSL), `compileSdk 37`, `minSdk 29`                       |
 | Theme      | Dark-only (`Theme.Material3.Dark.NoActionBar`)                         |
@@ -45,9 +45,8 @@ states — Loading, Success, Empty, Error(+Retry) — through the shared `StateV
 
 ## Firebase setup
 
-> Step-by-step checklist for this project (`accountdata-dd29b`), including Firestore creation with
-> the right region, rules/index deployment, seeding and acceptance checks:
-> **[docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)**.
+> The Firebase project used by this repository is `accountdata-dd29b`. Deploy rules/indexes and
+> seed the demo data as described below.
 
 1. Create a Firebase project and add an Android app with package name `com.example.engqa`.
 2. Drop the generated `google-services.json` into `app/`.
@@ -238,9 +237,7 @@ profiles must be backfilled with `tools/seed/backfill-usernames.js` (13 reservat
 for the current data), and **devices still running the old APK must install the new release** because
 the old build uses a Firestore query that the current self-only profile rules correctly deny.
 
-See **[docs/AUTH.md](docs/AUTH.md)** for the flow diagrams, validation rules, error-code mapping
-and the manual test checklist. Auth depends on `firestore.rules`; see
-[docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) to deploy it. For Google Sign-In on a release build,
+Auth depends on `firestore.rules`; deploy it with the command above. For Google Sign-In on a release build,
 register the release SHA-1/SHA-256 in Firebase/Google Cloud and regenerate `google-services.json`;
 the current file has no certificate hash and the release APK is unsigned until `keystore.properties`
 is provided.
@@ -256,8 +253,6 @@ The detail screen counts one view per opening (even across rotation), opens the 
 implicit intents, saves posts locally with Room, and collects consultation requests at
 `promos/{id}/leads/{uid}` (one per learner, enforced in a transaction). `users.role` / `users.centerId`
 are granted by administrators only, and the security rules enforce approval and bounded counters.
-
-See **[docs/PROMO.md](docs/PROMO.md)** for the data model, file map, rules and test checklist.
 
 ## Screens
 
@@ -287,7 +282,7 @@ Home, Ask, Profile.
 
 - **Media (Firestore-only)**: images are compressed to ≤1024 px and audio to AAC mono 24 kbps /
   120 s, then stored as Base64 documents under `questions/{qid}/media/*`; the feed uses a small
-  `thumbBase64` thumbnail. Budgets and trade-offs: [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md).
+  `thumbBase64` thumbnail. Budgets are enforced in `MediaBudget`.
 - **Settings** (`PreferenceFragmentCompat`): notification switch (requesting
   `POST_NOTIFICATIONS`), clear cache, about and logout. Values live in `SharedPreferences`.
 - **Word of the Day**: a third feed view type (`FeedItem.TYPE_WORD`). `WordRepository` requests
@@ -343,8 +338,8 @@ query tokens, typo variants), `SearchRanker` (relevance, tie-breakers, filtering
 `Validators` (email/password/title and media limits), `TimeUtils` (relative-time labels),
 `FeedMixer` (feed interleaving, expiry and promo search), `PromoValidator` (promo form rules),
 `AnswerRanking` (Reddit-style ordering) and `PendingQuestionDraft` (Gson round-trip) —
-**69 tests in total**. Instrumented tests cover login/register validation, the Settings
-preferences and the cached Word detail.
+**86 tests in total**. Instrumented tests (23) cover login/register validation, Settings,
+blocked accounts and the Room offline cache; 12 Firestore rules tests run on the emulator.
 
 ## Release and distribution
 
@@ -354,21 +349,17 @@ tied to the app's signing certificate. Create one keystore, put its details in t
 register its SHA-1 once with `node tools/fix-google-signin.js <sha1>` and ship that build.
 Play App Signing needs its own SHA-1 registered as well.
 
-Full checklist (keystore creation, signing, Play App Signing, API-key restrictions, clean-device
-verification and distribution options): **[docs/RELEASE.md](docs/RELEASE.md)**.
-
 ## Team work split
 
 The repository is divided into four non-overlapping work packages — **Auth & Profile**, **Q&A core**,
 **Feed / Promos / Centres**, and **Platform / Infra / QA** — so each person commits only their own
-files. See **[docs/TEAM_DIVISION.md](docs/TEAM_DIVISION.md)** for the exact file list per person,
-the shared-file protocol and the Git conventions. `docs/CODEOWNERS.template` becomes
-`.github/CODEOWNERS` once the GitHub usernames are filled in.
+files. Shared files (`strings.xml`, `AndroidManifest.xml`, `firestore.rules`, Gradle files) are
+changed through small pull requests; feature work uses one branch per package.
 
 ## Security rules
 
 `firestore.rules` and `storage.rules` are deployed from this repository (`storage.rules` only
-applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md)).
+applies when Firebase Storage is enabled).
 
 - A question may only be created with `authorId == request.auth.uid`.
 - An answer starts with zero counters and `isAccepted == false`; only the question owner may accept.
@@ -398,8 +389,7 @@ applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA
   not covered; a dedicated search service would be required at much larger scale.
 - **Media storage** is Firestore-only because Cloud Storage requires Blaze: each item is a Base64
   document capped at 600 000 chars (≤450 KB binary), audio is limited to ~120 s and 5 images per
-  question. This keeps the free Spark plan but consumes Firestore's 1 GiB storage — see
-  [docs/MEDIA_STORAGE.md](docs/MEDIA_STORAGE.md).
+  question. This keeps the free Spark plan but consumes Firestore's 1 GiB storage.
 
 ## Cải thiện sau audit (2026-10-26)
 
@@ -409,6 +399,5 @@ applies when Firebase Storage is enabled; see [docs/MEDIA_STORAGE.md](docs/MEDIA
 - Background: foreground service phát audio, AlarmManager nhắc promo + BootReceiver, JobScheduler dọn cache.
 - Responsive: bỏ `screenOrientation`, thêm layout-land cho home/detail/menu.
 - Kiểm thử: 86 unit test, 23 instrumentation test, 12 Firestore rules test, GitHub Actions.
-- Báo cáo: `docs/BAO_CAO_ENGQA.md` và `docs/BAO_CAO_ENGQA.pdf`.
 
 Luồng upload media hiện tại được giữ nguyên; các thay đổi media chỉ ở phát audio nền.
