@@ -1,5 +1,6 @@
 package com.example.engqa.notification;
 
+
 import com.example.engqa.EngQAApp;
 import com.example.engqa.data.FirestoreRefs;
 import com.example.engqa.model.AppNotification;
@@ -39,11 +40,13 @@ public final class NotificationWatcher {
                     if (error != null || snapshots == null) {
                         return;
                     }
-                    if (firstSnapshot) {
-                        firstSnapshot = false;
+                    // Ignore cached callbacks entirely. The first *server* snapshot is the
+                    // baseline: it contains the backlog, which must not be re-announced.
+                    if (snapshots.getMetadata().isFromCache()) {
                         return;
                     }
-                    if (snapshots.getMetadata().isFromCache()) {
+                    if (firstSnapshot) {
+                        firstSnapshot = false;
                         return;
                     }
                     for (DocumentChange change : snapshots.getDocumentChanges()) {
@@ -55,12 +58,12 @@ public final class NotificationWatcher {
                         if (notification == null) {
                             continue;
                         }
+                        notification.setId(change.getDocument().getId());
+                        int id = notification.getId().hashCode() & 0x7FFFFFFF;
                         NotificationHelper.show(
                                 EngQAApp.getContext(),
-                                (int) (System.currentTimeMillis() & 0x7FFFFFFF),
-                                notification.getTitle(),
-                                notification.getBody(),
-                                notification.getQuestionId());
+                                id,
+                                notification);
                     }
                 });
     }

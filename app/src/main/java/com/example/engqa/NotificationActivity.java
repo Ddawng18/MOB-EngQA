@@ -20,8 +20,9 @@ import com.example.engqa.ui.StateView;
 import com.example.engqa.viewmodel.NotificationViewModel;
 
 import java.util.List;
+import com.example.engqa.util.Navigation;
 
-/** In-app notification list; tapping a row opens the related question. */
+/** In-app notification list; tapping a row opens the related question, promo or center. */
 public class NotificationActivity extends BaseNavActivity {
 
     private NotificationViewModel viewModel;
@@ -59,7 +60,7 @@ public class NotificationActivity extends BaseNavActivity {
         recycler.setLayoutManager(new LinearLayoutManager(this));
         recycler.setAdapter(adapter);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        Navigation.wireBack(this);
         findViewById(R.id.btnMarkAllRead).setOnClickListener(v -> viewModel.markAllRead());
         stateView.setOnRetryListener(v -> {
             viewModel.stop();
@@ -115,9 +116,23 @@ public class NotificationActivity extends BaseNavActivity {
 
     private void openNotification(AppNotification notification) {
         viewModel.markRead(notification);
+        Intent intent = null;
         if (notification.getQuestionId() != null) {
-            Intent intent = new Intent(this, QuestionDetailActivity.class);
-            intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, notification.getQuestionId());
+            intent = new Intent(this, QuestionDetailActivity.class);
+            intent.putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID,
+                    notification.getQuestionId());
+            if (notification.getAnswerId() != null) {
+                intent.putExtra(QuestionDetailActivity.EXTRA_FOCUS_ANSWER_ID,
+                        notification.getAnswerId());
+            }
+        } else if (notification.getPromoId() != null) {
+            intent = new Intent(this, PromoDetailActivity.class);
+            intent.putExtra(PromoDetailActivity.EXTRA_PROMO_ID, notification.getPromoId());
+        } else if (notification.getCenterId() != null) {
+            intent = new Intent(this, CenterDetailActivity.class);
+            intent.putExtra(CenterDetailActivity.EXTRA_CENTER_ID, notification.getCenterId());
+        }
+        if (intent != null) {
             startActivity(intent);
         }
     }
