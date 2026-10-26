@@ -17,8 +17,25 @@ Every seeded document and the counters on `users/{uid}` (`questionCount`, `answe
 `acceptedCount`) are **derived from the JSON**, so the numbers always match the actual data.
 
 `searchKeywords` are generated with the same normalisation the Android app uses
-(`util/TextUtils2`: lower-case, Vietnamese diacritics stripped, tokens of ≥ 2 characters), so
-seeded questions are immediately searchable from the feed.
+(`util/TextUtils2`: lower-case, Vietnamese diacritics stripped, full tokens and bounded prefixes
+of ≥ 2 characters), so seeded questions are immediately searchable from the feed, including
+partial words. Existing questions can be reindexed without touching their content:
+
+```bash
+node reindex-search.js --dry-run   # report how many documents would change
+node reindex-search.js --apply     # update only the searchKeywords field
+```
+
+Registration reserves display names in the `usernames/{username}` collection. Existing profiles
+created before that index need a one-time additive backfill; it never overwrites an existing
+reservation or changes `users` content:
+
+```bash
+node backfill-usernames.js --dry-run   # report missing/conflicting reservations
+node backfill-usernames.js --apply     # create missing reservations only
+```
+
+Both tools accept `FIREBASE_ACCESS_TOKEN` (or `--token`) and `--project`.
 
 ## Commands
 
