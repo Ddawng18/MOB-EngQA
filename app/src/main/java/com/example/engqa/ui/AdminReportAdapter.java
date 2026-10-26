@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.engqa.R;
 import com.example.engqa.model.Report;
+import com.example.engqa.util.ReportTargets;
 import com.example.engqa.util.TimeUtils;
 
 /** Pending content reports in the moderation console. */
@@ -92,10 +93,15 @@ public class AdminReportAdapter extends ListAdapter<Report, AdminReportAdapter.R
         }
 
         private String targetLabel(String path) {
-            if (path != null && path.startsWith("promos/")) {
-                return itemView.getContext().getString(R.string.admin_target_promo);
+            switch (ReportTargets.parse(path).getType()) {
+                case PROMO:
+                    return itemView.getContext().getString(R.string.admin_target_promo);
+                case ANSWER:
+                    return itemView.getContext().getString(R.string.admin_target_answer);
+                case QUESTION:
+                default:
+                    return itemView.getContext().getString(R.string.admin_target_question);
             }
-            return itemView.getContext().getString(R.string.admin_target_question);
         }
     }
 }

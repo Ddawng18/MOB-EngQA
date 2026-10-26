@@ -19,11 +19,18 @@ import com.example.engqa.viewmodel.ReportViewModel;
 public class ReportDialogFragment extends DialogFragment {
 
     private static final String ARG_TARGET_PATH = "targetPath";
+    private static final String ARG_TITLE_RES = "titleRes";
 
     public static ReportDialogFragment newInstance(String targetPath) {
+        return newInstance(targetPath, R.string.report_title);
+    }
+
+    /** Same dialog for every target; the title explains which content is being reported. */
+    public static ReportDialogFragment newInstance(String targetPath, int titleRes) {
         ReportDialogFragment fragment = new ReportDialogFragment();
         Bundle args = new Bundle();
         args.putString(ARG_TARGET_PATH, targetPath);
+        args.putInt(ARG_TITLE_RES, titleRes);
         fragment.setArguments(args);
         return fragment;
     }
@@ -39,8 +46,11 @@ public class ReportDialogFragment extends DialogFragment {
                 new ViewModelProvider(requireActivity()).get(ReportViewModel.class);
         viewModel.reset();
 
+        Bundle args = getArguments();
+        int titleRes = args != null ? args.getInt(ARG_TITLE_RES, R.string.report_title)
+                : R.string.report_title;
         AlertDialog dialog = new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.report_title)
+                .setTitle(titleRes)
                 .setView(view)
                 .setPositiveButton(R.string.ok, null)
                 .setNegativeButton(R.string.cancel, null)

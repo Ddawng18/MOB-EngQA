@@ -112,8 +112,8 @@ public class AdminViewModel extends ViewModel {
         act(callback -> repository.warnReport(report, callback), "report_warned");
     }
 
-    public void deleteReportedPost(Report report) {
-        act(callback -> repository.deleteReportedPost(report, callback), "report_deleted");
+    public void deleteReportedContent(Report report) {
+        act(callback -> repository.deleteReportedContent(report, callback), "report_deleted");
     }
 
     public void dismissReport(Report report, String note) {

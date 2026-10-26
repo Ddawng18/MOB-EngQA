@@ -1,9 +1,14 @@
 package com.example.engqa.data;
 
+import com.example.engqa.model.AppNotification;
 import com.example.engqa.model.Center;
 import com.example.engqa.model.Promo;
 import com.example.engqa.model.Report;
 import com.example.engqa.model.User;
+import com.example.engqa.notification.ModerationNotifications;
+import com.example.engqa.notification.ModerationNotifications.ContentKind;
+import com.example.engqa.util.ModerationPolicy;
+import com.example.engqa.util.ReportTargets;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
@@ -157,6 +162,8 @@ public class AdminRepository {
                     "role", User.ROLE_CENTER,
                     FirestoreRefs.FIELD_CENTER_ID, center.getId());
         }
+        NotificationRepository.addToBatch(batch,
+                ModerationNotifications.centerDecision(adminUid, center, true, null));
         audit(batch, "CENTER_APPROVED", "centers/" + center.getId(), null);
         commit(batch, callback);
     }
@@ -173,6 +180,8 @@ public class AdminRepository {
                 FIELD_REVIEW_NOTE, note,
                 FIELD_REVIEWED_BY, adminUid,
                 FIELD_REVIEWED_AT, FieldValue.serverTimestamp());
+        NotificationRepository.addToBatch(batch,
+                ModerationNotifications.centerDecision(adminUid, center, false, note));
         audit(batch, "CENTER_REJECTED", "centers/" + center.getId(), note);
         commit(batch, callback);
     }
@@ -188,6 +197,8 @@ public class AdminRepository {
                 FirestoreRefs.FIELD_STATUS, Promo.STATUS_APPROVED,
                 FIELD_REVIEWED_BY, adminUid,
                 FIELD_REVIEWED_AT, FieldValue.serverTimestamp());
+        NotificationRepository.addToBatch(batch,
+                ModerationNotifications.promoDecision(adminUid, promo, true, null));
         audit(batch, "PROMO_APPROVED", "promos/" + promo.getPromoId(), null);
         commit(batch, callback);
     }
@@ -204,6 +215,8 @@ public class AdminRepository {
                 FIELD_REVIEW_NOTE, note,
                 FIELD_REVIEWED_BY, adminUid,
                 FIELD_REVIEWED_AT, FieldValue.serverTimestamp());
+        NotificationRepository.addToBatch(batch,
+                ModerationNotifications.promoDecision(adminUid, promo, false, note));
         audit(batch, "PROMO_REJECTED", "promos/" + promo.getPromoId(), note);
         commit(batch, callback);
     }
@@ -214,21 +227,23 @@ public class AdminRepository {
      * <p>Three warnings apply a 24h timeout and reset the warning counter; the third timeout marks
      * the profile as DELETED (a soft delete — the Auth user itself needs an Admin SDK job). Three
      * warnings on promos additionally revoke the CENTER role and delete the centre it manages
-     * (its courses, posts and promos are cleaned up right after). Everything runs in one transaction so
-     * the counters, the target flag, the report, the notification and the audit entry stay in sync.
+     * (its courses, posts and promos are cleaned up right after). The counters, target flag, report,
+     * warning notification and audit entry commit in one transaction. A deletion notification is
+     * instead written in the same batch as the actual content deletion, so it is never sent when
+     * the deletion fails.
      */
     public void warnReport(Report report, Callback<Void> callback) {
         applyWarning(report, false, null, callback);
     }
 
     /** Deleting content also counts as one warning, so it reuses the same penalty transaction. */
-    public void deleteReportedPost(Report report, Callback<Void> callback) {
+    public void deleteReportedContent(Report report, Callback<Void> callback) {
         Target target = parseTarget(report);
         if (target == null) {
             callback.onError(new IllegalStateException("Thiếu thông tin báo cáo"));
             return;
         }
-        if (target.promo) {
+        if (target.isPromo()) {
             applyWarning(report, true, null, callback);
             return;
         }
@@ -237,7 +252,7 @@ public class AdminRepository {
                 .addOnFailureListener(callback::onError);
     }
 
-    private void applyWarning(Report report, boolean delete, String questionAuthor,
+    private void applyWarning(Report report, boolean delete, String targetAuthorId,
                               Callback<Void> callback) {
         String adminUid = adminUid();
         final Target target = parseTarget(report);
@@ -248,6 +263,8 @@ public class AdminRepository {
         final DocumentReference reportRef = db.collection(FirestoreRefs.REPORTS)
                 .document(report.getId());
         final String[] centerToDelete = {null};
+        final AppNotification[] deletionNotification = {null};
+        final boolean[] deleteAfterDuplicate = {false};
 
         db.runTransaction(transaction -> {
             DocumentSnapshot targetSnapshot = transaction.get(target.ref);
@@ -259,7 +276,7 @@ public class AdminRepository {
                 throw new IllegalStateException("Không xác định được tác giả");
             }
 
-            // One penalty per post: a second report on an already-warned post only closes the
+            // One penalty per content: a second report on already-warned content only closes the
             // report (and still deletes it when asked), otherwise three reports on the same post
             // would fake three warnings.
             if (Boolean.TRUE.equals(targetSnapshot.getBoolean("warned"))) {
@@ -267,15 +284,16 @@ public class AdminRepository {
                 duplicateUpdate.put(FirestoreRefs.FIELD_STATUS, Report.STATUS_RESOLVED);
                 duplicateUpdate.put("resolutionAction", delete ? "delete" : "warn");
                 duplicateUpdate.put(FIELD_RESOLUTION_NOTE, delete
-                        ? "Bài viết đã được cảnh cáo trước đó, xoá nội dung"
-                        : "Bài viết đã được cảnh cáo trước đó");
+                        ? "Nội dung đã được cảnh cáo trước đó, xoá nội dung"
+                        : "Nội dung đã được cảnh cáo trước đó");
                 duplicateUpdate.put(FIELD_RESOLVED_BY, adminUid);
                 duplicateUpdate.put(FIELD_RESOLVED_AT, FieldValue.serverTimestamp());
                 transaction.update(reportRef, duplicateUpdate);
                 transaction.set(db.collection(AUDIT_LOGS).document(),
                         auditData(adminUid, delete ? "REPORT_DELETED" : "REPORT_WARN_DUPLICATE",
                                 report.getTargetPath(), "Đã cảnh cáo trước đó"));
-                return null;
+                deleteAfterDuplicate[0] = delete;
+                return false;
             }
 
             DocumentReference userRef = db.collection(FirestoreRefs.USERS).document(authorUid);
@@ -284,17 +302,22 @@ public class AdminRepository {
                 throw new IllegalStateException("Không tìm thấy tài khoản tác giả");
             }
 
-            long warnings = longValue(userSnapshot, "warningCount") + 1;
-            long promoWarnings = longValue(userSnapshot, "promoWarningCount")
-                    + (target.promo ? 1 : 0);
-            long timeouts = longValue(userSnapshot, "timeoutCount");
             String role = userSnapshot.getString("role");
             String centerId = userSnapshot.getString("centerId");
             String status = userSnapshot.getString("status");
             Date timeoutUntil = userSnapshot.getDate("timeoutUntil");
 
-            boolean revokeCenter = target.promo
-                    && promoWarnings >= User.PROMO_WARNINGS_BEFORE_CENTER_REVOKE;
+            boolean wasDeleted = User.STATUS_DELETED.equals(status);
+            ModerationPolicy.Outcome outcome = ModerationPolicy.applyWarning(
+                    longValue(userSnapshot, "warningCount"),
+                    longValue(userSnapshot, "promoWarningCount"),
+                    longValue(userSnapshot, "timeoutCount"),
+                    wasDeleted, target.isPromo());
+            long warnings = outcome.getWarningCount();
+            long promoWarnings = outcome.getPromoWarningCount();
+            long timeouts = outcome.getTimeoutCount();
+
+            boolean revokeCenter = outcome.isCenterRevoked();
             String managedCenterId = null;
             if (revokeCenter) {
                 managedCenterId = targetSnapshot.getString("centerId");
@@ -315,21 +338,49 @@ public class AdminRepository {
                 }
             }
 
-            boolean wasDeleted = User.STATUS_DELETED.equals(status);
-            boolean timeout = warnings >= User.WARNINGS_PER_TIMEOUT;
-            boolean deleted = false;
-            if (timeout) {
-                warnings = 0;
-                timeouts += 1;
-                if (wasDeleted || timeouts >= User.TIMEOUTS_BEFORE_DELETE) {
+            if (outcome.isTimeoutApplied()) {
+                if (outcome.isAccountDeleted()) {
                     status = User.STATUS_DELETED;
                     timeoutUntil = null;
-                    deleted = true;
                 } else {
                     status = User.STATUS_TIMEOUT;
                     timeoutUntil = new Date(System.currentTimeMillis()
-                            + User.TIMEOUT_DURATION_MS);
+                            + ModerationPolicy.TIMEOUT_DURATION_MS);
                 }
+            }
+
+            // All reads are done; build the notification from the trusted target document. For a
+            // deletion it is written in the deletion batch below, never before the content is gone.
+            ContentKind contentKind;
+            String contentLabel;
+            String notificationQuestionId = null;
+            String notificationAnswerId = null;
+            String notificationPromoId = null;
+            String notificationCenterId = null;
+            if (target.isPromo()) {
+                contentKind = ContentKind.PROMO;
+                contentLabel = targetSnapshot.getString("title");
+                notificationPromoId = (delete || revokeCenter) ? null : target.ref.getId();
+                notificationCenterId = revokeCenter
+                        ? null : targetSnapshot.getString(FirestoreRefs.FIELD_CENTER_ID);
+            } else if (target.isAnswer()) {
+                contentKind = ContentKind.ANSWER;
+                contentLabel = targetSnapshot.getString("body");
+                notificationQuestionId = target.questionId;
+                notificationAnswerId = delete ? null : target.ref.getId();
+            } else {
+                contentKind = ContentKind.QUESTION;
+                contentLabel = targetSnapshot.getString("title");
+                notificationQuestionId = delete ? null : target.ref.getId();
+            }
+            AppNotification notification = ModerationNotifications.reportAction(
+                    adminUid, report.getId(), authorUid, delete, contentKind,
+                    contentLabel, notificationQuestionId, notificationAnswerId,
+                    notificationPromoId, notificationCenterId, report.getReason(), outcome);
+            if (delete) {
+                deletionNotification[0] = notification;
+            } else {
+                NotificationRepository.set(transaction, notification);
             }
 
             Map<String, Object> userUpdate = new HashMap<>();
@@ -340,7 +391,7 @@ public class AdminRepository {
                 userUpdate.put("role", role);
                 userUpdate.put("centerId", centerId);
             }
-            if (timeout) {
+            if (outcome.isTimeoutApplied()) {
                 userUpdate.put("status", status);
                 userUpdate.put("timeoutUntil", timeoutUntil);
             }
@@ -370,28 +421,54 @@ public class AdminRepository {
                             report.getTargetPath(),
                             (delete ? "Xoá nội dung" : "Cảnh cáo")
                                     + (revokeCenter ? " · Xoá trung tâm" : "")));
-            return null;
-        }).addOnSuccessListener(unused -> {
-            Runnable finish = () -> {
-                if (!delete) {
-                    callback.onSuccess(null);
-                    return;
-                }
-                if (target.promo) {
-                    db.collection(FirestoreRefs.PROMOS).document(target.ref.getId()).delete()
-                            .addOnSuccessListener(v -> callback.onSuccess(null))
-                            .addOnFailureListener(callback::onError);
+            return true;
+        }).addOnSuccessListener(applied -> {
+            if (!Boolean.TRUE.equals(applied)) {
+                if (deleteAfterDuplicate[0]) {
+                    // The content was already warned; deleting it does not add another warning or
+                    // notification, but the admin must not be told "deleted" before it is gone.
+                    deleteTarget(target, targetAuthorId, null, callback);
                 } else {
-                    new QuestionRepository().deleteQuestion(target.ref.getId(), questionAuthor,
-                            callback);
+                    // Already warned: the report is closed but no new penalty or notification.
+                    callback.onSuccess(null);
                 }
-            };
+                return;
+            }
+            if (!delete) {
+                // The warning notification committed with the warning/report in the transaction.
+                callback.onSuccess(null);
+                return;
+            }
+            final AppNotification notification = deletionNotification[0];
+            Runnable finish = () -> deleteTarget(target, targetAuthorId, notification, callback);
             if (centerToDelete[0] != null) {
                 cleanupRevokedCenter(centerToDelete[0], finish);
             } else {
                 finish.run();
             }
         }).addOnFailureListener(callback::onError);
+    }
+
+    /**
+     * Deletes the reported target and, when provided, commits its notification in the same batch.
+     * A null notification is used when the content was already warned and only its removal remains.
+     */
+    private void deleteTarget(Target target, String targetAuthorId, AppNotification notification,
+                              Callback<Void> callback) {
+        if (target.isPromo()) {
+            WriteBatch batch = db.batch();
+            batch.delete(db.collection(FirestoreRefs.PROMOS).document(target.ref.getId()));
+            NotificationRepository.addToBatch(batch, notification);
+            batch.commit()
+                    .addOnSuccessListener(v -> callback.onSuccess(null))
+                    .addOnFailureListener(callback::onError);
+        } else if (target.isAnswer()) {
+            new AnswerRepository().delete(target.questionId, target.ref.getId(),
+                    targetAuthorId, notification, callback);
+        } else {
+            new QuestionRepository().deleteQuestion(target.ref.getId(), targetAuthorId,
+                    notification, callback);
+        }
     }
 
     public void dismissReport(Report report, String note, Callback<Void> callback) {
@@ -456,36 +533,49 @@ public class AdminRepository {
         batch.commit().addOnCompleteListener(task -> deleteDocuments(rest, done));
     }
 
-    /** A report target: a question ({@code authorId}) or a promo ({@code authorUid}). */
+    /** A report target: a question/promo ({@code authorId}/{@code authorUid}) or an answer. */
     private static final class Target {
         final DocumentReference ref;
-        final boolean promo;
+        final ReportTargets.Type type;
         final String authorField;
+        final String questionId;
 
-        Target(DocumentReference ref, boolean promo, String authorField) {
+        Target(DocumentReference ref, ReportTargets.Type type, String authorField,
+               String questionId) {
             this.ref = ref;
-            this.promo = promo;
+            this.type = type;
             this.authorField = authorField;
+            this.questionId = questionId;
+        }
+
+        boolean isPromo() {
+            return type == ReportTargets.Type.PROMO;
+        }
+
+        boolean isAnswer() {
+            return type == ReportTargets.Type.ANSWER;
         }
     }
 
     private Target parseTarget(Report report) {
-        if (report == null || report.getTargetPath() == null) {
-            return null;
+        ReportTargets.Target parsed = ReportTargets.parse(
+                report != null ? report.getTargetPath() : null);
+        switch (parsed.getType()) {
+            case PROMO:
+                return new Target(db.collection(FirestoreRefs.PROMOS)
+                        .document(parsed.getPromoId()), parsed.getType(), "authorUid", null);
+            case ANSWER:
+                return new Target(db.collection(FirestoreRefs.QUESTIONS)
+                        .document(parsed.getQuestionId())
+                        .collection(FirestoreRefs.ANSWERS)
+                        .document(parsed.getAnswerId()),
+                        parsed.getType(), "authorId", parsed.getQuestionId());
+            case QUESTION:
+                return new Target(db.collection(FirestoreRefs.QUESTIONS)
+                        .document(parsed.getQuestionId()), parsed.getType(), "authorId", null);
+            default:
+                return null;
         }
-        String[] parts = report.getTargetPath().split("/", 2);
-        if (parts.length != 2 || parts[1].isEmpty()) {
-            return null;
-        }
-        if ("promos".equals(parts[0])) {
-            return new Target(db.collection(FirestoreRefs.PROMOS).document(parts[1]),
-                    true, "authorUid");
-        }
-        if ("questions".equals(parts[0])) {
-            return new Target(db.collection(FirestoreRefs.QUESTIONS).document(parts[1]),
-                    false, "authorId");
-        }
-        return null;
     }
 
     private static long longValue(DocumentSnapshot snapshot, String field) {

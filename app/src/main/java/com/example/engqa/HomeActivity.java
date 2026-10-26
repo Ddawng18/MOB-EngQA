@@ -263,9 +263,20 @@ public class HomeActivity extends BaseNavActivity {
             return;
         }
         blockedShown = true;
-        startActivity(new Intent(this, AccountBlockedActivity.class)
+        Intent intent = new Intent(this, AccountBlockedActivity.class)
                 .putExtra(AccountBlockedActivity.EXTRA_MODE, mode)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        if (currentUser != null) {
+            intent.putExtra(AccountBlockedActivity.EXTRA_TIMEOUT_COUNT,
+                    currentUser.getTimeoutCount());
+            intent.putExtra(AccountBlockedActivity.EXTRA_WARNING_COUNT,
+                    currentUser.getWarningCount());
+            if (currentUser.getTimeoutUntil() != null) {
+                intent.putExtra(AccountBlockedActivity.EXTRA_TIMEOUT_UNTIL,
+                        currentUser.getTimeoutUntil().getTime());
+            }
+        }
+        startActivity(intent);
         finish();
     }
 

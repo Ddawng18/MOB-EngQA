@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.example.engqa.R;
 import com.example.engqa.data.Callback;
 import com.example.engqa.data.RepoErrors;
 import com.example.engqa.data.ReportRepository;
@@ -22,6 +23,7 @@ public class ReportViewModel extends AndroidViewModel {
     private final ReportRepository reportRepository = new ReportRepository();
 
     private final MutableLiveData<UiState<String>> reportState = new MutableLiveData<>();
+    private boolean submitting;
 
     public ReportViewModel(@NonNull Application application) {
         super(application);
@@ -33,27 +35,44 @@ public class ReportViewModel extends AndroidViewModel {
 
     /** Clears the previous result when the dialog is opened again. */
     public void reset() {
-        reportState.setValue(null);
+        if (!submitting) {
+            reportState.setValue(null);
+        }
     }
 
     public void submit(String targetPath, String reason) {
-        final String uid = userRepository.currentUid();
-        if (uid == null) {
-            reportState.setValue(UiState.error("Bạn cần đăng nhập"));
+        if (submitting) {
             return;
         }
+        final String uid = userRepository.currentUid();
+        if (uid == null) {
+            reportState.setValue(UiState.error(getApplication().getString(R.string.login_required)));
+            return;
+        }
+        if (targetPath == null || targetPath.trim().isEmpty()) {
+            reportState.setValue(UiState.error(
+                    getApplication().getString(R.string.report_target_missing)));
+            return;
+        }
+        final String trimmedReason = reason != null ? reason.trim() : "";
+        if (trimmedReason.isEmpty()) {
+            reportState.setValue(UiState.error(
+                    getApplication().getString(R.string.report_reason_hint)));
+            return;
+        }
+        submitting = true;
         reportState.setValue(UiState.<String>loading());
         userRepository.getUser(uid, new Callback<User>() {
             @Override
             public void onSuccess(User user) {
                 String name = user != null && user.getUsername() != null
                         ? user.getUsername() : "user";
-                send(targetPath, reason, uid, name);
+                send(targetPath, trimmedReason, uid, name);
             }
 
             @Override
             public void onError(Exception e) {
-                send(targetPath, reason, uid, "user");
+                send(targetPath, trimmedReason, uid, "user");
             }
         });
     }
@@ -63,11 +82,13 @@ public class ReportViewModel extends AndroidViewModel {
         reportRepository.report(report, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                submitting = false;
                 reportState.setValue(UiState.success("reported"));
             }
 
             @Override
             public void onError(Exception e) {
+                submitting = false;
                 reportState.setValue(UiState.error(RepoErrors.message(e)));
             }
         });

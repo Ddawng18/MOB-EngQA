@@ -29,6 +29,8 @@ import com.example.engqa.ui.AdminCenterAdapter;
 import com.example.engqa.ui.AdminPromoAdapter;
 import com.example.engqa.ui.AdminReportAdapter;
 import com.example.engqa.util.Navigation;
+import com.example.engqa.util.ModerationPolicy;
+import com.example.engqa.util.ReportTargets;
 import com.example.engqa.viewmodel.AdminViewModel;
 
 import java.util.ArrayList;
@@ -284,26 +286,44 @@ public class AdminActivity extends AppCompatActivity
     /** Opens the reported item so the moderator can judge it before acting. */
     @Override
     public void onOpen(Report report) {
-        String path = report.getTargetPath();
-        if (path == null) {
+        ReportTargets.Target target = ReportTargets.parse(report.getTargetPath());
+        switch (target.getType()) {
+            case QUESTION:
+                openQuestion(target.getQuestionId(), null);
+                break;
+            case ANSWER:
+                openQuestion(target.getQuestionId(), target.getAnswerId());
+                break;
+            case PROMO:
+                startActivity(new Intent(this, PromoDetailActivity.class)
+                        .putExtra(PromoDetailActivity.EXTRA_PROMO_ID, target.getPromoId()));
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void openQuestion(String questionId, String answerId) {
+        if (questionId == null || questionId.isEmpty()) {
             return;
         }
-        if (path.startsWith("questions/")) {
-            startActivity(new Intent(this, QuestionDetailActivity.class)
-                    .putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID,
-                            path.substring("questions/".length())));
-        } else if (path.startsWith("promos/")) {
-            startActivity(new Intent(this, PromoDetailActivity.class)
-                    .putExtra(PromoDetailActivity.EXTRA_PROMO_ID,
-                            path.substring("promos/".length())));
+        Intent intent = new Intent(this, QuestionDetailActivity.class)
+                .putExtra(QuestionDetailActivity.EXTRA_QUESTION_ID, questionId);
+        if (answerId != null && !answerId.isEmpty()) {
+            intent.putExtra(QuestionDetailActivity.EXTRA_FOCUS_ANSWER_ID, answerId);
         }
+        startActivity(intent);
     }
 
     @Override
     public void onWarn(Report report) {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.admin_report_warn_title)
-                .setMessage(R.string.admin_report_warn_message)
+                .setMessage(getString(R.string.admin_report_warn_message,
+                        ModerationPolicy.WARNINGS_PER_TIMEOUT,
+                        ModerationPolicy.timeoutDurationHours(),
+                        ModerationPolicy.TIMEOUTS_BEFORE_DELETE,
+                        ModerationPolicy.PROMO_WARNINGS_BEFORE_CENTER_REVOKE))
                 .setPositiveButton(R.string.admin_warn,
                         (dialog, which) -> viewModel.warnReport(report))
                 .setNegativeButton(R.string.cancel, null)
@@ -316,7 +336,7 @@ public class AdminActivity extends AppCompatActivity
                 .setTitle(R.string.admin_report_delete_title)
                 .setMessage(R.string.admin_report_delete_message)
                 .setPositiveButton(R.string.admin_delete_post,
-                        (dialog, which) -> viewModel.deleteReportedPost(report))
+                        (dialog, which) -> viewModel.deleteReportedContent(report))
                 .setNegativeButton(R.string.cancel, null)
                 .show();
     }

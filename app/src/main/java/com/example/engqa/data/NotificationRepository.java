@@ -1,11 +1,14 @@
 package com.example.engqa.data;
 
 import com.example.engqa.model.AppNotification;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.Transaction;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
@@ -19,27 +22,14 @@ public class NotificationRepository {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     public void create(AppNotification notification, Callback<Void> callback) {
-        if (notification.getRecipientId() != null
-                && notification.getRecipientId().equals(notification.getActorId())) {
-            // Never notify yourself.
+        if (!canDeliver(notification)) {
             if (callback != null) {
                 callback.onSuccess(null);
             }
             return;
         }
-        Map<String, Object> data = new HashMap<>();
-        data.put("recipientId", notification.getRecipientId());
-        data.put("actorId", notification.getActorId());
-        data.put("actorName", notification.getActorName());
-        data.put("type", notification.getType());
-        data.put("questionId", notification.getQuestionId());
-        data.put("answerId", notification.getAnswerId());
-        data.put("title", notification.getTitle());
-        data.put("body", notification.getBody());
-        data.put("read", false);
-        data.put("createdAt", FieldValue.serverTimestamp());
 
-        db.collection(FirestoreRefs.NOTIFICATIONS).add(data)
+        db.collection(FirestoreRefs.NOTIFICATIONS).add(data(notification))
                 .addOnSuccessListener(ref -> {
                     if (callback != null) {
                         callback.onSuccess(null);
@@ -50,6 +40,61 @@ public class NotificationRepository {
                         callback.onError(e);
                     }
                 });
+    }
+
+    /** Adds a notification to an existing batch so it commits with the moderation change. */
+    public static void addToBatch(WriteBatch batch, AppNotification notification) {
+        if (batch == null || !canDeliver(notification)) {
+            return;
+        }
+        batch.set(reference(notification), data(notification));
+    }
+
+    /** Adds a notification to an existing transaction so it commits with the moderation change. */
+    public static void set(Transaction transaction, AppNotification notification) {
+        if (transaction == null || !canDeliver(notification)) {
+            return;
+        }
+        transaction.set(reference(notification), data(notification));
+    }
+
+    /** Firestore payload shared by the standalone, batch and transaction writers. */
+    public static Map<String, Object> data(AppNotification notification) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("recipientId", notification.getRecipientId());
+        data.put("actorId", notification.getActorId());
+        data.put("actorName", notification.getActorName());
+        data.put("type", notification.getType());
+        putIfPresent(data, "questionId", notification.getQuestionId());
+        putIfPresent(data, "answerId", notification.getAnswerId());
+        putIfPresent(data, "reportId", notification.getReportId());
+        putIfPresent(data, "centerId", notification.getCenterId());
+        putIfPresent(data, "promoId", notification.getPromoId());
+        data.put("title", notification.getTitle());
+        data.put("body", notification.getBody());
+        data.put("read", false);
+        data.put("createdAt", FieldValue.serverTimestamp());
+        return data;
+    }
+
+    private static DocumentReference reference(AppNotification notification) {
+        CollectionReference notifications = FirebaseFirestore.getInstance()
+                .collection(FirestoreRefs.NOTIFICATIONS);
+        return notification.getId() != null
+                ? notifications.document(notification.getId())
+                : notifications.document();
+    }
+
+    private static void putIfPresent(Map<String, Object> data, String key, String value) {
+        if (value != null && !value.isEmpty()) {
+            data.put(key, value);
+        }
+    }
+
+    private static boolean canDeliver(AppNotification notification) {
+        return notification != null
+                && notification.getRecipientId() != null
+                && !notification.getRecipientId().equals(notification.getActorId());
     }
 
     public ListenerRegistration observeMine(String uid, Callback<List<AppNotification>> callback) {

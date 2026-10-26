@@ -1,6 +1,7 @@
 package com.example.engqa.data;
 
 import com.example.engqa.model.Question;
+import com.example.engqa.model.AppNotification;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.firestore.CollectionReference;
@@ -186,6 +187,15 @@ public class QuestionRepository {
      * authors' denormalised counters are not changed (the profile uses the live answer list).
      */
     public void deleteQuestion(String questionId, String authorId, Callback<Void> callback) {
+        deleteQuestion(questionId, authorId, null, callback);
+    }
+
+    /**
+     * Deletes the question and optionally adds the moderation notification to the final batch, so
+     * the owner is notified only when the question document itself was removed successfully.
+     */
+    public void deleteQuestion(String questionId, String authorId, AppNotification notification,
+                               Callback<Void> callback) {
         DocumentReference questionRef =
                 db.collection(FirestoreRefs.QUESTIONS).document(questionId);
         CollectionReference answersRef = questionRef.collection(FirestoreRefs.ANSWERS);
@@ -194,13 +204,14 @@ public class QuestionRepository {
         answersRef.get()
                 .addOnSuccessListener(answerSnapshots ->
                         collectVotesAndMedia(questionRef, mediaRef,
-                                answerSnapshots, authorId, callback))
+                                answerSnapshots, authorId, notification, callback))
                 .addOnFailureListener(callback::onError);
     }
 
     private void collectVotesAndMedia(DocumentReference questionRef,
                                       CollectionReference mediaRef, QuerySnapshot answerSnapshots,
-                                      String authorId, Callback<Void> callback) {
+                                      String authorId, AppNotification notification,
+                                      Callback<Void> callback) {
         List<Task<QuerySnapshot>> voteTasks = new ArrayList<>();
         for (DocumentSnapshot answer : answerSnapshots.getDocuments()) {
             voteTasks.add(answer.getReference().collection(FirestoreRefs.VOTES).get());
@@ -225,7 +236,8 @@ public class QuestionRepository {
                             for (DocumentSnapshot media : mediaSnapshots.getDocuments()) {
                                 children.add(media.getReference());
                             }
-                            deleteChildrenThenQuestion(questionRef, authorId, children, callback);
+                            deleteChildrenThenQuestion(questionRef, authorId, children,
+                                    notification, callback);
                         })
                         .addOnFailureListener(callback::onError))
                 .addOnFailureListener(callback::onError);
@@ -233,17 +245,18 @@ public class QuestionRepository {
 
     private void deleteChildrenThenQuestion(DocumentReference questionRef, String authorId,
                                             List<DocumentReference> children,
+                                            AppNotification notification,
                                             Callback<Void> callback) {
         if (children.size() <= BATCH_CHILD_LIMIT) {
-            commitDeleteBatch(questionRef, authorId, children, callback);
+            commitDeleteBatch(questionRef, authorId, children, notification, callback);
             return;
         }
-        deleteChildChunk(questionRef, authorId, children, 0, callback);
+        deleteChildChunk(questionRef, authorId, children, 0, notification, callback);
     }
 
     private void deleteChildChunk(DocumentReference questionRef, String authorId,
                                   List<DocumentReference> children, int start,
-                                  Callback<Void> callback) {
+                                  AppNotification notification, Callback<Void> callback) {
         int end = Math.min(start + BATCH_CHILD_LIMIT, children.size());
         WriteBatch batch = db.batch();
         for (int i = start; i < end; i++) {
@@ -253,17 +266,19 @@ public class QuestionRepository {
         batch.commit()
                 .addOnSuccessListener(aVoid -> {
                     if (next < children.size()) {
-                        deleteChildChunk(questionRef, authorId, children, next, callback);
+                        deleteChildChunk(questionRef, authorId, children, next,
+                                notification, callback);
                     } else {
                         commitDeleteBatch(questionRef, authorId,
-                                Collections.emptyList(), callback);
+                                Collections.emptyList(), notification, callback);
                     }
                 })
                 .addOnFailureListener(callback::onError);
     }
 
     private void commitDeleteBatch(DocumentReference questionRef, String authorId,
-                                   List<DocumentReference> children, Callback<Void> callback) {
+                                   List<DocumentReference> children,
+                                   AppNotification notification, Callback<Void> callback) {
         WriteBatch batch = db.batch();
         for (DocumentReference child : children) {
             batch.delete(child);
@@ -273,6 +288,7 @@ public class QuestionRepository {
             batch.update(db.collection(FirestoreRefs.USERS).document(authorId),
                     "questionCount", FieldValue.increment(-1));
         }
+        NotificationRepository.addToBatch(batch, notification);
         batch.commit()
                 .addOnSuccessListener(aVoid -> callback.onSuccess(null))
                 .addOnFailureListener(callback::onError);

@@ -58,12 +58,12 @@ public final class NotificationWatcher {
                         if (notification == null) {
                             continue;
                         }
+                        notification.setId(change.getDocument().getId());
+                        int id = notification.getId().hashCode() & 0x7FFFFFFF;
                         NotificationHelper.show(
                                 EngQAApp.getContext(),
-                                (int) (System.currentTimeMillis() & 0x7FFFFFFF),
-                                notification.getTitle(),
-                                notification.getBody(),
-                                notification.getQuestionId());
+                                id,
+                                notification);
                     }
                 });
     }

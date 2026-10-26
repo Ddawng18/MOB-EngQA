@@ -1,6 +1,7 @@
 package com.example.engqa.data;
 
 import com.example.engqa.model.Answer;
+import com.example.engqa.model.AppNotification;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -158,6 +159,15 @@ public class AnswerRepository {
 
     public void delete(String questionId, String answerId, String answerAuthorId,
                        Callback<Void> callback) {
+        delete(questionId, answerId, answerAuthorId, null, callback);
+    }
+
+    /**
+     * Deletes the answer and optionally adds the moderation notification to the same batch, so the
+     * owner is never told that content was removed when the removal failed.
+     */
+    public void delete(String questionId, String answerId, String answerAuthorId,
+                       AppNotification notification, Callback<Void> callback) {
         DocumentReference questionRef = db.collection(FirestoreRefs.QUESTIONS).document(questionId);
         DocumentReference answerRef = questionRef.collection(FirestoreRefs.ANSWERS).document(answerId);
         WriteBatch batch = db.batch();
@@ -167,6 +177,7 @@ public class AnswerRepository {
             batch.update(db.collection(FirestoreRefs.USERS).document(answerAuthorId),
                     "answerCount", FieldValue.increment(-1));
         }
+        NotificationRepository.addToBatch(batch, notification);
         batch.commit()
                 .addOnSuccessListener(aVoid -> callback.onSuccess(null))
                 .addOnFailureListener(callback::onError);

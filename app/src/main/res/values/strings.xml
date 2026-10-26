@@ -69,9 +69,13 @@
     <!-- Moderation: account states -->
     <string name="blocked_illustration">Tài khoản bị hạn chế</string>
     <string name="blocked_timeout_title">Tài khoản đang bị tạm khoá</string>
-    <string name="blocked_timeout_message">You got timeout, better behave next time ok? OR ELSE</string>
+    <string name="blocked_timeout_message">Tài khoản của bạn đang bị tạm khoá %1$d giờ do vi phạm quy định.</string>
+    <string name="blocked_timeout_progress">Bạn đã bị timeout %1$d/%2$d lần; còn %3$d lần timeout nữa trước khi tài khoản bị xoá.</string>
+    <string name="blocked_warning_progress">Bộ đếm cảnh cáo hiện tại: %1$d/%2$d; còn %3$d cảnh cáo trước timeout tiếp theo.</string>
+    <string name="blocked_timeout_until">Thời gian mở khoá dự kiến: %1$s.</string>
     <string name="blocked_deleted_title">Tài khoản đã bị xoá</string>
-    <string name="blocked_deleted_message">Tài khoản này đã bị xóa</string>
+    <string name="blocked_deleted_message">Tài khoản này đã bị xoá</string>
+    <string name="blocked_deleted_progress">Tài khoản đã bị xoá sau %1$d/%2$d lần timeout theo quy định.</string>
     <string name="blocked_retry">Thử lại</string>
     <string name="answer_deleted">Đã xoá</string>
     <string name="delete_question_title">Xoá câu hỏi?</string>
@@ -156,9 +160,44 @@
     <!-- Notifications -->
     <string name="notification_title">Thông báo</string>
     <string name="notification_channel">EngQA</string>
-    <string name="notification_channel_desc">Thông báo tương tác câu hỏi</string>
+    <string name="notification_channel_desc">Thông báo tương tác và kiểm duyệt</string>
     <string name="notification_empty">Bạn chưa có thông báo nào</string>
     <string name="mark_all_read">Đánh dấu đã đọc</string>
+
+    <!-- Moderation notifications -->
+    <string name="notification_actor_admin">Quản trị viên</string>
+    <string name="notification_warning_progress_title">Cảnh cáo lần %1$d/%2$d</string>
+    <string name="notification_warning_timeout_title">Cảnh cáo lần %1$d/%2$d – tạm khoá</string>
+    <string name="notification_warning_account_deleted_title">Tài khoản đã bị xoá</string>
+    <string name="notification_deleted_title">Nội dung đã bị xoá</string>
+    <string name="notification_promo_warning_title">Cảnh cáo quảng bá lần %1$d/%2$d</string>
+    <string name="notification_promo_revoked_title">Trung tâm bị thu hồi quyền</string>
+    <string name="notification_promo_deleted_title">Bài quảng bá đã bị xoá</string>
+    <string name="notification_warning_progress_penalty">Cảnh cáo lần %1$d/%2$d. Còn %3$d cảnh cáo nữa trước timeout %4$d giờ.</string>
+    <string name="notification_warning_timeout_penalty">Cảnh cáo lần %1$d/%2$d đã áp dụng timeout %3$d giờ (lần %4$d/%5$d; còn %6$d lần trước khi xoá tài khoản).</string>
+    <string name="notification_warning_account_deleted_penalty">Cảnh cáo lần %1$d/%2$d. Tài khoản đã bị xoá theo quy định sau timeout.</string>
+    <string name="notification_promo_progress_penalty">Cảnh cáo quảng bá lần %1$d/%2$d. Còn %3$d cảnh cáo nữa trước khi trung tâm bị thu hồi quyền và gỡ khỏi EngQA.</string>
+    <string name="notification_promo_revoked_penalty">Cảnh cáo quảng bá lần %1$d/%2$d; trung tâm đã bị thu hồi quyền và gỡ khỏi EngQA.</string>
+    <string name="notification_center_timeout_suffix">Tài khoản trung tâm bị tạm khoá %1$d giờ (timeout %2$d/%3$d; còn %4$d lần trước khi xoá).</string>
+    <string name="notification_center_deleted_suffix">Tài khoản trung tâm đã bị xoá.</string>
+    <string name="notification_deleted_prefix">Nội dung đã bị xoá.</string>
+    <string name="notification_body_tail">Nội dung: %1$s. Lý do: %2$s</string>
+    <string name="notification_content_question">câu hỏi \"%1$s\"</string>
+    <string name="notification_content_answer">câu trả lời \"%1$s\"</string>
+    <string name="notification_content_promo">bài quảng bá \"%1$s\"</string>
+    <string name="notification_unknown_content">nội dung bị báo cáo</string>
+    <string name="notification_unknown_center_name">trung tâm</string>
+    <string name="notification_unknown_promo">bài quảng bá</string>
+    <string name="notification_no_reason">Vi phạm quy định cộng đồng</string>
+    <string name="notification_no_review_note">Thông tin chưa đạt yêu cầu</string>
+    <string name="notification_center_approved_title">Trung tâm đã được duyệt</string>
+    <string name="notification_center_approved_body">Trung tâm \"%1$s\" của bạn đã được duyệt.</string>
+    <string name="notification_center_rejected_title">Trung tâm bị từ chối</string>
+    <string name="notification_center_rejected_body">Yêu cầu đăng ký trung tâm \"%1$s\" đã bị từ chối. Lý do: %2$s</string>
+    <string name="notification_promo_approved_title">Bài quảng bá đã được duyệt</string>
+    <string name="notification_promo_approved_body">Bài quảng bá \"%1$s\" của trung tâm đã được duyệt.</string>
+    <string name="notification_promo_rejected_title">Bài quảng bá bị từ chối</string>
+    <string name="notification_promo_rejected_body">Bài quảng bá \"%1$s\" của trung tâm đã bị từ chối. Lý do: %2$s</string>
 
     <!-- Centers -->
     <string name="center_list_title">Trung tâm Anh ngữ</string>
@@ -180,6 +219,9 @@
     <string name="report_title">Báo cáo nội dung</string>
     <string name="report_reason_hint">Nhập lý do báo cáo...</string>
     <string name="report_sent">Đã gửi báo cáo</string>
+    <string name="report_answer">Báo cáo câu trả lời</string>
+    <string name="report_answer_missing">Không tìm thấy câu trả lời</string>
+    <string name="report_target_missing">Không tìm thấy nội dung cần báo cáo</string>
 
     <!-- Auth: extra -->
     <string name="hint_username">Tên hiển thị *</string>
@@ -317,7 +359,7 @@
     <string name="settings_title">Cài đặt</string>
     <string name="settings_general">Chung</string>
     <string name="settings_notifications">Thông báo</string>
-    <string name="settings_notifications_summary">Nhận thông báo khi có người trả lời, bình chọn hoặc chấp nhận câu trả lời</string>
+    <string name="settings_notifications_summary">Nhận thông báo về tương tác câu hỏi và các quyết định kiểm duyệt</string>
     <string name="settings_notifications_denied">Bạn chưa cấp quyền thông báo cho EngQA</string>
     <string name="settings_data">Dữ liệu</string>
     <string name="settings_clear_cache">Xoá bộ nhớ tạm</string>
@@ -365,7 +407,7 @@
     <string name="admin_report_dismiss_title">Bỏ qua báo cáo?</string>
     <string name="admin_report_dismiss_message">Báo cáo sẽ đóng mà không thay đổi nội dung.</string>
     <string name="admin_report_warn_title">Gửi cảnh cáo?</string>
-    <string name="admin_report_warn_message">Tác giả sẽ nhận 1 cảnh cáo. Đủ 3 cảnh cáo, tài khoản bị tạm khoá 1 ngày; đủ 3 lần tạm khoá, tài khoản bị xoá. Bài quảng bá bị cảnh cáo 3 lần sẽ mất quyền trung tâm.</string>
+    <string name="admin_report_warn_message">Tác giả sẽ nhận 1 cảnh cáo. Đủ %1$d cảnh cáo, tài khoản bị tạm khoá %2$d giờ; đủ %3$d lần tạm khoá, tài khoản bị xoá. Bài quảng bá bị cảnh cáo %4$d lần sẽ mất quyền trung tâm.</string>
     <string name="admin_report_delete_title">Xoá nội dung bị báo cáo?</string>
     <string name="admin_report_delete_message">Nội dung sẽ bị xoá vĩnh viễn. Hành động này không thể hoàn tác.</string>
     <string name="admin_center_approved">Đã duyệt trung tâm</string>
@@ -378,6 +420,7 @@
     <string name="admin_report_dismissed">Đã bỏ qua báo cáo</string>
     <string name="admin_not_allowed">Bạn không có quyền kiểm duyệt</string>
     <string name="admin_target_question">Câu hỏi bị báo cáo</string>
+    <string name="admin_target_answer">Câu trả lời bị báo cáo</string>
     <string name="admin_target_promo">Bài quảng bá bị báo cáo</string>
     <string name="admin_reporter">Người báo cáo: %1$s</string>
     <string name="admin_promo_author">Tác giả: %1$s</string>

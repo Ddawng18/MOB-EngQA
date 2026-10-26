@@ -21,6 +21,7 @@ import com.example.engqa.model.Vote;
 import com.example.engqa.util.TimeUtils;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Renders the answer list with upvote / downvote controls and the accepted badge. */
@@ -35,6 +36,11 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
     /** Used by the profile so tapping an answer opens the question it belongs to. */
     public interface OnAnswerOpenListener {
         void onOpen(Answer answer);
+    }
+
+    /** Optional: only screens that offer reporting show the per-answer report action. */
+    public interface OnAnswerReportListener {
+        void onReport(Answer answer);
     }
 
     private static final DiffUtil.ItemCallback<Answer> DIFF = new DiffUtil.ItemCallback<Answer>() {
@@ -65,6 +71,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
     private boolean votingEnabled = true;
     private boolean showQuestionTitle;
     private OnAnswerOpenListener openListener;
+    private OnAnswerReportListener reportListener;
 
     public AnswerAdapter(OnAnswerActionListener listener) {
         super(DIFF);
@@ -94,6 +101,24 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
         this.openListener = openListener;
     }
 
+    public void setOnAnswerReportListener(OnAnswerReportListener reportListener) {
+        this.reportListener = reportListener;
+    }
+
+    /** Position of a loaded answer, or -1 when it is no longer in the list. */
+    public int indexOf(String answerId) {
+        if (answerId == null) {
+            return -1;
+        }
+        List<Answer> items = getCurrentList();
+        for (int i = 0; i < items.size(); i++) {
+            if (answerId.equals(items.get(i).getId())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     @NonNull
     @Override
     public AnswerViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -105,7 +130,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
     @Override
     public void onBindViewHolder(@NonNull AnswerViewHolder holder, int position) {
         holder.bind(getItem(position), myVotes, questionOwnerId, currentUid, votingEnabled,
-                listener, showQuestionTitle, openListener);
+                listener, showQuestionTitle, openListener, reportListener);
     }
 
     static class AnswerViewHolder extends RecyclerView.ViewHolder {
@@ -120,6 +145,7 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
         private final TextView score;
         private final TextView acceptedBadge;
         private final TextView acceptButton;
+        private final ImageView report;
 
         AnswerViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -133,11 +159,13 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
             score = itemView.findViewById(R.id.tvScore);
             acceptedBadge = itemView.findViewById(R.id.tvAcceptedBadge);
             acceptButton = itemView.findViewById(R.id.btnAccept);
+            report = itemView.findViewById(R.id.btnAnswerReport);
         }
 
         void bind(Answer answer, Map<String, Integer> myVotes, String questionOwnerId,
                   String currentUid, boolean votingEnabled, OnAnswerActionListener listener,
-                  boolean showQuestionTitle, OnAnswerOpenListener openListener) {
+                  boolean showQuestionTitle, OnAnswerOpenListener openListener,
+                  OnAnswerReportListener reportListener) {
             String name = answer.getAuthorName() != null ? answer.getAuthorName() : "user";
             avatar.setText(name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase(Locale.getDefault()));
             username.setText(name);
@@ -179,6 +207,11 @@ public class AnswerAdapter extends ListAdapter<Answer, AnswerAdapter.AnswerViewH
             score.setTextColor(ContextCompat.getColor(itemView.getContext(), scoreColor));
 
             acceptedBadge.setVisibility(answer.isAccepted() ? View.VISIBLE : View.GONE);
+
+            boolean canReport = reportListener != null && answer.getId() != null;
+            report.setVisibility(canReport ? View.VISIBLE : View.GONE);
+            report.setOnClickListener(canReport
+                    ? v -> reportListener.onReport(answer) : null);
 
             boolean isOwner = questionOwnerId != null && questionOwnerId.equals(currentUid);
             acceptButton.setVisibility(isOwner && !answer.isAccepted() ? View.VISIBLE : View.GONE);

@@ -32,6 +32,7 @@ import com.example.engqa.ui.AudioPlayerView;
 import com.example.engqa.ui.ImageAdapter;
 import com.example.engqa.ui.MediaImageAdapter;
 import com.example.engqa.ui.StateView;
+import com.example.engqa.util.ReportTargets;
 import com.example.engqa.util.TimeUtils;
 import com.example.engqa.viewmodel.AdminViewModel;
 import com.example.engqa.viewmodel.QuestionDetailViewModel;
@@ -47,6 +48,8 @@ import com.example.engqa.util.Navigation;
 public class QuestionDetailActivity extends BaseNavActivity {
 
     public static final String EXTRA_QUESTION_ID = "com.example.engqa.extra.QUESTION_ID";
+    /** Set by the moderation console so the reported answer is brought into view. */
+    public static final String EXTRA_FOCUS_ANSWER_ID = "com.example.engqa.extra.FOCUS_ANSWER_ID";
 
     private QuestionDetailViewModel viewModel;
     private AnswerAdapter answerAdapter;
@@ -57,8 +60,11 @@ public class QuestionDetailActivity extends BaseNavActivity {
     private TextView tvAnswersHeader;
     private EditText etAnswer;
     private TextView btnSend;
+    private RecyclerView recyclerAnswers;
     private String questionId;
     private String uid;
+    private String focusAnswerId;
+    private boolean focusAnswerHandled;
     private boolean isAdmin;
     private Question currentQuestion;
     private List<StoredMedia> currentMedia = new ArrayList<>();
@@ -84,6 +90,7 @@ public class QuestionDetailActivity extends BaseNavActivity {
             finish();
             return;
         }
+        focusAnswerId = getIntent().getStringExtra(EXTRA_FOCUS_ANSWER_ID);
         uid = new SessionManager(this).getUserId();
 
         viewModel = new ViewModelProvider(this).get(QuestionDetailViewModel.class);
@@ -150,10 +157,11 @@ public class QuestionDetailActivity extends BaseNavActivity {
         });
         answerAdapter.setContext(
                 currentQuestion != null ? currentQuestion.getAuthorId() : null, uid);
-        RecyclerView recycler = findViewById(R.id.recyclerAnswers);
-        recycler.setLayoutManager(new LinearLayoutManager(this));
-        recycler.setAdapter(answerAdapter);
-        recycler.setNestedScrollingEnabled(false);
+        answerAdapter.setOnAnswerReportListener(this::showAnswerReportDialog);
+        recyclerAnswers = findViewById(R.id.recyclerAnswers);
+        recyclerAnswers.setLayoutManager(new LinearLayoutManager(this));
+        recyclerAnswers.setAdapter(answerAdapter);
+        recyclerAnswers.setNestedScrollingEnabled(false);
     }
 
     private void setupImages() {
@@ -328,9 +336,21 @@ public class QuestionDetailActivity extends BaseNavActivity {
                 ? getString(R.string.answers_header, count)
                 : getString(R.string.answers_header_zero));
         if (state.getStatus() == UiState.Status.SUCCESS) {
-            answerAdapter.submitList(data);
+            answerAdapter.submitList(data, this::focusReportedAnswer);
         } else if (state.getStatus() == UiState.Status.EMPTY) {
-            answerAdapter.submitList(java.util.Collections.emptyList());
+            answerAdapter.submitList(java.util.Collections.emptyList(), this::focusReportedAnswer);
+        }
+    }
+
+    /** When opened from the moderation queue, scroll to the answer that was reported. */
+    private void focusReportedAnswer() {
+        if (focusAnswerHandled || TextUtils.isEmpty(focusAnswerId)) {
+            return;
+        }
+        int position = answerAdapter.indexOf(focusAnswerId);
+        if (position >= 0) {
+            focusAnswerHandled = true;
+            recyclerAnswers.post(() -> recyclerAnswers.scrollToPosition(position));
         }
     }
 
@@ -383,8 +403,31 @@ public class QuestionDetailActivity extends BaseNavActivity {
             return;
         }
         ReportDialogFragment fragment = ReportDialogFragment.newInstance(
-                "questions/" + questionId);
+                ReportTargets.questionPath(questionId));
         fragment.show(getSupportFragmentManager(), "report");
+    }
+
+    /** Reports one answer, not the whole question; the parent id is required by the target path. */
+    private void showAnswerReportDialog(Answer answer) {
+        if (uid == null) {
+            toast(getString(R.string.login_required));
+            return;
+        }
+        if (answer == null || TextUtils.isEmpty(answer.getId())) {
+            toast(getString(R.string.report_answer_missing));
+            return;
+        }
+        // The answer is rendered from this question's subcollection, so that path is authoritative.
+        String parentQuestionId = !TextUtils.isEmpty(questionId)
+                ? questionId : answer.getQuestionId();
+        if (TextUtils.isEmpty(parentQuestionId)) {
+            toast(getString(R.string.report_target_missing));
+            return;
+        }
+        ReportDialogFragment.newInstance(
+                        ReportTargets.answerPath(parentQuestionId, answer.getId()),
+                        R.string.report_answer)
+                .show(getSupportFragmentManager(), "report_answer");
     }
 
     private void toast(String message) {
