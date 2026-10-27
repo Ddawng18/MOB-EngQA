@@ -72,15 +72,14 @@ function dbFor(uid) {
   return testEnv.authenticatedContext(uid).firestore();
 }
 
-describe('EngQA Firestore rules', function () {
-  this.timeout(30000);
-
+describe('EngQA Firestore rules', () => {
   before(async () => {
     testEnv = await initializeTestEnvironment({
       projectId: PROJECT_ID,
       firestore: { rules: RULES },
     });
   });
+
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await seed();

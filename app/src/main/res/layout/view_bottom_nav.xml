@@ -1,26 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Shared bottom navigation bar used by every main-flow screen. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="68dp"
+    android:layout_height="@dimen/bottom_nav_height"
     android:background="@drawable/bg_bottom_bar"
-    android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp">
+    android:paddingStart="8dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="6dp">
 
-    <TextView
+    <LinearLayout
         android:id="@+id/navHome"
-        style="@style/HomeNavItem"
-        android:text="⌂\nTrang chủ" />
+        style="@style/HomeNavItem">
 
-    <TextView
+        <FrameLayout
+            style="@style/HomeNavIcon"
+            android:background="@drawable/bg_nav_indicator"
+            android:duplicateParentState="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/nav_home_item"
+                android:duplicateParentState="true"
+                android:src="@drawable/ic_nav_home"
+                app:tint="@color/nav_item_color" />
+        </FrameLayout>
+
+        <TextView
+            style="@style/HomeNavLabel"
+            android:text="@string/nav_home_item" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/navAsk"
-        style="@style/HomeNavItem"
-        android:text="＋\nĐặt câu hỏi" />
+        style="@style/HomeNavItem">
 
-    <TextView
+        <FrameLayout
+            style="@style/HomeNavIcon"
+            android:background="@drawable/bg_nav_indicator"
+            android:duplicateParentState="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/nav_ask_item"
+                android:duplicateParentState="true"
+                android:src="@drawable/ic_nav_ask"
+                app:tint="@color/nav_item_color" />
+        </FrameLayout>
+
+        <TextView
+            style="@style/HomeNavLabel"
+            android:text="@string/nav_ask_item" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/navProfile"
-        style="@style/HomeNavItem"
-        android:text="👤\nCá nhân" />
+        style="@style/HomeNavItem">
+
+        <FrameLayout
+            style="@style/HomeNavIcon"
+            android:background="@drawable/bg_nav_indicator"
+            android:duplicateParentState="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/nav_profile_item"
+                android:duplicateParentState="true"
+                android:src="@drawable/ic_nav_profile"
+                app:tint="@color/nav_item_color" />
+        </FrameLayout>
+
+        <TextView
+            style="@style/HomeNavLabel"
+            android:text="@string/nav_profile_item" />
+    </LinearLayout>
 </LinearLayout>
