@@ -7,6 +7,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.MenuItem;
@@ -73,6 +77,8 @@ public class HomeActivity extends BaseNavActivity {
     private TextView notificationBadge;
     private TextView offlineBanner;
     private NotificationViewModel notificationViewModel;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
 
     private User currentUser;
     private boolean pendingReceiverRegistered;
@@ -198,6 +204,8 @@ public class HomeActivity extends BaseNavActivity {
         }
         viewModel.start();
         notificationViewModel.start(uid);
+        registerNetworkCallback();
+        updateOfflineBanner(!NetworkUtils.isOnline(this));
         if (!pendingReceiverRegistered) {
             ContextCompat.registerReceiver(this, pendingPostedReceiver,
                     new IntentFilter(PendingQuestionWorker.ACTION_PENDING_POSTED),
@@ -216,6 +224,7 @@ public class HomeActivity extends BaseNavActivity {
         // Keep the feed listeners/ViewModel state so returning from a detail screen or a
         // configuration change does not restart the first page. onCleared() detaches them.
         notificationViewModel.stop();
+        unregisterNetworkCallback();
     }
 
     /** Red badge with the unread notification count (hidden at zero). */
@@ -334,6 +343,9 @@ public class HomeActivity extends BaseNavActivity {
         if (state == null) {
             return;
         }
+        // The banner is a network-status hint, not a Firestore cache hint. A cached first
+        // snapshot is normal even while online, so only ConnectivityManager decides.
+        updateOfflineBanner(!NetworkUtils.isOnline(this));
         switch (state.getStatus()) {
             case LOADING:
                 stateView.showLoading();
@@ -343,7 +355,6 @@ public class HomeActivity extends BaseNavActivity {
                 stateView.showContent();
                 recyclerView.setVisibility(View.VISIBLE);
                 feedAdapter.submitList(state.getData());
-                updateOfflineBanner(state.isFromCache());
                 break;
             case EMPTY:
                 if (viewModel.isUnsearchableQuery()) {
@@ -371,12 +382,51 @@ public class HomeActivity extends BaseNavActivity {
                 }
                 stateView.showError(state.getMessage());
                 recyclerView.setVisibility(View.GONE);
-                updateOfflineBanner(false);
                 break;
         }
     }
 
-    /** A compact, dismissible-looking hint above the feed when Room/Firestore served old data. */
+    /** Registered only while the home screen is visible; unregistered in onStop(). */
+    private void registerNetworkCallback() {
+        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivityManager == null || networkCallback != null) {
+            return;
+        }
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build();
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                runOnUiThread(() -> updateOfflineBanner(!NetworkUtils.isOnline(HomeActivity.this)));
+            }
+
+            @Override
+            public void onLost(Network network) {
+                runOnUiThread(() -> updateOfflineBanner(!NetworkUtils.isOnline(HomeActivity.this)));
+            }
+
+            @Override
+            public void onCapabilitiesChanged(Network network,
+                                              NetworkCapabilities capabilities) {
+                runOnUiThread(() -> updateOfflineBanner(!NetworkUtils.isOnline(HomeActivity.this)));
+            }
+        };
+        connectivityManager.registerNetworkCallback(request, networkCallback);
+    }
+
+    private void unregisterNetworkCallback() {
+        if (connectivityManager != null && networkCallback != null) {
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (IllegalArgumentException ignored) {
+                // Already unregistered.
+            }
+            networkCallback = null;
+        }
+    }
+
+    /** A compact hint above the feed when ConnectivityManager reports no validated network. */
     private void setupOfflineBanner() {
         LinearLayout root = findViewById(R.id.homeRoot);
         if (root == null) {
