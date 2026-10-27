@@ -8,13 +8,13 @@
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="14dp">
+    android:padding="@dimen/card_padding">
 
     <View
         android:id="@+id/vUnread"
         android:layout_width="8dp"
         android:layout_height="8dp"
-        android:layout_marginEnd="10dp"
+        android:layout_marginEnd="12dp"
         android:background="@drawable/bg_avatar"
         android:backgroundTint="@color/accent_orange" />
 
@@ -28,24 +28,22 @@
             android:id="@+id/tvNotificationTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textAppearance="@style/TextAppearance.EngQA.Subtitle"
+            android:textSize="15sp" />
 
         <TextView
             android:id="@+id/tvNotificationBody"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="@color/text_body"
-            android:textSize="13sp" />
+            android:layout_marginTop="3dp"
+            android:textAppearance="@style/TextAppearance.EngQA.BodySmall"
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/tvNotificationTime"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp" />
+            android:layout_marginTop="6dp"
+            android:textAppearance="@style/TextAppearance.EngQA.LabelSmall" />
     </LinearLayout>
 </LinearLayout>

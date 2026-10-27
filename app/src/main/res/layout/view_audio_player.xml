@@ -3,11 +3,11 @@
 
     <ImageView
         android:id="@+id/btnPlayPause"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/label_audio"
-        android:padding="8dp"
+        android:padding="12dp"
         android:src="@drawable/ic_play" />
 
     <TextView
@@ -19,4 +19,19 @@
         android:text="@string/label_audio"
         android:textColor="@color/text_body"
         android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/btnBackgroundAudio"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/audio_background"
+        android:gravity="center"
+        android:minWidth="48dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/audio_background"
+        android:textColor="@color/accent_orange"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 </merge>

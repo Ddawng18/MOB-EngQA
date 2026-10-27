@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -70,6 +71,7 @@ public class HomeActivity extends BaseNavActivity {
     private RecyclerView sortRecycler;
     private TextView profileButton;
     private TextView notificationBadge;
+    private TextView offlineBanner;
     private NotificationViewModel notificationViewModel;
 
     private User currentUser;
@@ -138,6 +140,7 @@ public class HomeActivity extends BaseNavActivity {
         setupCategoryChips();
         setupSortChips();
         setupSearch();
+        setupOfflineBanner();
 
         findViewById(R.id.notificationButton).setOnClickListener(v -> {
             if (new SessionManager(this).isLoggedIn()) {
@@ -263,9 +266,20 @@ public class HomeActivity extends BaseNavActivity {
             return;
         }
         blockedShown = true;
-        startActivity(new Intent(this, AccountBlockedActivity.class)
+        Intent intent = new Intent(this, AccountBlockedActivity.class)
                 .putExtra(AccountBlockedActivity.EXTRA_MODE, mode)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        if (currentUser != null) {
+            intent.putExtra(AccountBlockedActivity.EXTRA_TIMEOUT_COUNT,
+                    currentUser.getTimeoutCount());
+            intent.putExtra(AccountBlockedActivity.EXTRA_WARNING_COUNT,
+                    currentUser.getWarningCount());
+            if (currentUser.getTimeoutUntil() != null) {
+                intent.putExtra(AccountBlockedActivity.EXTRA_TIMEOUT_UNTIL,
+                        currentUser.getTimeoutUntil().getTime());
+            }
+        }
+        startActivity(intent);
         finish();
     }
 
@@ -329,6 +343,7 @@ public class HomeActivity extends BaseNavActivity {
                 stateView.showContent();
                 recyclerView.setVisibility(View.VISIBLE);
                 feedAdapter.submitList(state.getData());
+                updateOfflineBanner(state.isFromCache());
                 break;
             case EMPTY:
                 if (viewModel.isUnsearchableQuery()) {
@@ -356,7 +371,34 @@ public class HomeActivity extends BaseNavActivity {
                 }
                 stateView.showError(state.getMessage());
                 recyclerView.setVisibility(View.GONE);
+                updateOfflineBanner(false);
                 break;
+        }
+    }
+
+    /** A compact, dismissible-looking hint above the feed when Room/Firestore served old data. */
+    private void setupOfflineBanner() {
+        LinearLayout root = findViewById(R.id.homeRoot);
+        if (root == null) {
+            return;
+        }
+        offlineBanner = new TextView(this);
+        offlineBanner.setText(R.string.home_offline_banner);
+        offlineBanner.setTextColor(getColor(R.color.text_body));
+        offlineBanner.setTextSize(12);
+        offlineBanner.setBackgroundColor(getColor(R.color.bg_card));
+        int horizontal = (int) (12 * getResources().getDisplayMetrics().density);
+        int vertical = (int) (6 * getResources().getDisplayMetrics().density);
+        offlineBanner.setPadding(horizontal, vertical, horizontal, vertical);
+        offlineBanner.setVisibility(View.GONE);
+        root.addView(offlineBanner, 1, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    private void updateOfflineBanner(boolean visible) {
+        if (offlineBanner != null) {
+            offlineBanner.setVisibility(visible ? View.VISIBLE : View.GONE);
         }
     }
 

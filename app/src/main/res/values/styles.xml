@@ -1,51 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="FormLabel">
+
+    <!-- ============================ Buttons ============================ -->
+
+    <style name="Widget.EngQA.Button" parent="Widget.Material3.Button">
+        <item name="android:layout_height">@dimen/button_height</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/on_primary</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="backgroundTint">@color/accent_orange</item>
+        <item name="iconTint">@color/on_primary</item>
+        <item name="cornerRadius">@dimen/radius_m</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <style name="Widget.EngQA.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:layout_height">44dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="strokeColor">@color/border_input</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="iconTint">@color/text_primary</item>
+        <item name="cornerRadius">@dimen/radius_m</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <style name="Widget.EngQA.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:layout_height">44dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/accent_orange</item>
+        <item name="cornerRadius">@dimen/radius_m</item>
+    </style>
+
+    <!-- ============================ Cards ============================ -->
+
+    <style name="Widget.EngQA.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/bg_card</item>
+        <item name="strokeColor">@color/surface_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardCornerRadius">@dimen/card_radius</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardPreventCornerOverlap">true</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.EngQA.Image" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/radius_m</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.EngQA.Avatar" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- ============================ Forms ============================ -->
+
+    <style name="FormLabel" parent="TextAppearance.EngQA.Label">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginBottom">8dp</item>
-        <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.01</item>
     </style>
 
     <style name="FormInput">
         <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">@dimen/input_height</item>
         <item name="android:background">@drawable/bg_input</item>
-        <item name="android:paddingStart">12dp</item>
-        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textColorHint">@color/text_hint</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:drawablePadding">10dp</item>
     </style>
 
     <style name="OutlineButton">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">42dp</item>
+        <item name="android:layout_height">44dp</item>
         <item name="android:layout_weight">1</item>
         <item name="android:background">@drawable/bg_button_outline</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center</item>
-        <item name="android:textColor">@color/accent_orange</item>
+        <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:drawablePadding">8dp</item>
     </style>
+
+    <!-- ============================ Chips / nav ============================ -->
 
     <style name="HomeFilterChip">
         <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">32dp</item>
+        <item name="android:layout_height">36dp</item>
         <item name="android:layout_marginEnd">8dp</item>
         <item name="android:background">@drawable/bg_chip</item>
         <item name="android:gravity">center</item>
-        <item name="android:paddingStart">14dp</item>
-        <item name="android:paddingEnd">14dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
         <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
     <style name="HomeFilterChip.Active" parent="HomeFilterChip">
-        <item name="android:background">@drawable/bg_button_primary</item>
-        <item name="android:textColor">@color/white</item>
+        <item name="android:background">@drawable/bg_chip_active</item>
+        <item name="android:textColor">@color/accent_orange</item>
     </style>
 
     <style name="HomeNavItem">
@@ -53,16 +124,39 @@
         <item name="android:layout_height">match_parent</item>
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center</item>
-        <item name="android:lineSpacingExtra">2dp</item>
-        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="HomeNavLabel" parent="TextAppearance.EngQA.LabelSmall">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:textColor">@color/nav_item_color</item>
         <item name="android:textSize">11sp</item>
+        <item name="android:duplicateParentState">true</item>
     </style>
 
-    <style name="HomeNavItem.Active" parent="HomeNavItem">
-        <item name="android:textColor">@color/accent_orange</item>
+    <style name="HomeNavIcon">
+        <item name="android:layout_width">52dp</item>
+        <item name="android:layout_height">26dp</item>
+        <item name="android:duplicateParentState">true</item>
     </style>
 
-    <!-- Promo / centre advertising -->
+    <!-- ============================ Settings ============================ -->
+
+    <style name="SettingsSectionLabel" parent="TextAppearance.EngQA.Label">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">20dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:textColor">@color/text_hint</item>
+    </style>
+
+    <!-- ============================ Promo / centre advertising ============================ -->
 
     <style name="Promo" />
 
@@ -79,26 +173,20 @@
         <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="Promo.Title">
+    <style name="Promo.Title" parent="TextAppearance.EngQA.Title">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">16sp</item>
-        <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="Promo.Meta">
+    <style name="Promo.Meta" parent="TextAppearance.EngQA.Caption">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">12sp</item>
     </style>
 
-    <style name="Promo.CenterName">
+    <style name="Promo.CenterName" parent="TextAppearance.EngQA.Label">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">13sp</item>
-        <item name="android:textStyle">bold</item>
     </style>
 </resources>
