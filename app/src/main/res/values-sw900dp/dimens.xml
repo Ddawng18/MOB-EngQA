@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Large tablet portrait: avoid very wide line lengths in auth/forms. -->
+    <dimen name="form_horizontal_padding">120dp</dimen>
+    <dimen name="auth_horizontal_padding">160dp</dimen>
+    <dimen name="auth_title_top_margin">24dp</dimen>
+    <dimen name="auth_field_top_margin">28dp</dimen>
+    <dimen name="home_rail_width">340dp</dimen>
+</resources>
