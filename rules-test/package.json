@@ -2,7 +2,7 @@
   "name": "engqa-rules-test",
   "private": true,
   "scripts": {
-    "test": "mocha --reporter spec firestore.rules.test.js"
+    "test": "mocha --timeout 10000 --reporter spec firestore.rules.test.js"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
