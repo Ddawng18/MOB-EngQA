@@ -13,6 +13,7 @@ const {
   deleteDoc,
   collection,
   addDoc,
+  runTransaction,
 } = require('firebase/firestore');
 
 const PROJECT_ID = 'demo-engqa';
@@ -177,6 +178,35 @@ describe('EngQA Firestore rules', () => {
     await assertSucceeds(updateDoc(doc(adminDb, 'reports/owner_abc123'), {
       status: 'resolved', resolutionAction: 'warn', resolutionNote: 'warned',
       resolvedBy: 'admin', resolvedAt: new Date(),
+    }));
+  });
+
+  it('allows the first report through the deterministic transaction', async () => {
+    const db = dbFor('owner');
+    const reportRef = doc(db, 'reports/owner_tx123');
+    await assertSucceeds(runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(reportRef);
+      if (existing.exists() && existing.get('status') === 'pending') {
+        throw new Error('already reported');
+      }
+      transaction.set(reportRef, {
+        reporterId: 'owner', targetPath: 'questions/q1', reason: 'spam',
+        status: 'pending', createdAt: new Date(),
+      });
+    }));
+    await assertSucceeds(getDoc(reportRef));
+  });
+
+  it('lets the reporter reopen their own resolved report', async () => {
+    const db = dbFor('owner');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'reports/owner_resolved'), {
+        reporterId: 'owner', targetPath: 'questions/q1', reason: 'old',
+        status: 'resolved', resolutionAction: 'warn', createdAt: new Date(),
+      });
+    });
+    await assertSucceeds(updateDoc(doc(db, 'reports/owner_resolved'), {
+      reason: 'again', status: 'pending', createdAt: new Date(),
     }));
   });
 
