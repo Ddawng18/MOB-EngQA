@@ -6,8 +6,10 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.engqa.R;
+import com.example.engqa.media.AudioPlaybackService;
 import com.example.engqa.media.AudioPlayerManager;
 
 /**
@@ -20,7 +22,9 @@ public class AudioPlayerView extends LinearLayout {
     private final AudioPlayerManager playerManager = new AudioPlayerManager();
     private ImageView playButton;
     private TextView label;
+    private TextView backgroundButton;
     private String url;
+    private String questionId;
 
     public AudioPlayerView(Context context) {
         this(context, null);
@@ -37,10 +41,23 @@ public class AudioPlayerView extends LinearLayout {
         inflate(context, R.layout.view_audio_player, this);
         playButton = findViewById(R.id.btnPlayPause);
         label = findViewById(R.id.tvAudioLabel);
+        backgroundButton = findViewById(R.id.btnBackgroundAudio);
         playButton.setOnClickListener(v -> toggle());
+        backgroundButton.setOnClickListener(v -> {
+            if (url != null) {
+                AudioPlaybackService.play(getContext(), url, questionId);
+                Toast.makeText(getContext(), R.string.audio_background_started,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
         playerManager.setListener((playing, positionMs, durationMs) ->
                 playButton.setImageResource(playing ? R.drawable.ic_pause : R.drawable.ic_play));
         setVisibility(GONE);
+    }
+
+    /** Deep-link target used by the foreground-service notification. */
+    public void setQuestionId(String questionId) {
+        this.questionId = questionId;
     }
 
     public void setUrl(String url) {
