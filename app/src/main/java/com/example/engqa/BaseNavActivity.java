@@ -1,11 +1,11 @@
 package com.example.engqa;
 
 import android.content.Intent;
-import android.graphics.Typeface;
-import android.widget.TextView;
+import android.os.Bundle;
+import android.view.View;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 
 /**
  * Base class for every screen that shows the shared bottom navigation bar.
@@ -24,6 +24,32 @@ public abstract class BaseNavActivity extends AppCompatActivity {
     /** The bottom-nav tab that this screen belongs to. */
     protected abstract int selectedNavItem();
 
+    /** {@code true} only for the three root tab screens (not detail screens using the same bar). */
+    protected boolean isTabActivity() {
+        return false;
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (!isTabActivity()) {
+            return;
+        }
+        // Predictive-back compatible: only the root tabs intercept Back.
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (selectedNavItem() != NAV_HOME) {
+                    // Back from Ask/Profile returns to the start destination, not the last tab.
+                    navigateTo(NAV_HOME);
+                    return;
+                }
+                // At the root, leave the app instead of surfacing a previously visited tab.
+                moveTaskToBack(true);
+            }
+        });
+    }
+
     /** Wire the three nav items. Call from {@code onCreate} after {@code setContentView}. */
     protected void bindBottomNav() {
         setupNavItem(findViewById(R.id.navHome), NAV_HOME);
@@ -31,14 +57,13 @@ public abstract class BaseNavActivity extends AppCompatActivity {
         setupNavItem(findViewById(R.id.navProfile), NAV_PROFILE);
     }
 
-    private void setupNavItem(TextView item, int navItem) {
+    private void setupNavItem(View item, int navItem) {
         if (item == null) {
             return;
         }
-        boolean active = navItem == selectedNavItem();
-        item.setTextColor(ContextCompat.getColor(this,
-                active ? R.color.accent_orange : R.color.text_secondary));
-        item.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
+        // The label and icon use a state-list colour (@color/nav_item_color), so selecting the
+        // row is all the styling the bar needs.
+        item.setSelected(navItem == selectedNavItem());
         item.setOnClickListener(view -> navigateTo(navItem));
     }
 
