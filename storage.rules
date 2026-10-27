@@ -6,6 +6,20 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    function isAdmin() {
+      return request.auth != null
+          && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    function isCenterManager(centerId) {
+      return request.auth != null
+          && firestore.exists(/databases/(default)/documents/centers/$(centerId))
+          && request.auth.uid in firestore.get(
+              /databases/(default)/documents/centers/$(centerId)).data.managerUids
+          && firestore.get(
+              /databases/(default)/documents/centers/$(centerId)).data.status == 'APPROVED';
+    }
+
     match /questions/{uid}/{questionId}/{media}/{fileName} {
       allow read: if true;
 
@@ -24,10 +38,11 @@ service firebase.storage {
           && request.resource.contentType.matches('audio/.*');
     }
 
-    // Centre logos and avatars (optional, Group B).
+    // Centre logos (optional). Only an admin or an approved manager of that centre may write;
+    // previously any signed-in account could overwrite any centre's logo.
     match /centers/{centerId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow write: if (isAdmin() || isCenterManager(centerId))
           && request.resource.size <= 5 * 1024 * 1024
           && request.resource.contentType.matches('image/.*');
     }

@@ -1,4 +1,4 @@
-# Android Studio / IntelliJ
+﻿# Android Studio / IntelliJ
 .idea/
 *.iml
 *.ipr
@@ -61,3 +61,12 @@ keystore.properties
 # Seed tooling
 tools/seed/node_modules/
 tools/seed/package-lock.json
+
+# Firestore rules unit tests
+rules-test/node_modules/
+rules-test/*.log
+
+# Internal reports / documentation (kept outside this repository)
+/docs/
+/*_REPORT.md
+/APP_AUDIT_REPORT.md

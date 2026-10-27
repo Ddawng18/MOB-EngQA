@@ -14,7 +14,7 @@ import com.example.engqa.R;
 import com.example.engqa.model.AppNotification;
 import com.example.engqa.util.TimeUtils;
 
-/** Renders the notification list. Tapping an item opens the related question. */
+/** Renders the notification list. Tapping an item opens its related content. */
 public class NotificationAdapter
         extends ListAdapter<AppNotification, NotificationAdapter.NotificationViewHolder> {
 

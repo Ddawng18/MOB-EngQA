@@ -14,6 +14,14 @@ public class AppNotification {
     public static final String TYPE_ANSWER = "answer";
     public static final String TYPE_VOTE = "vote";
     public static final String TYPE_ACCEPTED = "accepted";
+    /** Admin warning after a report; only admins may create this type (see firestore.rules). */
+    public static final String TYPE_MODERATION_WARNING = "moderation_warning";
+    /** Admin deletion of reported content; only admins may create this type. */
+    public static final String TYPE_MODERATION_DELETED = "moderation_deleted";
+    public static final String TYPE_CENTER_APPROVED = "center_approved";
+    public static final String TYPE_CENTER_REJECTED = "center_rejected";
+    public static final String TYPE_PROMO_APPROVED = "promo_approved";
+    public static final String TYPE_PROMO_REJECTED = "promo_rejected";
 
     @DocumentId
     private String id;
@@ -23,6 +31,9 @@ public class AppNotification {
     private String type;
     private String questionId;
     private String answerId;
+    private String reportId;
+    private String centerId;
+    private String promoId;
     private String title;
     private String body;
     private boolean read;
@@ -86,6 +97,33 @@ public class AppNotification {
 
     public void setAnswerId(String answerId) {
         this.answerId = answerId;
+    }
+
+    /** Report that produced this moderation notification, when applicable. */
+    public String getReportId() {
+        return reportId;
+    }
+
+    public void setReportId(String reportId) {
+        this.reportId = reportId;
+    }
+
+    /** Center involved in a center/promo moderation notification, when applicable. */
+    public String getCenterId() {
+        return centerId;
+    }
+
+    public void setCenterId(String centerId) {
+        this.centerId = centerId;
+    }
+
+    /** Promo involved in a promo moderation notification, when applicable. */
+    public String getPromoId() {
+        return promoId;
+    }
+
+    public void setPromoId(String promoId) {
+        this.promoId = promoId;
     }
 
     public String getTitle() {
