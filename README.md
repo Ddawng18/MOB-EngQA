@@ -100,7 +100,7 @@ The repository currently includes the demo Firebase configuration. For your own 
 1. Clone the repository and open it in Android Studio.
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Ddawng18/MOB-EngQA.git
    cd MOB-EngQA
    ```
 
